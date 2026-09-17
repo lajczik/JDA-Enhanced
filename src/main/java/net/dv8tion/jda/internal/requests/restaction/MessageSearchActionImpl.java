@@ -16,6 +16,9 @@
 
 package net.dv8tion.jda.internal.requests.restaction;
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
@@ -52,23 +55,23 @@ public class MessageSearchActionImpl extends RestActionImpl<MessageSearchRespons
     private String minId, maxId;
     private Integer slop;
     private String content;
-    private Set<String> channels = Collections.emptySet();
-    private Set<AuthorType> includedAuthorTypes = Collections.emptySet();
-    private Set<AuthorType> excludedAuthorTypes = Collections.emptySet();
-    private Set<String> authors = Collections.emptySet();
-    private Set<String> mentionsUsers = Collections.emptySet();
-    private Set<String> mentionsRoles = Collections.emptySet();
+    private Set<String> channels = Set.of();
+    private Set<AuthorType> includedAuthorTypes = Set.of();
+    private Set<AuthorType> excludedAuthorTypes = Set.of();
+    private Set<String> authors = Set.of();
+    private Set<String> mentionsUsers = Set.of();
+    private Set<String> mentionsRoles = Set.of();
     private Boolean mentionsEveryone;
-    private Set<String> repliesToUsers = Collections.emptySet();
-    private Set<String> repliesToMessages = Collections.emptySet();
+    private Set<String> repliesToUsers = Set.of();
+    private Set<String> repliesToMessages = Set.of();
     private Boolean pinned;
-    private Set<HasType> includedHasTypes = Collections.emptySet();
-    private Set<HasType> excludedHasTypes = Collections.emptySet();
-    private Set<EmbedType> embedTypes = Collections.emptySet();
-    private Set<String> embedProviders = Collections.emptySet();
-    private Set<String> linkHostnames = Collections.emptySet();
-    private Set<String> attachmentFilenames = Collections.emptySet();
-    private Set<String> attachmentExtensions = Collections.emptySet();
+    private Set<HasType> includedHasTypes = Set.of();
+    private Set<HasType> excludedHasTypes = Set.of();
+    private Set<EmbedType> embedTypes = Set.of();
+    private Set<String> embedProviders = Set.of();
+    private Set<String> linkHostnames = Set.of();
+    private Set<String> attachmentFilenames = Set.of();
+    private Set<String> attachmentExtensions = Set.of();
     private SortType sortBy = null;
     private SortOrder sortOrder = null;
     private Boolean includeNsfw;
@@ -205,7 +208,7 @@ public class MessageSearchActionImpl extends RestActionImpl<MessageSearchRespons
     public MessageSearchAction includeAuthorTypes(@Nonnull Collection<AuthorType> authorTypes) {
         Checks.noneNull(authorTypes, "Author types");
         this.includedAuthorTypes = Helpers.copyEnumSet(AuthorType.class, authorTypes);
-        this.excludedAuthorTypes = Collections.emptySet();
+        this.excludedAuthorTypes = Set.of();
         return this;
     }
 
@@ -213,7 +216,7 @@ public class MessageSearchActionImpl extends RestActionImpl<MessageSearchRespons
     @Override
     public MessageSearchAction excludeAuthorTypes(@Nonnull Collection<AuthorType> authorTypes) {
         Checks.noneNull(authorTypes, "Author types");
-        this.includedAuthorTypes = Collections.emptySet();
+        this.includedAuthorTypes = Set.of();
         this.excludedAuthorTypes = Helpers.copyEnumSet(AuthorType.class, authorTypes);
         return this;
     }
@@ -293,7 +296,7 @@ public class MessageSearchActionImpl extends RestActionImpl<MessageSearchRespons
     public MessageSearchAction includeHasTypes(@Nonnull Collection<HasType> hasTypes) {
         Checks.noneNull(hasTypes, "HasTypes");
         this.includedHasTypes = Helpers.copyEnumSet(HasType.class, hasTypes);
-        this.excludedHasTypes = Collections.emptySet();
+        this.excludedHasTypes = Set.of();
         return this;
     }
 
@@ -301,7 +304,7 @@ public class MessageSearchActionImpl extends RestActionImpl<MessageSearchRespons
     @Override
     public MessageSearchAction excludeHasTypes(@Nonnull Collection<HasType> hasTypes) {
         Checks.noneNull(hasTypes, "HasTypes");
-        this.includedHasTypes = Collections.emptySet();
+        this.includedHasTypes = Set.of();
         this.excludedHasTypes = Helpers.copyEnumSet(HasType.class, hasTypes);
         return this;
     }
@@ -543,7 +546,7 @@ public class MessageSearchActionImpl extends RestActionImpl<MessageSearchRespons
     }
 
     private List<Message> readMessages(DataObject object) {
-        Map<Long, ThreadChannel> threads = readThreadChannels(object);
+        Long2ObjectMap<ThreadChannel> threads = readThreadChannels(object);
 
         return Helpers.mapGracefully(
                         object
@@ -562,41 +565,44 @@ public class MessageSearchActionImpl extends RestActionImpl<MessageSearchRespons
                                         "Could not find a thread or a regular channel with ID %d in guild %s",
                                         channelId, guild.getId()));
                             }
-                            return api.getEntityBuilder().createMessageWithChannel(d, channel, false);
+                            return (Message) api.getEntityBuilder().createMessageWithChannel(d, channel, false);
                         },
                         "Unable to read a message from search results")
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull
-    private Map<Long, ThreadChannel> readThreadChannels(DataObject object) {
+    private Long2ObjectMap<ThreadChannel> readThreadChannels(DataObject object) {
         if (object.isNull("threads")) {
-            return Collections.emptyMap();
+            return Long2ObjectMaps.emptyMap();
         }
 
         // Thread ID -> Thread member object
-        Map<Long, DataObject> selfThreadMemberObjects = readSelfThreadMemberObjects(object);
+        Long2ObjectMap<DataObject> selfThreadMemberObjects = readSelfThreadMemberObjects(object);
 
-        return Helpers.mapGracefully(
+        Long2ObjectMap<ThreadChannel> result = new Long2ObjectOpenHashMap<>();
+        Helpers.mapGracefully(
                         object.getArray("threads").stream(DataArray::getObject),
                         o -> {
                             // Put the self thread member, if it did join the thread
-                            o.put("member", selfThreadMemberObjects.get(o.getUnsignedLong("id")));
-
+                            long id = o.getUnsignedLong("id");
+                            o.put("member", selfThreadMemberObjects.get(id));
                             return api.getEntityBuilder()
                                     .createThreadChannel((GuildImpl) guild, o, guild.getIdLong(), false);
                         },
                         "Unable to read a thread channel from search results")
-                .collect(Collectors.toMap(ISnowflake::getIdLong, c -> c));
+                .forEach(c -> result.put(c.getIdLong(), c));
+        return result;
     }
 
     @Nonnull
-    private static Map<Long, DataObject> readSelfThreadMemberObjects(DataObject object) {
+    private static Long2ObjectMap<DataObject> readSelfThreadMemberObjects(DataObject object) {
         if (object.isNull("members")) {
-            return Collections.emptyMap();
+            return Long2ObjectMaps.emptyMap();
         }
 
-        return object.getArray("members").stream(DataArray::getObject)
-                .collect(Collectors.toMap(o -> o.getUnsignedLong("id"), o -> o));
+        Long2ObjectMap<DataObject> result = new Long2ObjectOpenHashMap<>();
+        object.getArray("members").stream(DataArray::getObject).forEach(o -> result.put(o.getUnsignedLong("id"), o));
+        return result;
     }
 }

@@ -20,11 +20,12 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.exceptions.ContextException;
 import net.dv8tion.jda.api.requests.Request;
 import net.dv8tion.jda.api.requests.Response;
+import net.dv8tion.jda.api.requests.RestFuture;
 import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -114,7 +115,7 @@ public class TriggerRestAction<T> extends RestActionImpl<T> {
         if (isReady) {
             return super.submit(shouldQueue);
         }
-        CompletableFuture<T> future = new CompletableFuture<>();
+        CompletableFuture<T> future = new RestFuture<>(api);
         Consumer<? super Throwable> onFailure = wrapContext(future::completeExceptionally);
 
         onReady(() -> {

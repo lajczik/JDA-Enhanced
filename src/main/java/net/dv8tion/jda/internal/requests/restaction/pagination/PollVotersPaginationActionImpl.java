@@ -74,7 +74,7 @@ public class PollVotersPaginationActionImpl extends PaginationActionImpl<User, P
             if (useCache) {
                 cached.addAll(users);
             }
-            last = users.get(users.size() - 1);
+            last = users.getLast();
             lastKey = last.getIdLong();
         }
 

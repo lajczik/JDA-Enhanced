@@ -255,7 +255,7 @@ public interface ApplicationManager extends Manager<ApplicationManager> {
         public static IntegrationTypeConfig of(
                 @Nullable Collection<String> scopes, @Nullable Collection<Permission> permissions) {
             return new IntegrationTypeConfig(
-                    scopes == null ? Collections.emptySet() : new LinkedHashSet<>(scopes),
+                    scopes == null ? Set.of() : new LinkedHashSet<>(scopes),
                     permissions == null ? 0L : Permission.getRaw(permissions));
         }
 

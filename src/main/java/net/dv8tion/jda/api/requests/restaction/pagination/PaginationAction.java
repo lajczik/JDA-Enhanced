@@ -17,6 +17,7 @@
 package net.dv8tion.jda.api.requests.restaction.pagination;
 
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.requests.RestFuture;
 import net.dv8tion.jda.api.utils.Procedure;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
@@ -440,7 +441,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
         Checks.notNull(rule, "Rule");
         Checks.notNegative(limit, "Limit");
         List<T> result = new ArrayList<>();
-        CompletableFuture<List<T>> future = new CompletableFuture<>();
+        CompletableFuture<List<T>> future = new RestFuture<>(getJDA());
         CompletableFuture<?> handle = forEachAsync((element) -> {
             if (rule.test(element)) {
                 return false;

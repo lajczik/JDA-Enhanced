@@ -18,6 +18,7 @@ package net.dv8tion.jda.internal.requests.restaction.operator;
 
 import net.dv8tion.jda.api.exceptions.RateLimitedException;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.requests.RestFuture;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
@@ -58,7 +59,7 @@ public class DelayRestAction<T> extends RestActionOperator<T, T> {
     @Nonnull
     @Override
     public CompletableFuture<T> submit(boolean shouldQueue) {
-        CompletableFuture<T> future = new CompletableFuture<>();
+        CompletableFuture<T> future = new RestFuture<>(getJDA());
         queue(future::complete, future::completeExceptionally);
         return future;
     }

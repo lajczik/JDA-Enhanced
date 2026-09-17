@@ -16,13 +16,20 @@
 
 package net.dv8tion.jda.api.requests;
 
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
-import okhttp3.RequestBody;
-import org.apache.commons.collections4.map.CaseInsensitiveMap;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BooleanSupplier;
+
+import javax.annotation.CheckReturnValue;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link CompletableFuture} used for {@link RestAction#submit()}.
@@ -31,6 +38,7 @@ import java.util.function.BooleanSupplier;
  */
 public class RestFuture<T> extends CompletableFuture<T> {
     final Request<T> request;
+    final JDA api;
 
     public RestFuture(
             RestActionImpl<T> restAction,
@@ -41,7 +49,8 @@ public class RestFuture<T> extends CompletableFuture<T> {
             long deadline,
             boolean priority,
             Route.CompiledRoute route,
-            CaseInsensitiveMap<String, String> headers) {
+            Map<String, String> headers) {
+        this.api = restAction.getJDA();
         this.request = new Request<>(
                 restAction,
                 this::complete,
@@ -57,14 +66,53 @@ public class RestFuture<T> extends CompletableFuture<T> {
         ((JDAImpl) restAction.getJDA()).getRequester().request(this.request);
     }
 
-    public RestFuture(T t) {
-        complete(t);
+    public RestFuture(@Nullable JDA api) {
+        this.api = api;
         this.request = null;
     }
 
-    public RestFuture(Throwable t) {
-        completeExceptionally(t);
+    public RestFuture(@Nullable JDA api, T t) {
+        this.api = api;
         this.request = null;
+        complete(t);
+    }
+
+    public RestFuture(@Nullable JDA api, Throwable t) {
+        this.api = api;
+        this.request = null;
+        completeExceptionally(t);
+    }
+
+    public RestFuture(T t) {
+        this(null, t);
+    }
+
+    public RestFuture(Throwable t) {
+        this(null, t);
+    }
+
+    @Nonnull
+    @Override
+    public Executor defaultExecutor() {
+        JDA jda = this.api != null ? this.api : (this.request != null ? this.request.getJDA() : null);
+        if (jda != null) {
+            ExecutorService executor = jda.getCallbackPool();
+            if (executor == null || executor.isShutdown()) {
+                executor = jda.getEventPool();
+            }
+            if (executor != null && !executor.isShutdown()) {
+                return executor;
+            }
+        }
+        return super.defaultExecutor();
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    @Override
+    public <U> CompletableFuture<U> newIncompleteFuture() {
+        JDA jda = this.api != null ? this.api : (this.request != null ? this.request.getJDA() : null);
+        return new RestFuture<>(jda);
     }
 
     @Override

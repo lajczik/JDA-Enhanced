@@ -22,7 +22,7 @@ import net.dv8tion.jda.api.requests.restaction.interactions.InteractionCallbackA
 import net.dv8tion.jda.api.requests.restaction.interactions.ModalCallbackAction;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.interactions.InteractionImpl;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.function.BooleanSupplier;
 

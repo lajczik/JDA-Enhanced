@@ -26,7 +26,7 @@ import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;

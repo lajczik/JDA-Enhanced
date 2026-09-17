@@ -17,31 +17,27 @@
 package net.dv8tion.jda.test.restaction;
 
 import net.dv8tion.jda.api.requests.Route;
-import okhttp3.HttpUrl;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 class RouteTest {
-    private static final HttpUrl BASE_URL = HttpUrl.get("https://discord.com/api/v10/");
+    private static final String BASE_URL = "https://discord.com/api/v10/";
 
     @Test
     void testSimpleUrl() {
-        assertThat(Route.Users.GET_USER.compile("42").toHttpUrl(BASE_URL)).hasToString(BASE_URL + "users/42");
-        assertThat(Route.Users.GET_USER.compile("@me").toHttpUrl(BASE_URL)).hasToString(BASE_URL + "users/@me");
-        assertThat(Route.Messages.GET_MESSAGE.compile("12345", "67890").toHttpUrl(BASE_URL))
-                .hasToString(BASE_URL + "channels/12345/messages/67890");
+        assertThat(Route.Users.GET_USER.compile("42").toUrl(BASE_URL)).isEqualTo(BASE_URL + "users/42");
+        assertThat(Route.Users.GET_USER.compile("@me").toUrl(BASE_URL)).isEqualTo(BASE_URL + "users/@me");
+        assertThat(Route.Messages.GET_MESSAGE.compile("12345", "67890").toUrl(BASE_URL))
+                .isEqualTo(BASE_URL + "channels/12345/messages/67890");
     }
 
     @Test
     void testPathSegmentEncoding() {
-        assertThat(Route.Users.GET_USER.compile("../test").toHttpUrl(BASE_URL))
-                .hasToString(BASE_URL + "users/..%2Ftest");
-        assertThat(Route.Users.GET_USER.compile("..\\test").toHttpUrl(BASE_URL))
-                .hasToString(BASE_URL + "users/..%5Ctest");
-        assertThat(Route.Users.GET_USER.compile("..%2Ftest").toHttpUrl(BASE_URL))
-                .hasToString(BASE_URL + "users/..%252Ftest");
+        assertThat(Route.Users.GET_USER.compile("../test").toUrl(BASE_URL)).isEqualTo(BASE_URL + "users/..%2Ftest");
+        assertThat(Route.Users.GET_USER.compile("..\\test").toUrl(BASE_URL)).isEqualTo(BASE_URL + "users/..%5Ctest");
+        assertThat(Route.Users.GET_USER.compile("..%2Ftest").toUrl(BASE_URL)).isEqualTo(BASE_URL + "users/..%252Ftest");
     }
 
     @Test
@@ -49,7 +45,7 @@ class RouteTest {
         Route.CompiledRoute compiled =
                 Route.Messages.GET_MESSAGE_HISTORY.compile("123").withQueryParams("after", "1&limit=100");
 
-        assertThat(compiled.toHttpUrl(BASE_URL)).hasToString(BASE_URL + "channels/123/messages?after=1%26limit%3D100");
+        assertThat(compiled.toUrl(BASE_URL)).isEqualTo(BASE_URL + "channels/123/messages?after=1%26limit%3D100");
     }
 
     @Test

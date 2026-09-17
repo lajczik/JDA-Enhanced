@@ -99,7 +99,7 @@ public class ApplicationManagerTest extends IntegrationTest {
         assertUrlChecks("URL", manager::setInteractionsEndpointUrl);
 
         Map<IntegrationType, IntegrationTypeConfig> config = new HashMap<>();
-        config.put(null, IntegrationTypeConfig.of(Collections.emptySet(), Collections.emptySet()));
+        config.put(null, IntegrationTypeConfig.of(Set.of(), Set.of()));
 
         assertThatIllegalArgumentException().isThrownBy(() -> manager.setIntegrationTypeConfig(config));
 
@@ -108,7 +108,7 @@ public class ApplicationManagerTest extends IntegrationTest {
         assertThatIllegalArgumentException().isThrownBy(() -> manager.setIntegrationTypeConfig(config));
 
         config.clear();
-        config.put(IntegrationType.UNKNOWN, IntegrationTypeConfig.of(Collections.emptySet(), Collections.emptySet()));
+        config.put(IntegrationType.UNKNOWN, IntegrationTypeConfig.of(Set.of(), Set.of()));
         assertThatIllegalArgumentException().isThrownBy(() -> manager.setIntegrationTypeConfig(config));
     }
 

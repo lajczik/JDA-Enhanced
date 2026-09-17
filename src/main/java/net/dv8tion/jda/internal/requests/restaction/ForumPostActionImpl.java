@@ -16,8 +16,8 @@
 
 package net.dv8tion.jda.internal.requests.restaction;
 
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
@@ -42,7 +42,7 @@ import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.ChannelUtil;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.message.MessageCreateBuilderMixin;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.Collection;
 import java.util.function.BooleanSupplier;
@@ -53,7 +53,7 @@ public class ForumPostActionImpl extends RestActionImpl<ForumPost>
         implements ForumPostAction, MessageCreateBuilderMixin<ForumPostAction> {
     private final MessageCreateBuilder builder;
     private final IPostContainer channel;
-    private final TLongSet appliedTags = new TLongHashSet();
+    private final LongSet appliedTags = new LongOpenHashSet();
     private String name;
     private ThreadChannel.AutoArchiveDuration autoArchiveDuration;
     protected Integer slowmode = null;
@@ -157,24 +157,22 @@ public class ForumPostActionImpl extends RestActionImpl<ForumPost>
 
     @Override
     protected RequestBody finalizeData() {
-        try (MessageCreateData message = builder.build()) {
-            DataObject json = DataObject.empty();
-            json.put("message", message);
-            json.put("name", name);
-            if (autoArchiveDuration != null) {
-                json.put("auto_archive_duration", autoArchiveDuration.getMinutes());
-            }
-            if (slowmode != null) {
-                json.put("rate_limit_per_user", slowmode);
-            }
-            if (!appliedTags.isEmpty()) {
-                json.put("applied_tags", appliedTags.toArray());
-            } else if (getChannel().isTagRequired()) {
-                throw new IllegalStateException(
-                        "Cannot create posts without a tag in this forum. Apply at least one tag!");
-            }
-            return getMultipartBody(message.getAllDistinctFiles(), json);
+        MessageCreateData message = builder.build();
+        DataObject json = DataObject.empty();
+        json.put("message", message);
+        json.put("name", name);
+        if (autoArchiveDuration != null) {
+            json.put("auto_archive_duration", autoArchiveDuration.getMinutes());
         }
+        if (slowmode != null) {
+            json.put("rate_limit_per_user", slowmode);
+        }
+        if (!appliedTags.isEmpty()) {
+            json.put("applied_tags", appliedTags.toLongArray());
+        } else if (getChannel().isTagRequired()) {
+            throw new IllegalStateException("Cannot create posts without a tag in this forum. Apply at least one tag!");
+        }
+        return getMultipartBody(message.getAllDistinctFiles(), json);
     }
 
     @Override

@@ -29,14 +29,13 @@ import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.interactions.command.CommandImpl;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
@@ -82,17 +81,10 @@ public class CommandListUpdateActionImpl extends RestActionImpl<List<Command>> i
         int newSlash = 0, newUser = 0, newMessage = 0;
         for (CommandData command : commands) {
             switch (command.getType()) {
-                case SLASH:
-                    newSlash++;
-                    break;
-                case MESSAGE:
-                    newMessage++;
-                    break;
-                case USER:
-                    newUser++;
-                    break;
-                case UNKNOWN:
-                    throw new IllegalArgumentException("Provided command of unknown type");
+                case SLASH -> newSlash++;
+                case MESSAGE -> newMessage++;
+                case USER -> newUser++;
+                case UNKNOWN -> throw new IllegalArgumentException("Provided command of unknown type");
             }
         }
 
@@ -136,8 +128,8 @@ public class CommandListUpdateActionImpl extends RestActionImpl<List<Command>> i
     @Override
     protected void handleSuccess(Response response, Request<List<Command>> request) {
         List<Command> commands = response.getArray().stream(DataArray::getObject)
-                .map(obj -> new CommandImpl(api, guild, obj))
-                .collect(Collectors.toList());
+                .map(obj -> (Command) new CommandImpl(api, guild, obj))
+                .toList();
         request.onSuccess(commands);
     }
 }

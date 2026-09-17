@@ -86,7 +86,7 @@ public class ScheduledEventMembersPaginationActionImpl
         }
 
         if (!members.isEmpty()) {
-            last = members.get(members.size() - 1);
+            last = members.getLast();
             lastKey = last.getIdLong();
         }
         request.onSuccess(members);

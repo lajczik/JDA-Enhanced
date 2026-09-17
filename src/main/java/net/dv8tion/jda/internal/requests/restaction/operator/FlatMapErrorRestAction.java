@@ -18,10 +18,12 @@ package net.dv8tion.jda.internal.requests.restaction.operator;
 
 import net.dv8tion.jda.api.exceptions.RateLimitedException;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.requests.RestFuture;
 import net.dv8tion.jda.internal.utils.Helpers;
 import org.jetbrains.annotations.Contract;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -102,10 +104,17 @@ public class FlatMapErrorRestAction<T> extends RestActionOperator<T, T> {
     public CompletableFuture<T> submit(boolean shouldQueue) {
         return action.submit(shouldQueue)
                 .handle((result, error) -> {
-                    if (filter.test(error)) {
-                        return map.apply(error).submit(shouldQueue).thenApply(x -> (T) x);
+                    if (error != null) {
+                        error = error instanceof CompletionException && error.getCause() != null
+                                ? error.getCause()
+                                : error;
+                        if (filter.test(error)) {
+                            return map.apply(error).submit(shouldQueue).thenApply(x -> (T) x);
+                        } else {
+                            return new RestFuture<T>(action.getJDA(), error);
+                        }
                     } else {
-                        return CompletableFuture.completedFuture(result);
+                        return new RestFuture<T>(action.getJDA(), result);
                     }
                 })
                 .thenCompose(Function.identity());

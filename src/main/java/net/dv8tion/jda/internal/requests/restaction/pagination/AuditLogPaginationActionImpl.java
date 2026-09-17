@@ -16,8 +16,8 @@
 
 package net.dv8tion.jda.internal.requests.restaction.pagination;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
@@ -107,13 +107,13 @@ public class AuditLogPaginationActionImpl extends PaginationActionImpl<AuditLogE
         List<AuditLogEntry> list = new ArrayList<>(entries.length());
         EntityBuilder builder = api.getEntityBuilder();
 
-        TLongObjectMap<DataObject> userMap = new TLongObjectHashMap<>();
+        Long2ObjectMap<DataObject> userMap = new Long2ObjectOpenHashMap<>();
         for (int i = 0; i < users.length(); i++) {
             DataObject user = users.getObject(i);
             userMap.put(user.getLong("id"), user);
         }
 
-        TLongObjectMap<DataObject> webhookMap = new TLongObjectHashMap<>();
+        Long2ObjectMap<DataObject> webhookMap = new Long2ObjectOpenHashMap<>();
         for (int i = 0; i < webhooks.length(); i++) {
             DataObject webhook = webhooks.getObject(i);
             webhookMap.put(webhook.getLong("id"), webhook);
@@ -135,7 +135,7 @@ public class AuditLogPaginationActionImpl extends PaginationActionImpl<AuditLogE
             if (this.useCache) {
                 this.cached.addAll(list);
             }
-            this.last = list.get(list.size() - 1);
+            this.last = list.getLast();
             this.lastKey = last.getIdLong();
         }
 

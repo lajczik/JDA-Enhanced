@@ -90,7 +90,7 @@ public class BanPaginationActionImpl extends PaginationActionImpl<Guild.Ban, Ban
         }
 
         if (!bans.isEmpty()) {
-            last = bans.get(bans.size() - 1);
+            last = bans.getLast();
             lastKey = last.getUser().getIdLong();
         }
 

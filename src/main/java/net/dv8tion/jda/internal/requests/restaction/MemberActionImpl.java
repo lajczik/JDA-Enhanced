@@ -26,14 +26,13 @@ import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.Helpers;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
-import java.util.stream.Collectors;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -169,7 +168,7 @@ public class MemberActionImpl extends RestActionImpl<Void> implements MemberActi
             obj.put("nick", nick);
         }
         if (roles != null && !roles.isEmpty()) {
-            obj.put("roles", roles.stream().map(Role::getId).collect(Collectors.toList()));
+            obj.put("roles", roles.stream().map(Role::getId).toList());
         }
         obj.put("mute", mute);
         obj.put("deaf", deaf);

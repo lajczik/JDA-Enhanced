@@ -19,13 +19,13 @@ package net.dv8tion.jda.test.assertions.restaction;
 import net.dv8tion.jda.api.requests.Method;
 import net.dv8tion.jda.api.requests.Request;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.utils.MediaType;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.requests.Requester;
 import net.dv8tion.jda.internal.utils.EncodingUtil;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 import net.dv8tion.jda.test.PrettyRepresentation;
 import net.dv8tion.jda.test.util.SnapshotHandler;
-import okhttp3.MediaType;
-import okhttp3.RequestBody;
 import org.jetbrains.annotations.Contract;
 import org.mockito.ThrowingConsumer;
 
@@ -82,11 +82,8 @@ public class RestActionAssertions implements ThrowingConsumer<Request<?>> {
     public RestActionAssertions hasMultipartBody() {
         return checkAssertions(request -> {
             RequestBody body = request.getBody();
-            assertThat(body).isNotNull();
-            MediaType mediaType = body.contentType();
-            assertThat(mediaType).isNotNull();
-
-            assertThat(mediaType.toString()).startsWith("multipart/form-data; boundary=");
+            assertThat(body.contentType()).isEqualTo(MediaType.FORM);
+            assertThat(body.contentTypeHeader()).startsWith("multipart/form-data; boundary=");
         });
     }
 

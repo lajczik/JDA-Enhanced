@@ -29,7 +29,7 @@ import net.dv8tion.jda.api.requests.restaction.RoleAction;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.awt.*;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +53,7 @@ public class RoleActionImpl extends AuditableRestActionImpl<Role> implements Rol
      * Creates a new RoleAction instance
      *
      * @param  guild
-     *         The {@link net.dv8tion.jda.api.entities.Guild Guild} for which the Role should be created.
+     *         The {@link Guild} for which the Role should be created.
      */
     public RoleActionImpl(Guild guild) {
         super(guild.getJDA(), Route.Roles.CREATE_ROLE.compile(guild.getId()));

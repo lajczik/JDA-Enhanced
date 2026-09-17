@@ -25,9 +25,10 @@ import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.EncodingUtil;
-import okhttp3.RequestBody;
-import org.apache.commons.collections4.map.CaseInsensitiveMap;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
@@ -92,8 +93,8 @@ public class AuditableRestActionImpl<T> extends RestActionImpl<T> implements Aud
     }
 
     @Override
-    protected CaseInsensitiveMap<String, String> finalizeHeaders() {
-        CaseInsensitiveMap<String, String> headers = super.finalizeHeaders();
+    protected Map<String, String> finalizeHeaders() {
+        Map<String, String> headers = super.finalizeHeaders();
 
         if (reason == null || reason.isEmpty()) {
             String localReason = ThreadLocalReason.getCurrent();
@@ -108,10 +109,9 @@ public class AuditableRestActionImpl<T> extends RestActionImpl<T> implements Aud
     }
 
     @Nonnull
-    private CaseInsensitiveMap<String, String> generateHeaders(
-            CaseInsensitiveMap<String, String> headers, String reason) {
+    private Map<String, String> generateHeaders(Map<String, String> headers, String reason) {
         if (headers == null) {
-            headers = new CaseInsensitiveMap<>();
+            headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         }
 
         headers.put("X-Audit-Log-Reason", uriEncode(reason));

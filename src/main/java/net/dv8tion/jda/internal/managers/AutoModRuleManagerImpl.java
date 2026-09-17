@@ -28,13 +28,12 @@ import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -145,13 +144,13 @@ public class AutoModRuleManagerImpl extends ManagerBase<AutoModRuleManager> impl
             body.put(
                     "exempt_roles",
                     DataArray.fromCollection(
-                            exemptRoles.stream().map(Role::getId).collect(Collectors.toList())));
+                            exemptRoles.stream().map(Role::getId).toList()));
         }
         if (shouldUpdate(EXEMPT_CHANNELS)) {
             body.put(
                     "exempt_channels",
                     DataArray.fromCollection(
-                            exemptChannels.stream().map(GuildChannel::getId).collect(Collectors.toList())));
+                            exemptChannels.stream().map(GuildChannel::getId).toList()));
         }
         if (shouldUpdate(TRIGGER_METADATA)) {
             body.put("trigger_type", triggerConfig.getType().getKey());

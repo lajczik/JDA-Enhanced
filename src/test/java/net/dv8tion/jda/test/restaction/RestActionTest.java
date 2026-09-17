@@ -16,12 +16,19 @@
 
 package net.dv8tion.jda.test.restaction;
 
+import net.dv8tion.jda.api.requests.Request;
+import net.dv8tion.jda.api.requests.RestFuture;
+import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.internal.requests.CompletedRestAction;
+import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.test.IntegrationTest;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -97,5 +104,64 @@ public class RestActionTest extends IntegrationTest {
         new CompletedRestAction<>(jda, "12345").queueAfter(2, TimeUnit.SECONDS, scheduledExecutorService);
 
         verify(scheduledExecutorService, times(1)).schedule(any(Runnable.class), eq(2L), eq(TimeUnit.SECONDS));
+    }
+
+    @Test
+    void testRequestOnSuccessUsesCallbackPool() {
+        ExecutorService mockCallbackPool = mock(ExecutorService.class);
+        when(jda.getCallbackPool()).thenReturn(mockCallbackPool);
+
+        Route.CompiledRoute route = Route.Self.GET_SELF.compile();
+        RestActionImpl<String> action = new RestActionImpl<>(jda, route, (res, req) -> "test");
+        Request<String> request =
+                new Request<>(action, (res) -> {}, (err) -> {}, null, true, null, null, 0, false, route, Map.of());
+
+        request.onSuccess("test");
+        verify(mockCallbackPool, times(1)).execute(any(Runnable.class));
+    }
+
+    @Test
+    void testToFutureAndMono() {
+        CompletedRestAction<String> action = new CompletedRestAction<>(jda, "hello");
+
+        assertThat(action.toFuture().join()).isEqualTo("hello");
+        assertThat(action.asMono().block()).isEqualTo("hello");
+        assertThat(action.mono().block()).isEqualTo("hello");
+    }
+
+    @Test
+    void testRestFutureDefaultExecutorUsesCallbackPool() {
+        ExecutorService mockCallbackPool = mock(ExecutorService.class);
+        when(jda.getCallbackPool()).thenReturn(mockCallbackPool);
+
+        RestFuture<String> future = new RestFuture<>(jda, "result");
+        assertThat(future.defaultExecutor()).isSameAs(mockCallbackPool);
+
+        CompletableFuture<Integer> mapped = future.thenApply(String::length);
+        assertThat(mapped.defaultExecutor()).isSameAs(mockCallbackPool);
+    }
+
+    @Test
+    void testRestFutureFallbackToEventPool() {
+        ExecutorService mockCallbackPool = mock(ExecutorService.class);
+        ExecutorService mockEventPool = mock(ExecutorService.class);
+        when(mockCallbackPool.isShutdown()).thenReturn(true);
+        when(jda.getCallbackPool()).thenReturn(mockCallbackPool);
+        when(jda.getEventPool()).thenReturn(mockEventPool);
+
+        RestFuture<String> future = new RestFuture<>(jda, "result");
+        assertThat(future.defaultExecutor()).isSameAs(mockEventPool);
+    }
+
+    @Test
+    void testCompletedRestActionSubmitUsesRestFuture() {
+        ExecutorService mockCallbackPool = mock(ExecutorService.class);
+        when(jda.getCallbackPool()).thenReturn(mockCallbackPool);
+
+        CompletedRestAction<String> action = new CompletedRestAction<>(jda, "success");
+        CompletableFuture<String> submitFuture = action.submit();
+
+        assertThat(submitFuture).isInstanceOf(RestFuture.class);
+        assertThat(submitFuture.defaultExecutor()).isSameAs(mockCallbackPool);
     }
 }

@@ -22,7 +22,7 @@ import net.dv8tion.jda.api.utils.messages.MessageEditBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import net.dv8tion.jda.internal.interactions.InteractionHookImpl;
 import net.dv8tion.jda.internal.utils.message.MessageEditBuilderMixin;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
@@ -78,9 +78,8 @@ public class MessageEditCallbackActionImpl extends DeferrableCallbackActionImpl
             return getRequestBody(json.put("type", ResponseType.DEFERRED_MESSAGE_UPDATE.getRaw()));
         }
         json.put("type", ResponseType.MESSAGE_UPDATE.getRaw());
-        try (MessageEditData data = builder.build()) {
-            json.put("data", data);
-            return getMultipartBody(data.getAllDistinctFiles(), json);
-        }
+        MessageEditData data = builder.build();
+        json.put("data", data);
+        return getMultipartBody(data.getAllDistinctFiles(), json);
     }
 }

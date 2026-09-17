@@ -91,7 +91,7 @@ public class MessagePaginationActionImpl extends PaginationActionImpl<Message, M
         }
 
         if (!messages.isEmpty()) {
-            last = messages.get(messages.size() - 1);
+            last = messages.getLast();
             lastKey = last.getIdLong();
         }
 

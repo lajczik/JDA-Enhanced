@@ -25,7 +25,7 @@ import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.api.utils.messages.MessageEditBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import net.dv8tion.jda.internal.utils.message.MessageEditBuilderMixin;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.function.Function;
 
@@ -47,10 +47,10 @@ public class WebhookMessageEditActionImpl<T>
 
     @Override
     protected RequestBody finalizeData() {
-        try (MessageEditData data = builder.build()) {
-            DataObject payload = data.toData();
-            return getMultipartBody(data.getAllDistinctFiles(), payload);
-        }
+        @SuppressWarnings("resource")
+        MessageEditData data = builder.build();
+        DataObject payload = data.toData();
+        return getMultipartBody(data.getAllDistinctFiles(), payload);
     }
 
     @Override

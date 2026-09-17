@@ -19,6 +19,7 @@ package net.dv8tion.jda.internal.requests;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.exceptions.RateLimitedException;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.requests.RestFuture;
 import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
 import net.dv8tion.jda.api.requests.restaction.CacheRestAction;
 import net.dv8tion.jda.internal.utils.Checks;
@@ -142,11 +143,11 @@ public class DeferredRestAction<T, R extends RestAction<T>> implements Auditable
             if (checks != null && checks.getAsBoolean()) {
                 return getAction().submit(shouldQueue);
             }
-            return CompletableFuture.completedFuture(null);
+            return new RestFuture<>(api, (T) null);
         }
         T value = valueSupplier.get();
         if (useCache && value != null) {
-            return CompletableFuture.completedFuture(value);
+            return new RestFuture<>(api, value);
         }
         return getAction().submit(shouldQueue);
     }

@@ -24,7 +24,7 @@ import net.dv8tion.jda.api.requests.Response;
 import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -40,7 +40,7 @@ public class AccountManagerImpl extends ManagerBase<AccountManager> implements A
      * Creates a new AccountManager instance
      *
      * @param selfUser
-     *        The {@link net.dv8tion.jda.api.entities.SelfUser SelfUser} to manage
+     *        The {@link SelfUser} to manage
      */
     public AccountManagerImpl(SelfUser selfUser) {
         super(selfUser.getJDA(), Route.Self.MODIFY_SELF.compile());

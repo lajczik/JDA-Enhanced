@@ -26,10 +26,11 @@ import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.JDALogger;
-import okhttp3.RequestBody;
-import org.apache.commons.collections4.map.CaseInsensitiveMap;
+import net.dv8tion.jda.internal.utils.requestbody.JsonRequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 import org.slf4j.Logger;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.function.BiFunction;
@@ -123,10 +124,9 @@ public class RestActionImpl<T> implements RestAction<T> {
         this(api, route, (RequestBody) null, handler);
     }
 
-    @SuppressWarnings("deprecation")
     public RestActionImpl(
             JDA api, Route.CompiledRoute route, DataObject data, BiFunction<Response, Request<T>, T> handler) {
-        this(api, route, data == null ? null : RequestBody.create(Requester.MEDIA_TYPE_JSON, data.toJson()), handler);
+        this(api, route, data == null ? null : new JsonRequestBody(data.toMap()), handler);
         this.rawData = data;
     }
 
@@ -179,7 +179,7 @@ public class RestActionImpl<T> implements RestAction<T> {
         Route.CompiledRoute route = finalizeRoute();
         Checks.notNull(route, "Route");
         RequestBody data = finalizeData();
-        CaseInsensitiveMap<String, String> headers = finalizeHeaders();
+        Map<String, String> headers = finalizeHeaders();
         BooleanSupplier finisher = getFinisher();
         if (success == null) {
             success = DEFAULT_SUCCESS;
@@ -208,7 +208,7 @@ public class RestActionImpl<T> implements RestAction<T> {
         Route.CompiledRoute route = finalizeRoute();
         Checks.notNull(route, "Route");
         RequestBody data = finalizeData();
-        CaseInsensitiveMap<String, String> headers = finalizeHeaders();
+        Map<String, String> headers = finalizeHeaders();
         BooleanSupplier finisher = getFinisher();
         return new RestFuture<>(this, shouldQueue, finisher, data, rawData, getDeadline(), priority, route, headers);
     }
@@ -251,7 +251,7 @@ public class RestActionImpl<T> implements RestAction<T> {
         return route;
     }
 
-    protected CaseInsensitiveMap<String, String> finalizeHeaders() {
+    protected Map<String, String> finalizeHeaders() {
         return null;
     }
 
@@ -259,18 +259,14 @@ public class RestActionImpl<T> implements RestAction<T> {
         return null;
     }
 
-    @SuppressWarnings("deprecation")
     protected RequestBody getRequestBody(DataObject object) {
         this.rawData = object;
-
-        return object == null ? null : RequestBody.create(Requester.MEDIA_TYPE_JSON, object.toJson());
+        return object == null ? null : new JsonRequestBody(object.toMap());
     }
 
-    @SuppressWarnings("deprecation")
     protected RequestBody getRequestBody(DataArray array) {
         this.rawData = array;
-
-        return array == null ? null : RequestBody.create(Requester.MEDIA_TYPE_JSON, array.toJson());
+        return array == null ? null : new JsonRequestBody(array.toList());
     }
 
     @Nonnull

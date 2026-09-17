@@ -18,10 +18,6 @@ package net.dv8tion.jda.test.util;
 
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
-import okio.BufferedSink;
-import okio.BufferedSource;
-import okio.Okio;
-import okio.Path;
 import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +28,8 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,8 +67,8 @@ public class SnapshotHandler {
             assertThat(stream)
                     .as("Loading sample from resource file '%s'", filePath)
                     .isNotNull();
-            BufferedSource fileBuffer = Okio.buffer(Okio.source(stream));
-            assertThat(fileBuffer.readUtf8()).isEqualToNormalizingNewlines(actual);
+            String content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            assertThat(content).isEqualToNormalizingNewlines(actual);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         } catch (AssertionError e) {
@@ -88,15 +86,14 @@ public class SnapshotHandler {
             return;
         }
 
-        Class<?> currentClass = testInfo.getTestClass().orElseThrow(AssertionError::new);
+        Class<?> currentClass = testInfo.getTestClass().orElseThrow();
         String filePath = getFilePath(suffix, extension);
 
         String workingDirectory = System.getProperty("user.dir");
         String path = currentClass.getPackage().getName().replace(".", "/") + "/" + filePath;
 
-        Path fileLocation = Path.get(workingDirectory, true)
-                .resolve("src/test/resources", true)
-                .resolve(path, true);
+        Path fileLocation =
+                Path.of(workingDirectory).resolve("src/test/resources").resolve(path);
 
         File file = fileLocation.toFile();
         if (!file.exists()) {
@@ -105,16 +102,14 @@ public class SnapshotHandler {
             assertThat(file.createNewFile()).isTrue();
         }
 
-        try (BufferedSink sink = Okio.buffer(Okio.sink(file))) {
-            logger.info("Updating snapshot {}", file);
-            sink.writeString(actual, StandardCharsets.UTF_8);
-        }
+        logger.info("Updating snapshot {}", file);
+        Files.writeString(fileLocation, actual, StandardCharsets.UTF_8);
     }
 
     private String getFilePath(String suffix, String extension) {
-        Class<?> currentClass = testInfo.getTestClass().orElseThrow(AssertionError::new);
+        Class<?> currentClass = testInfo.getTestClass().orElseThrow();
         Class<?> enclosingClass = currentClass.getEnclosingClass();
-        Method testMethod = testInfo.getTestMethod().orElseThrow(AssertionError::new);
+        Method testMethod = testInfo.getTestMethod().orElseThrow();
         String fileName = currentClass.getSimpleName() + "/" + testMethod.getName();
         if (enclosingClass != null) {
             fileName = enclosingClass.getSimpleName() + "/" + fileName;

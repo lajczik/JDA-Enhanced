@@ -116,9 +116,7 @@ public abstract class InteractionCallbackImpl<T> extends RestActionImpl<T> imple
     public final CompletableFuture<T> submit(boolean shouldQueue) {
         IllegalStateException exception = tryAck();
         if (exception != null) {
-            CompletableFuture<T> future = new CompletableFuture<>();
-            future.completeExceptionally(exception);
-            return future;
+            return new RestFuture<>(getJDA(), exception);
         }
 
         return super.submit(shouldQueue);

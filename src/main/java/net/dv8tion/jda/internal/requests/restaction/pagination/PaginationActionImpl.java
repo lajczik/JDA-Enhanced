@@ -17,6 +17,7 @@
 package net.dv8tion.jda.internal.requests.restaction.pagination;
 
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.requests.RestFuture;
 import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.requests.restaction.pagination.PaginationAction;
 import net.dv8tion.jda.api.utils.Procedure;
@@ -254,7 +255,7 @@ public abstract class PaginationActionImpl<T, M extends PaginationAction<T, M>> 
 
     private CompletableFuture<List<T>> takeAsync0(
             int amount, BiFunction<CompletableFuture<?>, List<T>, CompletableFuture<?>> converter) {
-        CompletableFuture<List<T>> task = new CompletableFuture<>();
+        CompletableFuture<List<T>> task = new RestFuture<>(getJDA());
         List<T> list = new ArrayList<>(amount);
         CompletableFuture<?> promise = converter.apply(task, list);
         promise.thenRun(() -> task.complete(list));
@@ -274,7 +275,7 @@ public abstract class PaginationActionImpl<T, M extends PaginationAction<T, M>> 
         Checks.notNull(action, "Procedure");
         Checks.notNull(failure, "Failure Consumer");
 
-        CompletableFuture<?> task = new CompletableFuture<>();
+        CompletableFuture<?> task = new RestFuture<>(getJDA());
         Consumer<List<T>> acceptor = new ChainedConsumer(task, action, (throwable) -> {
             task.completeExceptionally(throwable);
             failure.accept(throwable);
@@ -295,7 +296,7 @@ public abstract class PaginationActionImpl<T, M extends PaginationAction<T, M>> 
         Checks.notNull(action, "Procedure");
         Checks.notNull(failure, "Failure Consumer");
 
-        CompletableFuture<?> task = new CompletableFuture<>();
+        CompletableFuture<?> task = new RestFuture<>(getJDA());
         Consumer<List<T>> acceptor = new ChainedConsumer(task, action, (throwable) -> {
             task.completeExceptionally(throwable);
             failure.accept(throwable);
@@ -371,7 +372,7 @@ public abstract class PaginationActionImpl<T, M extends PaginationAction<T, M>> 
         if (useCache && index > -1 && index < cached.size()) {
             return cached.subList(index, cached.size());
         }
-        return Collections.emptyList();
+        return List.of();
     }
 
     public List<T> getNextChunk() {

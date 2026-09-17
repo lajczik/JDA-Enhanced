@@ -26,7 +26,7 @@ import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.entities.channel.mixin.attribute.IPermissionContainerMixin;
 import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -42,7 +42,7 @@ public class PermOverrideManagerImpl extends ManagerBase<PermOverrideManager> im
      * Creates a new PermOverrideManager instance
      *
      * @param override
-     *        The {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverride} to manage
+     *        The {@link PermissionOverride} to manage
      */
     public PermOverrideManagerImpl(PermissionOverride override) {
         super(

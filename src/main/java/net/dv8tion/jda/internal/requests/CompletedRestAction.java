@@ -19,6 +19,7 @@ package net.dv8tion.jda.internal.requests;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.exceptions.RateLimitedException;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.requests.RestFuture;
 import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
 
 import java.util.concurrent.CompletableFuture;
@@ -115,12 +116,10 @@ public class CompletedRestAction<T> implements AuditableRestAction<T> {
     @Nonnull
     @Override
     public CompletableFuture<T> submit(boolean shouldQueue) {
-        CompletableFuture<T> future = new CompletableFuture<>();
         if (error != null) {
-            future.completeExceptionally(error);
+            return new RestFuture<>(api, error);
         } else {
-            future.complete(value);
+            return new RestFuture<>(api, value);
         }
-        return future;
     }
 }

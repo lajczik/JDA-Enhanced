@@ -28,7 +28,7 @@ import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.PermissionUtil;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.Collection;
 import java.util.EnumSet;
@@ -51,7 +51,7 @@ public class RoleManagerImpl extends ManagerBase<RoleManager> implements RoleMan
      * Creates a new RoleManager instance
      *
      * @param role
-     *        {@link net.dv8tion.jda.api.entities.Role Role} that should be modified
+     *        {@link Role} that should be modified
      */
     public RoleManagerImpl(Role role) {
         super(role.getJDA(), Route.Roles.MODIFY_ROLE.compile(role.getGuild().getId(), role.getId()));

@@ -16,10 +16,10 @@
 
 package net.dv8tion.jda.internal.requests.restaction.order;
 
-import gnu.trove.map.TLongLongMap;
-import gnu.trove.map.hash.TLongLongHashMap;
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
+import it.unimi.dsi.fastutil.longs.Long2LongMap;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -32,10 +32,9 @@ import net.dv8tion.jda.api.requests.restaction.order.ChannelOrderAction;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.Collection;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -44,14 +43,14 @@ public class ChannelOrderActionImpl extends OrderActionImpl<GuildChannel, Channe
         implements ChannelOrderAction {
     protected final Guild guild;
     protected final int bucket;
-    protected final TLongSet lockPermissions = new TLongHashSet();
-    protected final TLongLongMap parent = new TLongLongHashMap();
+    protected final LongSet lockPermissions = new LongOpenHashSet();
+    protected final Long2LongMap parent;
 
     /**
      * Creates a new ChannelOrderAction instance
      *
      * @param  guild
-     *         The target {@link net.dv8tion.jda.api.entities.Guild Guild}
+     *         The target {@link Guild}
      *         of which to order the channels defined by the specified type
      * @param  bucket
      *         The sorting bucket
@@ -62,11 +61,11 @@ public class ChannelOrderActionImpl extends OrderActionImpl<GuildChannel, Channe
 
     /**
      * Creates a new ChannelOrderAction instance using the provided
-     * {@link net.dv8tion.jda.api.entities.Guild Guild}, as well as the provided
+     * {@link Guild}, as well as the provided
      * list of {@link GuildChannel Channels}.
      *
      * @param  guild
-     *         The target {@link net.dv8tion.jda.api.entities.Guild Guild}
+     *         The target {@link Guild}
      *         of which to order the channels defined by the specified type
      * @param  bucket
      *         The sorting bucket
@@ -75,7 +74,7 @@ public class ChannelOrderActionImpl extends OrderActionImpl<GuildChannel, Channe
      *         are on the same Guild specified, and all of which are of the same generic type of GuildChannel
      *         corresponding to the the ChannelType specified.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the channels are {@code null}, an empty collection,
      *         or any of them do not have the same ChannelType as the one
      *         provided.
@@ -94,6 +93,9 @@ public class ChannelOrderActionImpl extends OrderActionImpl<GuildChannel, Channe
 
         this.guild = guild;
         this.bucket = bucket;
+        Long2LongOpenHashMap parentMap = new Long2LongOpenHashMap();
+        parentMap.defaultReturnValue(-1L);
+        this.parent = parentMap;
         this.orderList.addAll(channels);
     }
 
@@ -139,8 +141,8 @@ public class ChannelOrderActionImpl extends OrderActionImpl<GuildChannel, Channe
         for (int i = 0; i < orderList.size(); i++) {
             GuildChannel chan = orderList.get(i);
             DataObject json = DataObject.empty().put("id", chan.getId()).put("position", i);
-            if (parent.containsKey(chan.getIdLong())) {
-                long parentId = parent.get(chan.getIdLong());
+            long parentId = parent.get(chan.getIdLong());
+            if (parentId != -1L) {
                 json.put("parent_id", parentId == 0 ? null : parentId);
                 json.put("lock_permissions", lockPermissions.contains(chan.getIdLong()));
             }
@@ -160,6 +162,6 @@ public class ChannelOrderActionImpl extends OrderActionImpl<GuildChannel, Channe
         return guild.getChannels().stream()
                 .filter(it -> it.getType().getSortBucket() == bucket)
                 .sorted()
-                .collect(Collectors.toList());
+                .toList();
     }
 }

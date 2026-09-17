@@ -16,8 +16,8 @@
 
 package net.dv8tion.jda.internal.requests.restaction;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.Region;
 import net.dv8tion.jda.api.entities.Guild;
@@ -48,7 +48,7 @@ import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.utils.ChannelUtil;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.PermissionUtil;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -61,7 +61,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class ChannelActionImpl<T extends GuildChannel> extends AuditableRestActionImpl<T> implements ChannelAction<T> {
-    protected final TLongObjectMap<PermOverrideData> overrides = new TLongObjectHashMap<>();
+    protected final Long2ObjectMap<PermOverrideData> overrides = new Long2ObjectOpenHashMap<>();
     protected final Guild guild;
     protected final Class<T> clazz;
     protected final ChannelType type;
@@ -418,7 +418,7 @@ public class ChannelActionImpl<T extends GuildChannel> extends AuditableRestActi
         // All channel types
         object.put("name", name);
         object.put("type", type.getId());
-        object.put("permission_overwrites", DataArray.fromCollection(overrides.valueCollection()));
+        object.put("permission_overwrites", DataArray.fromCollection(overrides.values()));
         if (position != null) {
             object.put("position", position);
         }

@@ -30,7 +30,7 @@ import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.Helpers;
 import net.dv8tion.jda.internal.utils.message.MessageCreateBuilderMixin;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.List;
 import java.util.function.Function;
@@ -133,31 +133,31 @@ public class WebhookMessageCreateActionImpl<T>
 
     @Override
     protected RequestBody finalizeData() {
-        try (MessageCreateData data = builder.build()) {
-            DataObject json = data.toData();
-            if (ephemeral) {
-                json.put("flags", json.getInt("flags", 0) | MessageFlag.EPHEMERAL.getValue());
-            }
-
-            if (username != null) {
-                json.put("username", username);
-            }
-            if (avatar != null) {
-                json.put("avatar_url", avatar);
-            }
-
-            if (threadId == null && threadMetadata != null) {
-                json.put("thread_name", threadMetadata.getName());
-                List<ForumTagSnowflake> tags = threadMetadata.getAppliedTags();
-                if (!tags.isEmpty()) {
-                    json.put(
-                            "applied_tags",
-                            tags.stream().map(ForumTagSnowflake::getId).collect(Helpers.toDataArray()));
-                }
-            }
-
-            return getMultipartBody(data.getAllDistinctFiles(), json);
+        @SuppressWarnings("resource")
+        MessageCreateData data = builder.build();
+        DataObject json = data.toData();
+        if (ephemeral) {
+            json.put("flags", json.getInt("flags", 0) | MessageFlag.EPHEMERAL.getValue());
         }
+
+        if (username != null) {
+            json.put("username", username);
+        }
+        if (avatar != null) {
+            json.put("avatar_url", avatar);
+        }
+
+        if (threadId == null && threadMetadata != null) {
+            json.put("thread_name", threadMetadata.getName());
+            List<ForumTagSnowflake> tags = threadMetadata.getAppliedTags();
+            if (!tags.isEmpty()) {
+                json.put(
+                        "applied_tags",
+                        tags.stream().map(ForumTagSnowflake::getId).collect(Helpers.toDataArray()));
+            }
+        }
+
+        return getMultipartBody(data.getAllDistinctFiles(), json);
     }
 
     @Override

@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.requests.restaction.pagination;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.channel.attribute.IThreadContainer;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
@@ -100,7 +100,7 @@ public class ThreadChannelPaginationActionImpl
         List<ThreadChannel> list = new ArrayList<>(threads.length());
         EntityBuilder builder = api.getEntityBuilder();
 
-        TLongObjectMap<DataObject> selfThreadMemberMap =
+        Long2ObjectMap<DataObject> selfThreadMemberMap =
                 Helpers.convertToMap((o) -> o.getUnsignedLong("id"), selfThreadMembers);
 
         for (int i = 0; i < threads.length(); i++) {

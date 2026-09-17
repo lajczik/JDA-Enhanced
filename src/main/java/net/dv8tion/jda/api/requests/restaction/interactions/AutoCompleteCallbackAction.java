@@ -26,7 +26,6 @@ import net.dv8tion.jda.internal.utils.Checks;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.stream.Collectors;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -179,7 +178,7 @@ public interface AutoCompleteCallbackAction
      * Add up to {@value OptionData#MAX_CHOICES} choices which can be picked from by the user.
      * <br>The user may continue writing inputs instead of using one of your choices.
      *
-     * <p>The provided strings will be used as value and name for the {@link net.dv8tion.jda.api.interactions.commands.Command.Choice Choices}.
+     * <p>The provided strings will be used as value and name for the {@link Command.Choice Choices}.
      *
      * @param  choices
      *         The choice suggestions to present to the user, each limited to {@value OptionData#MAX_CHOICE_NAME_LENGTH} characters
@@ -198,14 +197,14 @@ public interface AutoCompleteCallbackAction
     @CheckReturnValue
     default AutoCompleteCallbackAction addChoiceStrings(@Nonnull String... choices) {
         return addChoices(
-                Arrays.stream(choices).map(it -> new Command.Choice(it, it)).collect(Collectors.toList()));
+                Arrays.stream(choices).map(it -> new Command.Choice(it, it)).toList());
     }
 
     /**
      * Add up to {@value OptionData#MAX_CHOICES} choices which can be picked from by the user.
      * <br>The user may continue writing inputs instead of using one of your choices.
      *
-     * <p>The provided strings will be used as value and name for the {@link net.dv8tion.jda.api.interactions.commands.Command.Choice Choices}.
+     * <p>The provided strings will be used as value and name for the {@link Command.Choice Choices}.
      *
      * @param  choices
      *         The choice suggestions to present to the user, each limited to {@value OptionData#MAX_CHOICE_NAME_LENGTH} characters
@@ -223,14 +222,14 @@ public interface AutoCompleteCallbackAction
     @Nonnull
     @CheckReturnValue
     default AutoCompleteCallbackAction addChoiceStrings(@Nonnull Collection<String> choices) {
-        return addChoices(choices.stream().map(it -> new Command.Choice(it, it)).collect(Collectors.toList()));
+        return addChoices(choices.stream().map(it -> new Command.Choice(it, it)).toList());
     }
 
     /**
      * Add up to {@value OptionData#MAX_CHOICES} choices which can be picked from by the user.
      * <br>The user may continue writing inputs instead of using one of your choices.
      *
-     * <p>The string values of the provided longs will be used as value and name for the {@link net.dv8tion.jda.api.interactions.commands.Command.Choice Choices}.
+     * <p>The string values of the provided longs will be used as value and name for the {@link Command.Choice Choices}.
      *
      * @param  choices
      *         The choice suggestions to present to the user
@@ -250,14 +249,14 @@ public interface AutoCompleteCallbackAction
     default AutoCompleteCallbackAction addChoiceLongs(@Nonnull long... choices) {
         return addChoices(Arrays.stream(choices)
                 .mapToObj(it -> new Command.Choice(String.valueOf(it), it))
-                .collect(Collectors.toList()));
+                .toList());
     }
 
     /**
      * Add up to {@value OptionData#MAX_CHOICES} choices which can be picked from by the user.
      * <br>The user may continue writing inputs instead of using one of your choices.
      *
-     * <p>The string values of the provided longs will be used as value and name for the {@link net.dv8tion.jda.api.interactions.commands.Command.Choice Choices}.
+     * <p>The string values of the provided longs will be used as value and name for the {@link Command.Choice Choices}.
      *
      * @param  choices
      *         The choice suggestions to present to the user
@@ -277,14 +276,14 @@ public interface AutoCompleteCallbackAction
     default AutoCompleteCallbackAction addChoiceLongs(@Nonnull Collection<Long> choices) {
         return addChoices(choices.stream()
                 .map(it -> new Command.Choice(String.valueOf(it), it))
-                .collect(Collectors.toList()));
+                .toList());
     }
 
     /**
      * Add up to {@value OptionData#MAX_CHOICES} choices which can be picked from by the user.
      * <br>The user may continue writing inputs instead of using one of your choices.
      *
-     * <p>The string values of the provided doubles will be used as value and name for the {@link net.dv8tion.jda.api.interactions.commands.Command.Choice Choices}.
+     * <p>The string values of the provided doubles will be used as value and name for the {@link Command.Choice Choices}.
      *
      * @param  choices
      *         The choice suggestions to present to the user
@@ -304,14 +303,14 @@ public interface AutoCompleteCallbackAction
     default AutoCompleteCallbackAction addChoiceDoubles(@Nonnull double... choices) {
         return addChoices(Arrays.stream(choices)
                 .mapToObj(it -> new Command.Choice(String.valueOf(it), it))
-                .collect(Collectors.toList()));
+                .toList());
     }
 
     /**
      * Add up to {@value OptionData#MAX_CHOICES} choices which can be picked from by the user.
      * <br>The user may continue writing inputs instead of using one of your choices.
      *
-     * <p>The string values of the provided doubles will be used as value and name for the {@link net.dv8tion.jda.api.interactions.commands.Command.Choice Choices}.
+     * <p>The string values of the provided doubles will be used as value and name for the {@link Command.Choice Choices}.
      *
      * @param  choices
      *         The choice suggestions to present to the user
@@ -331,6 +330,6 @@ public interface AutoCompleteCallbackAction
     default AutoCompleteCallbackAction addChoiceDoubles(@Nonnull Collection<Double> choices) {
         return addChoices(choices.stream()
                 .map(it -> new Command.Choice(String.valueOf(it), it))
-                .collect(Collectors.toList()));
+                .toList());
     }
 }

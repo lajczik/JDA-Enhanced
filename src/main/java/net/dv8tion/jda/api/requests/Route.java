@@ -20,7 +20,6 @@ import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.EncodingUtil;
 import net.dv8tion.jda.internal.utils.EntityString;
 import net.dv8tion.jda.internal.utils.Helpers;
-import okhttp3.HttpUrl;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -579,7 +578,7 @@ public class Route {
      * @see <a href="https://discord.com/developers/docs/topics/rate-limits" target="_blank">Rate Limit Documentation</a>
      */
     public static final List<String> MAJOR_PARAMETER_NAMES =
-            Helpers.listOf("guild_id", "channel_id", "webhook_id", "interaction_token");
+            List.of("guild_id", "channel_id", "webhook_id", "interaction_token");
 
     private final Method method;
     private final int paramCount;
@@ -846,10 +845,7 @@ public class Route {
         }
 
         /**
-         * Builds an {@link HttpUrl} for this route using the provided {@code baseUrl}.
-         *
-         * <p><b>Note:</b> The {@code baseUrl} should typically point to the API root (for example,
-         * {@code https://discord.com/api/v10/}), and this method will append the compiled route path and query.
+         * Builds a full URL string for this route using the provided {@code baseUrl}.
          *
          * @param  baseUrl
          *         The base URL to append this route to
@@ -857,30 +853,17 @@ public class Route {
          * @throws IllegalArgumentException
          *         If null is provided
          *
-         * @return The final {@link HttpUrl} for this route
+         * @return The final URL string for this route
          *
          * @see    #getCompiledRoute()
          */
         @Nonnull
-        public HttpUrl toHttpUrl(@Nonnull HttpUrl baseUrl) {
+        public String toUrl(@Nonnull String baseUrl) {
             Checks.notNull(baseUrl, "Base URL");
-            HttpUrl.Builder url = baseUrl.newBuilder();
-
-            for (PathSegment segment : path) {
-                if (segment.encoded) {
-                    url.addEncodedPathSegment(segment.value);
-                } else {
-                    url.addPathSegment(segment.value);
-                }
+            if (baseUrl.endsWith("/")) {
+                return baseUrl + compiledRoute;
             }
-
-            if (query != null) {
-                for (QueryParameter queryParam : query) {
-                    url.addQueryParameter(queryParam.name, queryParam.value);
-                }
-            }
-
-            return url.build();
+            return baseUrl + "/" + compiledRoute;
         }
 
         /**
@@ -940,7 +923,7 @@ public class Route {
 
         @Override
         public String toString() {
-            return name + "=" + EncodingUtil.encodeUTF8(value);
+            return name + "=" + EncodingUtil.encodeQueryParam(value);
         }
 
         @Override
@@ -972,7 +955,7 @@ public class Route {
 
         @Override
         public String toString() {
-            return encoded ? value : EncodingUtil.encodeUTF8(value);
+            return encoded ? value : EncodingUtil.encodePathSegment(value);
         }
 
         @Override

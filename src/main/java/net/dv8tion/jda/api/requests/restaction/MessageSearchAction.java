@@ -16,16 +16,22 @@
 
 package net.dv8tion.jda.api.requests.restaction;
 
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.messages.MessageSearchResponse;
+import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
+import net.dv8tion.jda.api.exceptions.MissingAccessException;
 import net.dv8tion.jda.api.requests.FluentRestAction;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.utils.TimeUtil;
+import net.dv8tion.jda.api.utils.messages.MessageCreateRequest;
+import net.dv8tion.jda.api.utils.messages.MessageRequest;
 import net.dv8tion.jda.internal.utils.Checks;
 import org.jetbrains.annotations.Range;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.Collection;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -123,7 +129,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      * In other words, the results will only include messages newer than the specified ID.
      *
      * <p>This doesn't need to be a real message's ID,
-     * this filter is based on the {@linkplain net.dv8tion.jda.api.utils.TimeUtil#getDiscordTimestamp(long) timestamp encoded in the snowflake},
+     * this filter is based on the {@linkplain TimeUtil#getDiscordTimestamp(long) timestamp encoded in the snowflake},
      * meaning you can use this method to limit messages to a certain time period.
      *
      * <p><b>Tip:</b> If you want to include the message in the results, you can decrement the ID.
@@ -145,7 +151,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      * In other words, the results will only include messages newer than the specified ID.
      *
      * <p>This doesn't need to be a real message's ID,
-     * this filter is based on the {@linkplain net.dv8tion.jda.api.utils.TimeUtil#getDiscordTimestamp(long) timestamp encoded in the snowflake},
+     * this filter is based on the {@linkplain TimeUtil#getDiscordTimestamp(long) timestamp encoded in the snowflake},
      * meaning you can use this method to limit messages to a certain time period.
      *
      * <p><b>Tip:</b> If you want to include the message in the results, you can decrement the ID.
@@ -167,7 +173,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      * In other words, the results will only include messages older than the specified ID.
      *
      * <p>This doesn't need to be a real message's ID,
-     * this filter is based on the {@linkplain net.dv8tion.jda.api.utils.TimeUtil#getDiscordTimestamp(long) timestamp encoded in the snowflake},
+     * this filter is based on the {@linkplain TimeUtil#getDiscordTimestamp(long) timestamp encoded in the snowflake},
      * meaning you can use this method to limit messages to a certain time period.
      *
      * <p><b>Tip:</b> If you want to include the message in the results, you can increment the ID.
@@ -189,7 +195,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      * In other words, the results will only include messages older than the specified ID.
      *
      * <p>This doesn't need to be a real message's ID,
-     * this filter is based on the {@linkplain net.dv8tion.jda.api.utils.TimeUtil#getDiscordTimestamp(long) timestamp encoded in the snowflake},
+     * this filter is based on the {@linkplain TimeUtil#getDiscordTimestamp(long) timestamp encoded in the snowflake},
      * meaning you can use this method to limit messages to a certain time period.
      *
      * <p><b>Tip:</b> If you want to include the message in the results, you can increment the ID.
@@ -251,14 +257,14 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      *
      * @throws IllegalArgumentException
      *         If the collection or one of its element is {@code null}, or the collection has more than {@value #MAX_CHANNELS} elements
-     * @throws net.dv8tion.jda.api.exceptions.MissingAccessException
+     * @throws MissingAccessException
      *         If the {@linkplain Guild#getSelfMember() current member} does not have the access to one of the channels
      *         <ul>
-     *              <li>For text channels, this requires {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *              <li>For voice channels, this requires {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} and {@link net.dv8tion.jda.api.Permission#VOICE_CONNECT Permission.VOICE_CONNECT}</li>
+     *              <li>For text channels, this requires {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *              <li>For voice channels, this requires {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} and {@link Permission#VOICE_CONNECT Permission.VOICE_CONNECT}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the {@linkplain Guild#getSelfMember() current member} does not have the {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY MESSAGE_HISTORY} permission in one of the channels
+     * @throws InsufficientPermissionException
+     *         If the {@linkplain Guild#getSelfMember() current member} does not have the {@link Permission#MESSAGE_HISTORY MESSAGE_HISTORY} permission in one of the channels
      *
      * @return This action for chaining
      */
@@ -277,14 +283,14 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      *
      * @throws IllegalArgumentException
      *         If the array or an element is {@code null}, or the array has more than {@value #MAX_CHANNELS} elements
-     * @throws net.dv8tion.jda.api.exceptions.MissingAccessException
+     * @throws MissingAccessException
      *         If the {@linkplain Guild#getSelfMember() current member} does not have the access to one of the channels
      *         <ul>
-     *              <li>For text channels, this requires {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *              <li>For voice channels, this requires {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} and {@link net.dv8tion.jda.api.Permission#VOICE_CONNECT Permission.VOICE_CONNECT}</li>
+     *              <li>For text channels, this requires {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *              <li>For voice channels, this requires {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} and {@link Permission#VOICE_CONNECT Permission.VOICE_CONNECT}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the {@linkplain Guild#getSelfMember() current member} does not have the {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY MESSAGE_HISTORY} permission in one of the channels
+     * @throws InsufficientPermissionException
+     *         If the {@linkplain Guild#getSelfMember() current member} does not have the {@link Permission#MESSAGE_HISTORY MESSAGE_HISTORY} permission in one of the channels
      *
      * @return This action for chaining
      */
@@ -456,7 +462,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     @CheckReturnValue
     default MessageSearchAction authors(@Nonnull String... authors) {
         Checks.noneNull(authors, "Authors");
-        return authors(Arrays.stream(authors).map(UserSnowflake::fromId).collect(Collectors.toList()));
+        return authors(Arrays.stream(authors).map(UserSnowflake::fromId).toList());
     }
 
     /**
@@ -476,7 +482,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     @CheckReturnValue
     default MessageSearchAction authors(@Nonnull long... authors) {
         Checks.notNull(authors, "Authors");
-        return authors(Arrays.stream(authors).mapToObj(UserSnowflake::fromId).collect(Collectors.toList()));
+        return authors(Arrays.stream(authors).mapToObj(UserSnowflake::fromId).toList());
     }
 
     /**
@@ -485,11 +491,11 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      * <p>A "mention" here includes anything that makes a "ping" (highlighted for user):
      * <ul>
      *     <li>{@linkplain UserSnowflake#getAsMention() Direct mentions}</li>
-     *     <li>{@linkplain net.dv8tion.jda.api.utils.messages.MessageCreateRequest#mentionRepliedUser(boolean) Reply mentions}</li>
+     *     <li>{@linkplain MessageCreateRequest#mentionRepliedUser(boolean) Reply mentions}</li>
      * </ul>
      *
-     * <p>Mentions which have been {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#setAllowedMentions(Collection) disabled}
-     * and not {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#mentionUsers(long...) allowlisted}, will not match.
+     * <p>Mentions which have been {@linkplain MessageRequest#setAllowedMentions(Collection) disabled}
+     * and not {@linkplain MessageRequest#mentionUsers(long...) allowlisted}, will not match.
      *
      * @param  mentions
      *         The users which must be mentioned in the messages, up to {@value #MAX_USER_MENTIONS},
@@ -511,11 +517,11 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      * <p>A "mention" here includes anything that makes a "ping" (creates a special background on the client):
      * <ul>
      *     <li>{@linkplain UserSnowflake#getAsMention() Direct mentions}</li>
-     *     <li>{@linkplain net.dv8tion.jda.api.utils.messages.MessageCreateRequest#mentionRepliedUser(boolean) Reply mentions}</li>
+     *     <li>{@linkplain MessageCreateRequest#mentionRepliedUser(boolean) Reply mentions}</li>
      * </ul>
      *
-     * <p>Mentions which have been {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#setAllowedMentions(Collection) disabled}
-     * and not {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#mentionUsers(long...) allowlisted}, will not match.
+     * <p>Mentions which have been {@linkplain MessageRequest#setAllowedMentions(Collection) disabled}
+     * and not {@linkplain MessageRequest#mentionUsers(long...) allowlisted}, will not match.
      *
      * @param  mentions
      *         The users which must be mentioned in the messages, up to {@value #MAX_USER_MENTIONS},
@@ -540,11 +546,11 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      * <p>A "mention" here includes anything that makes a "ping" (creates a special background on the client):
      * <ul>
      *     <li>{@linkplain UserSnowflake#getAsMention() Direct mentions}</li>
-     *     <li>{@linkplain net.dv8tion.jda.api.utils.messages.MessageCreateRequest#mentionRepliedUser(boolean) Reply mentions}</li>
+     *     <li>{@linkplain MessageCreateRequest#mentionRepliedUser(boolean) Reply mentions}</li>
      * </ul>
      *
-     * <p>Mentions which have been {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#setAllowedMentions(Collection) disabled}
-     * and not {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#mentionUsers(long...) allowlisted}, will not match.
+     * <p>Mentions which have been {@linkplain MessageRequest#setAllowedMentions(Collection) disabled}
+     * and not {@linkplain MessageRequest#mentionUsers(long...) allowlisted}, will not match.
      *
      * @param  mentions
      *         The IDs of the users which must be mentioned in the messages, up to {@value #MAX_USER_MENTIONS},
@@ -560,7 +566,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     @CheckReturnValue
     default MessageSearchAction mentionsUsers(@Nonnull String... mentions) {
         Checks.noneNull(mentions, "Mentions");
-        return mentionsUsers(Arrays.stream(mentions).map(UserSnowflake::fromId).collect(Collectors.toList()));
+        return mentionsUsers(Arrays.stream(mentions).map(UserSnowflake::fromId).toList());
     }
 
     /**
@@ -569,11 +575,11 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      * <p>A "mention" here includes anything that makes a "ping" (creates a special background on the client):
      * <ul>
      *     <li>{@linkplain UserSnowflake#getAsMention() Direct mentions}</li>
-     *     <li>{@linkplain net.dv8tion.jda.api.utils.messages.MessageCreateRequest#mentionRepliedUser(boolean) Reply mentions}</li>
+     *     <li>{@linkplain MessageCreateRequest#mentionRepliedUser(boolean) Reply mentions}</li>
      * </ul>
      *
-     * <p>Mentions which have been {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#setAllowedMentions(Collection) disabled}
-     * and not {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#mentionUsers(long...) allowlisted}, will not match.
+     * <p>Mentions which have been {@linkplain MessageRequest#setAllowedMentions(Collection) disabled}
+     * and not {@linkplain MessageRequest#mentionUsers(long...) allowlisted}, will not match.
      *
      * @param  mentions
      *         The IDs of the users which must be mentioned in the messages, up to {@value #MAX_USER_MENTIONS},
@@ -590,14 +596,14 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     default MessageSearchAction mentionsUsers(@Nonnull long... mentions) {
         Checks.notNull(mentions, "Mentions");
         return mentionsUsers(
-                Arrays.stream(mentions).mapToObj(UserSnowflake::fromId).collect(Collectors.toList()));
+                Arrays.stream(mentions).mapToObj(UserSnowflake::fromId).toList());
     }
 
     /**
      * Keeps messages which {@linkplain Role#getAsMention() mention} <b>any</b> of the provided roles.
      *
-     * <p>Mentions which have been {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#setAllowedMentions(Collection) disabled}
-     * and not {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#mentionRoles(long...) allowlisted}, will not match.
+     * <p>Mentions which have been {@linkplain MessageRequest#setAllowedMentions(Collection) disabled}
+     * and not {@linkplain MessageRequest#mentionRoles(long...) allowlisted}, will not match.
      *
      * <p><b>Note:</b> If the {@code @everyone} role is included, it will only match those that were created from the mention,
      * but not when the raw content is "@everyone", use {@link #mentionsEveryone(Boolean)} for those instead.
@@ -619,8 +625,8 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     /**
      * Keeps messages which {@linkplain Role#getAsMention() mention} <b>any</b> of the provided roles.
      *
-     * <p>Mentions which have been {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#setAllowedMentions(Collection) disabled}
-     * and not {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#mentionRoles(long...) allowlisted}, will not match.
+     * <p>Mentions which have been {@linkplain MessageRequest#setAllowedMentions(Collection) disabled}
+     * and not {@linkplain MessageRequest#mentionRoles(long...) allowlisted}, will not match.
      *
      * <p><b>Note:</b> If the {@code @everyone} role is included, it will only match those that were created from the mention,
      * but not when the raw content is "@everyone", use {@link #mentionsEveryone(Boolean)} for those instead.
@@ -646,8 +652,8 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
      * <br>When set to {@code true}, this will keep messages that mention everyone,
      * when {@code false}, this will exclude them.
      *
-     * <p>Mentions which have been {@linkplain net.dv8tion.jda.api.utils.messages.MessageRequest#setAllowedMentions(Collection) disabled},
-     * or done by a user missing {@link net.dv8tion.jda.api.Permission#MESSAGE_MENTION_EVERYONE Permission.MESSAGE_MENTION_EVERYONE},
+     * <p>Mentions which have been {@linkplain MessageRequest#setAllowedMentions(Collection) disabled},
+     * or done by a user missing {@link Permission#MESSAGE_MENTION_EVERYONE Permission.MESSAGE_MENTION_EVERYONE},
      * will not match.
      *
      * <p><b>Note:</b> This will only match message which raw content is "@everyone",
@@ -663,7 +669,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     MessageSearchAction mentionsEveryone(@Nullable Boolean mentionsEveryone);
 
     /**
-     * Keeps messages which {@linkplain net.dv8tion.jda.api.requests.restaction.MessageCreateAction#setMessageReference(Message) replies}
+     * Keeps messages which {@linkplain MessageCreateAction#setMessageReference(Message) replies}
      * to <b>any</b> of the provided users.
      *
      * @param  repliedTo
@@ -681,7 +687,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     MessageSearchAction repliesToUsers(@Nonnull Collection<? extends UserSnowflake> repliedTo);
 
     /**
-     * Keeps messages which {@linkplain net.dv8tion.jda.api.requests.restaction.MessageCreateAction#setMessageReference(Message) replies}
+     * Keeps messages which {@linkplain MessageCreateAction#setMessageReference(Message) replies}
      * to <b>any</b> of the provided users.
      *
      * @param  repliedTo
@@ -702,7 +708,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     }
 
     /**
-     * Keeps messages which {@linkplain net.dv8tion.jda.api.requests.restaction.MessageCreateAction#setMessageReference(Message) replies}
+     * Keeps messages which {@linkplain MessageCreateAction#setMessageReference(Message) replies}
      * to <b>any</b> of the provided user IDs.
      *
      * @param  repliedTo
@@ -720,11 +726,11 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     default MessageSearchAction repliesToUsers(@Nonnull String... repliedTo) {
         Checks.noneNull(repliedTo, "Users");
         return repliesToUsers(
-                Arrays.stream(repliedTo).map(UserSnowflake::fromId).collect(Collectors.toList()));
+                Arrays.stream(repliedTo).map(UserSnowflake::fromId).toList());
     }
 
     /**
-     * Keeps messages which {@linkplain net.dv8tion.jda.api.requests.restaction.MessageCreateAction#setMessageReference(Message) replies}
+     * Keeps messages which {@linkplain MessageCreateAction#setMessageReference(Message) replies}
      * to <b>any</b> of the provided user IDs.
      *
      * @param  repliedTo
@@ -742,11 +748,11 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     default MessageSearchAction repliesToUsers(@Nonnull long... repliedTo) {
         Checks.notNull(repliedTo, "Users");
         return repliesToUsers(
-                Arrays.stream(repliedTo).mapToObj(UserSnowflake::fromId).collect(Collectors.toList()));
+                Arrays.stream(repliedTo).mapToObj(UserSnowflake::fromId).toList());
     }
 
     /**
-     * Keeps messages which {@linkplain net.dv8tion.jda.api.requests.restaction.MessageCreateAction#setMessageReference(Message) replies}
+     * Keeps messages which {@linkplain MessageCreateAction#setMessageReference(Message) replies}
      * to <b>any</b> of the provided message IDs.
      *
      * @param  repliedTo
@@ -764,7 +770,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     MessageSearchAction repliesToMessages(@Nonnull Collection<String> repliedTo);
 
     /**
-     * Keeps messages which {@linkplain net.dv8tion.jda.api.requests.restaction.MessageCreateAction#setMessageReference(Message) replies}
+     * Keeps messages which {@linkplain MessageCreateAction#setMessageReference(Message) replies}
      * to <b>any</b> of the provided message IDs.
      *
      * @param  repliedTo
@@ -782,11 +788,11 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     default MessageSearchAction repliesToMessages(@Nonnull long... repliedTo) {
         Checks.notNull(repliedTo, "Messages");
         return repliesToMessages(
-                Arrays.stream(repliedTo).mapToObj(Long::toUnsignedString).collect(Collectors.toList()));
+                Arrays.stream(repliedTo).mapToObj(Long::toUnsignedString).toList());
     }
 
     /**
-     * Keeps messages which {@linkplain net.dv8tion.jda.api.requests.restaction.MessageCreateAction#setMessageReference(Message) replies}
+     * Keeps messages which {@linkplain MessageCreateAction#setMessageReference(Message) replies}
      * to <b>any</b> of the provided message IDs.
      *
      * @param  repliedTo
@@ -1219,7 +1225,7 @@ public interface MessageSearchAction extends FluentRestAction<MessageSearchRespo
     }
 
     /**
-     * This is different from {@linkplain net.dv8tion.jda.api.entities.EmbedType Message's embed type},
+     * This is different from {@linkplain EmbedType Message's embed type},
      * this encompasses a wider range of embed types.
      *
      * @see MessageSearchAction#embedTypes(EmbedType...)

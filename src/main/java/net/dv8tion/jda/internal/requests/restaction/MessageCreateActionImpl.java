@@ -33,21 +33,19 @@ import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.message.MessageCreateBuilderMixin;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BooleanSupplier;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class MessageCreateActionImpl extends RestActionImpl<Message>
         implements MessageCreateAction, MessageCreateBuilderMixin<MessageCreateAction> {
-    protected static final SecureRandom nonceGenerator = new SecureRandom();
     protected static boolean defaultFailOnInvalidReply = false;
 
     private final MessageChannel channel;
@@ -92,12 +90,11 @@ public class MessageCreateActionImpl extends RestActionImpl<Message>
                     "Cannot build empty messages! Must provide at least one of: content, embed, file, poll, or stickers");
         }
 
-        try (MessageCreateData data = builder.build()) {
-            DataObject json = data.toData();
-            populateBody(json);
+        MessageCreateData data = builder.build();
+        DataObject json = data.toData();
+        populateBody(json);
 
-            return getMultipartBody(data.getAllDistinctFiles(), json);
-        }
+        return getMultipartBody(data.getAllDistinctFiles(), json);
     }
 
     private void populateBody(DataObject json) {
@@ -105,7 +102,7 @@ public class MessageCreateActionImpl extends RestActionImpl<Message>
         if (nonce != null && !nonce.isEmpty()) {
             json.put("nonce", nonce);
         } else {
-            json.put("nonce", Long.toUnsignedString(nonceGenerator.nextLong()));
+            json.put("nonce", Long.toUnsignedString(ThreadLocalRandom.current().nextLong()));
         }
         if (stickers != null && !stickers.isEmpty()) {
             json.put("sticker_ids", stickers);
@@ -206,7 +203,7 @@ public class MessageCreateActionImpl extends RestActionImpl<Message>
             }
         }
 
-        this.stickers.addAll(stickers.stream().map(StickerSnowflake::getId).collect(Collectors.toList()));
+        this.stickers.addAll(stickers.stream().map(StickerSnowflake::getId).toList());
         return this;
     }
 

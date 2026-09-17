@@ -16,9 +16,10 @@
 
 package net.dv8tion.jda.internal.managers.channel;
 
-import gnu.trove.map.hash.TLongObjectHashMap;
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.Region;
 import net.dv8tion.jda.api.entities.*;
@@ -50,13 +51,12 @@ import net.dv8tion.jda.internal.requests.restaction.PermOverrideData;
 import net.dv8tion.jda.internal.utils.ChannelUtil;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.PermissionUtil;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -90,8 +90,8 @@ public class ChannelManagerImpl<T extends GuildChannel, M extends ChannelManager
     protected int bitrate;
 
     protected final Object lock = new Object();
-    protected final TLongObjectHashMap<PermOverrideData> overridesAdd;
-    protected final TLongSet overridesRem;
+    protected final Long2ObjectMap<PermOverrideData> overridesAdd;
+    protected final LongSet overridesRem;
 
     public ChannelManagerImpl(T channel) {
         super(channel.getJDA(), Route.Channels.MODIFY_CHANNEL.compile(channel.getId()));
@@ -102,8 +102,8 @@ public class ChannelManagerImpl<T extends GuildChannel, M extends ChannelManager
         if (isPermissionChecksEnabled()) {
             checkPermissions();
         }
-        this.overridesAdd = new TLongObjectHashMap<>();
-        this.overridesRem = new TLongHashSet();
+        this.overridesAdd = new Long2ObjectOpenHashMap<>();
+        this.overridesRem = new LongOpenHashSet();
     }
 
     @Nonnull
@@ -690,7 +690,7 @@ public class ChannelManagerImpl<T extends GuildChannel, M extends ChannelManager
             throw new IllegalArgumentException(
                     "Cannot remove all tags from a forum post which requires at least one tag! See IPostContainer#isRequireTag()");
         }
-        this.appliedTags = tags.stream().map(ISnowflake::getId).collect(Collectors.toList());
+        this.appliedTags = tags.stream().map(ISnowflake::getId).toList();
         set |= APPLIED_TAGS;
         return (M) this;
     }
@@ -834,17 +834,16 @@ public class ChannelManagerImpl<T extends GuildChannel, M extends ChannelManager
 
     protected Collection<PermOverrideData> getOverrides() {
         // note: overridesAdd and overridesRem are mutually disjoint
-        TLongObjectHashMap<PermOverrideData> data = new TLongObjectHashMap<>(this.overridesAdd);
+        Long2ObjectMap<PermOverrideData> data = new Long2ObjectOpenHashMap<>(this.overridesAdd);
 
         IPermissionContainerMixin<?> impl = (IPermissionContainerMixin<?>) getChannel();
-        impl.getPermissionOverrideMap().forEachEntry((id, override) -> {
+        impl.getPermissionOverrideMap().forEach((id, override) -> {
             // removed by not adding them here, this data set overrides the existing one
             // we can use remove because it will be reset afterwards either way
             if (!overridesRem.remove(id) && !data.containsKey(id)) {
                 data.put(id, new PermOverrideData(override));
             }
-            return true;
         });
-        return data.valueCollection();
+        return data.values();
     }
 }

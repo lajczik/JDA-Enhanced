@@ -159,7 +159,7 @@ public class EntitlementPaginationActionImpl extends PaginationActionImpl<Entitl
             if (useCache) {
                 cached.addAll(entitlements);
             }
-            last = entitlements.get(entitlements.size() - 1);
+            last = entitlements.getLast();
             lastKey = last.getIdLong();
         }
 

@@ -18,6 +18,7 @@ package net.dv8tion.jda.internal.requests.restaction.operator;
 
 import net.dv8tion.jda.api.exceptions.RateLimitedException;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.requests.RestFuture;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -75,7 +76,7 @@ public class FlatMapRestAction<I, O> extends RestActionOperator<I, O> {
     public CompletableFuture<O> submit(boolean shouldQueue) {
         return action.submit(shouldQueue).thenCompose((result) -> {
             if (condition != null && !condition.test(result)) {
-                CompletableFuture<O> future = new CompletableFuture<>();
+                CompletableFuture<O> future = new RestFuture<>(getJDA());
                 future.cancel(true);
 
                 return future;

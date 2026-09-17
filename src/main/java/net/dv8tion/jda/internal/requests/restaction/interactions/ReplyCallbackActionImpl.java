@@ -22,7 +22,7 @@ import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.internal.interactions.InteractionHookImpl;
 import net.dv8tion.jda.internal.utils.message.MessageCreateBuilderMixin;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
@@ -65,12 +65,11 @@ public class ReplyCallbackActionImpl extends DeferrableCallbackActionImpl
         }
 
         json.put("type", ResponseType.CHANNEL_MESSAGE_WITH_SOURCE.getRaw());
-        try (MessageCreateData data = builder.build()) {
-            DataObject msg = data.toData();
-            msg.put("flags", msg.getInt("flags", 0) | flags);
-            json.put("data", msg);
-            return getMultipartBody(data.getAllDistinctFiles(), json);
-        }
+        MessageCreateData data = builder.build();
+        DataObject msg = data.toData();
+        msg.put("flags", msg.getInt("flags", 0) | flags);
+        json.put("data", msg);
+        return getMultipartBody(data.getAllDistinctFiles(), json);
     }
 
     @Nonnull

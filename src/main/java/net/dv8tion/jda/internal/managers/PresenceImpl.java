@@ -26,7 +26,7 @@ import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.requests.WebSocketCode;
 import net.dv8tion.jda.internal.utils.Checks;
 
-import java.util.Collections;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 
@@ -154,7 +154,7 @@ public class PresenceImpl implements Presence {
                         DataArray.fromCollection(
                                 // this is done so that nested DataObject is
                                 // converted to a Map
-                                activity == null ? Collections.emptyList() : Collections.singletonList(activity)))
+                                activity == null ? List.of() : List.of(activity)))
                 .put("status", getStatus().getKey());
     }
 
