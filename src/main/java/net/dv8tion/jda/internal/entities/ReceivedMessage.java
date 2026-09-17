@@ -80,7 +80,7 @@ import javax.annotation.Nullable;
 
 public class ReceivedMessage implements Message {
     public static boolean didContentIntentWarning = false;
-    private final Object mutex = new Object();
+    protected final Object mutex = new Object();
 
     protected final JDAImpl api;
     protected final long id;
@@ -177,12 +177,12 @@ public class ReceivedMessage implements Message {
         this.activity = activity;
         this.editedTime = editTime;
         this.mentions = mentions;
-        this.reactions = Collections.unmodifiableList(reactions);
-        this.attachments = Collections.unmodifiableList(attachments);
-        this.embeds = Collections.unmodifiableList(embeds);
-        this.stickers = Collections.unmodifiableList(stickers);
-        this.components = Collections.unmodifiableList(components);
-        this.messageSnapshots = Collections.unmodifiableList(messageSnapshots);
+        this.reactions = reactions == null ? List.of() : List.copyOf(reactions);
+        this.attachments = attachments == null ? List.of() : List.copyOf(attachments);
+        this.embeds = embeds == null ? List.of() : List.copyOf(embeds);
+        this.stickers = stickers == null ? List.of() : List.copyOf(stickers);
+        this.components = components == null ? List.of() : List.copyOf(components);
+        this.messageSnapshots = messageSnapshots == null ? List.of() : List.copyOf(messageSnapshots);
         this.flags = flags;
         this.interaction = interaction;
         this.interactionMetadata = interactionMetadata;
@@ -563,7 +563,7 @@ public class ReceivedMessage implements Message {
             while (m.find()) {
                 invites.add(m.group(1));
             }
-            return invites = Collections.unmodifiableList(invites);
+            return invites = List.copyOf(invites);
         }
     }
 

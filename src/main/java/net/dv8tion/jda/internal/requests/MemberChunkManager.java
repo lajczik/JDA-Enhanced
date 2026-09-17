@@ -16,12 +16,15 @@
 
 package net.dv8tion.jda.internal.requests;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.requests.RestFuture;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
+import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.entities.EntityBuilder;
 import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.entities.MemberImpl;
@@ -37,7 +40,7 @@ public class MemberChunkManager {
     private static final long MAX_CHUNK_AGE = 10 * 1000; // 10 seconds
     private final WebSocketClient client;
     private final ReentrantLock lock = new ReentrantLock();
-    private final TLongObjectMap<ChunkRequest> requests = new TLongObjectHashMap<>();
+    private final Long2ObjectMap<ChunkRequest> requests = new Long2ObjectOpenHashMap<>();
     private Future<?> timeoutHandle;
 
     public MemberChunkManager(WebSocketClient client) {
@@ -86,7 +89,7 @@ public class MemberChunkManager {
         init();
         DataObject request = DataObject.empty()
                 .put("guild_id", guild.getId())
-                .put("limit", Math.min(100, Math.max(1, limit)))
+                .put("limit", Math.clamp(limit, 1, 100))
                 .put("query", query);
 
         ChunkRequest chunkRequest = new ChunkRequest(handler, guild, request);
@@ -161,6 +164,24 @@ public class MemberChunkManager {
             this.request = request.put("nonce", getNonce());
         }
 
+        @Override
+        public Executor defaultExecutor() {
+            JDAImpl api = guild.getJDA();
+            ExecutorService executor = api.getCallbackPool();
+            if (executor == null || executor.isShutdown()) {
+                executor = api.getEventPool();
+            }
+            if (executor != null && !executor.isShutdown()) {
+                return executor;
+            }
+            return super.defaultExecutor();
+        }
+
+        @Override
+        public <U> CompletableFuture<U> newIncompleteFuture() {
+            return new RestFuture<>(guild.getJDA());
+        }
+
         public ChunkRequest setTimeout(long timeout) {
             this.timeout = timeout;
             return this;
@@ -190,9 +211,10 @@ public class MemberChunkManager {
         private List<Member> toMembers(DataObject chunk) {
             EntityBuilder builder = guild.getJDA().getEntityBuilder();
             DataArray memberArray = chunk.getArray("members");
-            TLongObjectMap<DataObject> presences = chunk.optArray("presences")
-                    .map(it -> Helpers.convertToMap(o -> o.getObject("user").getUnsignedLong("id"), it))
-                    .orElseGet(TLongObjectHashMap::new);
+            Long2ObjectMap<DataObject> presences = chunk.optArray("presences")
+                    .<Long2ObjectMap<DataObject>>map(
+                            it -> Helpers.convertToMap(o -> o.getObject("user").getUnsignedLong("id"), it))
+                    .orElse(Long2ObjectMaps.emptyMap());
             List<Member> collect = new ArrayList<>(memberArray.length());
             for (int i = 0; i < memberArray.length(); i++) {
                 DataObject json = memberArray.getObject(i);
@@ -230,13 +252,12 @@ public class MemberChunkManager {
         @Override
         public void run() {
             MiscUtil.locked(lock, () -> {
-                requests.forEachValue(request -> {
+                requests.values().forEach(request -> {
                     if (request.isExpired()) {
                         request.completeExceptionally(new TimeoutException());
                     }
-                    return true;
                 });
-                requests.valueCollection().removeIf(ChunkRequest::isDone);
+                requests.values().removeIf(ChunkRequest::isDone);
             });
         }
     }

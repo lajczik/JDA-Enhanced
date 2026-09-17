@@ -16,6 +16,8 @@
 
 package net.dv8tion.jda.api.utils.cache;
 
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.ISnowflake;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.utils.MiscUtil;
@@ -28,11 +30,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * {@link net.dv8tion.jda.api.utils.cache.CacheView CacheView} implementation
- * specifically to view {@link net.dv8tion.jda.api.entities.Member Members}.
+ * {@link CacheView} implementation
+ * specifically to view {@link Member Members}.
  *
- * <p>This is done because Members do not implement {@link net.dv8tion.jda.api.entities.ISnowflake ISnowflake} as
- * they are not globally unique but only unique per {@link net.dv8tion.jda.api.entities.Guild Guild}!
+ * <p>This is done because Members do not implement {@link ISnowflake} as
+ * they are not globally unique but only unique per {@link Guild}!
  *
  * @see CacheView CacheView for details on Efficient Memory Usage
  */
@@ -55,7 +57,7 @@ public interface MemberCacheView extends SnowflakeCacheView<Member> {
      * @param  id
      *         The ID of the member
      *
-     * @throws java.lang.NumberFormatException
+     * @throws NumberFormatException
      *         If the provided String is {@code null} or
      *         cannot be resolved to an unsigned long id
      *
@@ -76,7 +78,7 @@ public interface MemberCacheView extends SnowflakeCacheView<Member> {
      * @param  ignoreCase
      *         Whether to ignore case when comparing usernames
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided name is {@code null}
      *
      * @return Immutable list of members with the given username
@@ -92,7 +94,7 @@ public interface MemberCacheView extends SnowflakeCacheView<Member> {
      * @param  name
      *         The name to check
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided name is {@code null}
      *
      * @return Immutable list of members with the given username
@@ -144,7 +146,7 @@ public interface MemberCacheView extends SnowflakeCacheView<Member> {
      * @param  roles
      *         Roles the members should have
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If provided with {@code null}
      *
      * @return Immutable list of members with the given roles
@@ -160,7 +162,7 @@ public interface MemberCacheView extends SnowflakeCacheView<Member> {
      * @param  roles
      *         Roles the members should have
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If provided with {@code null}
      *
      * @return Immutable list of members with the given roles
@@ -168,4 +170,68 @@ public interface MemberCacheView extends SnowflakeCacheView<Member> {
     @Nonnull
     @Unmodifiable
     List<Member> getElementsWithRoles(@Nonnull Collection<Role> roles);
+
+    /**
+     * Creates an immutable list of all members that hold all
+     * of the roles with the specified IDs.
+     *
+     * @param  roleIds
+     *         Role IDs the members should have
+     *
+     * @throws IllegalArgumentException
+     *         If provided with {@code null}
+     *
+     * @return Immutable list of members with the given roles
+     */
+    @Nonnull
+    @Unmodifiable
+    List<Member> getElementsWithRoles(@Nonnull long... roleIds);
+
+    /**
+     * Creates an immutable list of all members that hold at least one
+     * of the provided roles.
+     *
+     * @param  roles
+     *         Roles the members should have
+     *
+     * @throws IllegalArgumentException
+     *         If provided with {@code null}
+     *
+     * @return Immutable list of members with any of the given roles
+     */
+    @Nonnull
+    @Unmodifiable
+    List<Member> getElementsWithAnyRole(@Nonnull Role... roles);
+
+    /**
+     * Creates an immutable list of all members that hold at least one
+     * of the provided roles.
+     *
+     * @param  roles
+     *         Roles the members should have
+     *
+     * @throws IllegalArgumentException
+     *         If provided with {@code null}
+     *
+     * @return Immutable list of members with any of the given roles
+     */
+    @Nonnull
+    @Unmodifiable
+    List<Member> getElementsWithAnyRole(@Nonnull Collection<Role> roles);
+
+    /**
+     * Creates an immutable list of all members that hold at least one
+     * of the roles with the specified IDs.
+     *
+     * @param  roleIds
+     *         Role IDs the members should have
+     *
+     * @throws IllegalArgumentException
+     *         If provided with {@code null}
+     *
+     * @return Immutable list of members with any of the given roles
+     */
+    @Nonnull
+    @Unmodifiable
+    List<Member> getElementsWithAnyRole(@Nonnull long... roleIds);
 }

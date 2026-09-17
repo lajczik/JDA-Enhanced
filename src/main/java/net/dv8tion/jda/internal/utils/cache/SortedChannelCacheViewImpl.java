@@ -83,10 +83,7 @@ public class SortedChannelCacheViewImpl<T extends Channel & Comparable<? super T
     @Override
     public Stream<T> streamUnordered() {
         try (UnlockHook hook = readLock()) {
-            return caches.values().stream()
-                    .flatMap(cache -> cache.valueCollection().stream())
-                    .collect(Collectors.toList())
-                    .stream();
+            return caches.values().stream().flatMap(cache -> cache.values().stream()).toList().stream();
         }
     }
 
@@ -116,7 +113,7 @@ public class SortedChannelCacheViewImpl<T extends Channel & Comparable<? super T
         @Nonnull
         @Override
         public List<C> asList() {
-            return applyStream(stream -> stream.sorted().collect(Helpers.toUnmodifiableList()));
+            return applyStream(stream -> stream.sorted().toList());
         }
 
         @Nonnull
@@ -132,14 +129,14 @@ public class SortedChannelCacheViewImpl<T extends Channel & Comparable<? super T
             Checks.notEmpty(name, "Name");
             return applyStream(stream -> stream.filter(it -> Helpers.equals(name, it.getName(), ignoreCase))
                     .sorted()
-                    .collect(Helpers.toUnmodifiableList()));
+                    .toList());
         }
 
         @Nonnull
         @Override
         public Stream<C> streamUnordered() {
             List<C> elements =
-                    applyStream(stream -> stream.filter(type::isInstance).collect(Collectors.toList()));
+                    applyStream(stream -> stream.filter(type::isInstance).toList());
             return elements.stream();
         }
 

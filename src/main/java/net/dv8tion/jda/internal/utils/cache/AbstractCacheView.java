@@ -16,16 +16,15 @@
 
 package net.dv8tion.jda.internal.utils.cache;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.utils.LockIterator;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.cache.CacheView;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.UnlockHook;
-import org.apache.commons.collections4.iterators.ObjectArrayIterator;
 
 import java.lang.reflect.Array;
 import java.util.*;
@@ -38,7 +37,7 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 
 public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> implements CacheView<T> {
-    protected final TLongObjectMap<T> elements = new TLongObjectHashMap<>();
+    protected final Long2ObjectMap<T> elements = new Long2ObjectOpenHashMap<>();
     protected final T[] emptyArray;
     protected final Function<T, String> nameMapper;
     protected final Class<T> type;
@@ -56,7 +55,7 @@ public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> impleme
         }
     }
 
-    public TLongObjectMap<T> getMap() {
+    public Long2ObjectMap<T> getMap() {
         if (!lock.writeLock().isHeldByCurrentThread()) {
             throw new IllegalStateException("Cannot access map directly without holding write lock!");
         }
@@ -75,9 +74,9 @@ public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> impleme
         }
     }
 
-    public TLongSet keySet() {
+    public LongSet keySet() {
         try (UnlockHook hook = readLock()) {
-            return new TLongHashSet(elements.keySet());
+            return new LongOpenHashSet(elements.keySet());
         }
     }
 
@@ -85,7 +84,7 @@ public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> impleme
     public void forEach(Consumer<? super T> action) {
         Objects.requireNonNull(action);
         try (UnlockHook hook = readLock()) {
-            for (T elem : elements.valueCollection()) {
+            for (T elem : elements.values()) {
                 action.accept(elem);
             }
         }
@@ -97,7 +96,7 @@ public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> impleme
         ReentrantReadWriteLock.ReadLock readLock = lock.readLock();
         MiscUtil.tryLock(readLock);
         try {
-            Iterator<T> directIterator = elements.valueCollection().iterator();
+            Iterator<T> directIterator = elements.values().iterator();
             return new LockIterator<>(directIterator, readLock);
         } catch (Throwable t) {
             readLock.unlock();
@@ -109,7 +108,7 @@ public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> impleme
     @Override
     public List<T> asList() {
         if (isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
         try (UnlockHook hook = readLock()) {
             List<T> list = getCachedList();
@@ -117,7 +116,7 @@ public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> impleme
                 return list;
             }
             list = new ArrayList<>(elements.size());
-            elements.forEachValue(list::add);
+            list.addAll(elements.values());
             return cache(list);
         }
     }
@@ -126,15 +125,15 @@ public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> impleme
     @Override
     public Set<T> asSet() {
         if (isEmpty()) {
-            return Collections.emptySet();
+            return Set.of();
         }
         try (UnlockHook hook = readLock()) {
             Set<T> set = getCachedSet();
             if (set != null) {
                 return set;
             }
-            set = new HashSet<>(elements.size());
-            elements.forEachValue(set::add);
+            set = HashSet.newHashSet(elements.size());
+            set.addAll(elements.values());
             return cache(set);
         }
     }
@@ -154,13 +153,13 @@ public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> impleme
     public List<T> getElementsByName(@Nonnull String name, boolean ignoreCase) {
         Checks.notEmpty(name, "Name");
         if (elements.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
         if (nameMapper == null) { // no getName method available
             throw new UnsupportedOperationException("The contained elements are not assigned with names.");
         }
         if (isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
         List<T> list = new ArrayList<>();
         forEach(elem -> {
@@ -195,7 +194,7 @@ public abstract class AbstractCacheView<T> extends ReadWriteLockCache<T> impleme
     @Override
     public Iterator<T> iterator() {
         try (UnlockHook hook = readLock()) {
-            return new ObjectArrayIterator<>(elements.values(emptyArray));
+            return Arrays.asList(elements.values().toArray(emptyArray)).iterator();
         }
     }
 

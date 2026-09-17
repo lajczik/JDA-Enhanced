@@ -17,10 +17,14 @@
 package net.dv8tion.jda.internal.utils;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.annotation.Nonnull;
 
 public class ClassWalker implements Iterable<Class<?>> {
+    private static final ConcurrentMap<ClassPair, List<Class<?>>> CACHE = new ConcurrentHashMap<>();
+
     private final Class<?> clazz;
     private final Class<?> end;
 
@@ -41,39 +45,42 @@ public class ClassWalker implements Iterable<Class<?>> {
         return new ClassWalker(start);
     }
 
+    private static List<Class<?>> computeHierarchy(ClassPair pair) {
+        List<Class<?>> result = new ArrayList<>();
+        Set<Class<?>> done = new HashSet<>();
+        Deque<Class<?>> work = new ArrayDeque<>();
+
+        work.addLast(pair.start);
+        done.add(pair.end);
+
+        while (!work.isEmpty()) {
+            Class<?> current = work.removeFirst();
+            done.add(current);
+            result.add(current);
+            for (Class<?> parent : current.getInterfaces()) {
+                if (!done.contains(parent)) {
+                    work.addLast(parent);
+                }
+            }
+
+            Class<?> parent = current.getSuperclass();
+            if (parent != null && !done.contains(parent)) {
+                work.addLast(parent);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    @Nonnull
+    public List<Class<?>> getHierarchy() {
+        return CACHE.computeIfAbsent(new ClassPair(clazz, end), ClassWalker::computeHierarchy);
+    }
+
     @Nonnull
     @Override
     public Iterator<Class<?>> iterator() {
-        return new Iterator<Class<?>>() {
-            private final Set<Class<?>> done = new HashSet<>();
-            private final Deque<Class<?>> work = new ArrayDeque<>();
-
-            {
-                work.addLast(clazz);
-                done.add(end);
-            }
-
-            @Override
-            public boolean hasNext() {
-                return !work.isEmpty();
-            }
-
-            @Override
-            public Class<?> next() {
-                Class<?> current = work.removeFirst();
-                done.add(current);
-                for (Class<?> parent : current.getInterfaces()) {
-                    if (!done.contains(parent)) {
-                        work.addLast(parent);
-                    }
-                }
-
-                Class<?> parent = current.getSuperclass();
-                if (parent != null && !done.contains(parent)) {
-                    work.addLast(parent);
-                }
-                return current;
-            }
-        };
+        return getHierarchy().iterator();
     }
+
+    private record ClassPair(Class<?> start, Class<?> end) {}
 }

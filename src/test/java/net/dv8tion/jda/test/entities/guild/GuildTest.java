@@ -67,4 +67,46 @@ class GuildTest extends IntegrationTest {
         assertThat(channelTypes)
                 .allSatisfy(type -> verify(globalChannelCache, times(1)).remove(eq(type), anyLong()));
     }
+
+    @Test
+    void testDetachMarksDetachedAndClearsCache() {
+        ChannelCacheViewImpl<?> globalChannelCache = mock(ChannelCacheViewImpl.class);
+        doReturn(globalChannelCache).when(jda).getChannelsView();
+        doReturn(EnumSet.noneOf(CacheFlag.class)).when(jda).getCacheFlags();
+
+        GuildImpl guild = new GuildImpl(jda, 42L);
+        GuildChannel channel = mock(GuildChannel.class);
+        doReturn(ChannelType.TEXT).when(channel).getType();
+        doReturn(100L).when(channel).getIdLong();
+        guild.getChannelView().put(channel);
+
+        assertThat(guild.isDetached()).isFalse();
+        assertThat(guild.getChannels()).isNotEmpty();
+
+        guild.detach();
+
+        assertThat(guild.isDetached()).isTrue();
+        assertThat(guild.getChannels()).isEmpty();
+        verify(globalChannelCache, times(1)).remove(ChannelType.TEXT, 100L);
+    }
+
+    @Test
+    void testResetForReloadClearsCacheAndResetsDetached() {
+        ChannelCacheViewImpl<?> globalChannelCache = mock(ChannelCacheViewImpl.class);
+        doReturn(globalChannelCache).when(jda).getChannelsView();
+        doReturn(EnumSet.noneOf(CacheFlag.class)).when(jda).getCacheFlags();
+
+        GuildImpl guild = new GuildImpl(jda, 42L);
+        GuildChannel channel = mock(GuildChannel.class);
+        doReturn(ChannelType.TEXT).when(channel).getType();
+        doReturn(100L).when(channel).getIdLong();
+        guild.getChannelView().put(channel);
+
+        guild.detach();
+        assertThat(guild.isDetached()).isTrue();
+
+        guild.resetForReload();
+        assertThat(guild.isDetached()).isFalse();
+        assertThat(guild.getChannels()).isEmpty();
+    }
 }

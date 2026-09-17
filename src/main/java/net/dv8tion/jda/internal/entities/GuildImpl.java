@@ -16,11 +16,12 @@
 
 package net.dv8tion.jda.internal.entities;
 
-import gnu.trove.map.TLongIntMap;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongIntHashMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import gnu.trove.set.TLongSet;
+import it.unimi.dsi.fastutil.longs.Long2IntMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.Region;
 import net.dv8tion.jda.api.audio.hooks.ConnectionStatus;
@@ -56,6 +57,7 @@ import net.dv8tion.jda.api.interactions.commands.privileges.IntegrationPrivilege
 import net.dv8tion.jda.api.managers.*;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.requests.RestFuture;
 import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.requests.restaction.*;
 import net.dv8tion.jda.api.requests.restaction.order.CategoryOrderAction;
@@ -63,6 +65,7 @@ import net.dv8tion.jda.api.requests.restaction.order.ChannelOrderAction;
 import net.dv8tion.jda.api.requests.restaction.order.RoleOrderAction;
 import net.dv8tion.jda.api.requests.restaction.pagination.AuditLogPaginationAction;
 import net.dv8tion.jda.api.utils.FileUpload;
+import net.dv8tion.jda.api.utils.MediaType;
 import net.dv8tion.jda.api.utils.cache.*;
 import net.dv8tion.jda.api.utils.concurrent.Task;
 import net.dv8tion.jda.api.utils.data.DataArray;
@@ -81,11 +84,13 @@ import net.dv8tion.jda.internal.requests.restaction.order.ChannelOrderActionImpl
 import net.dv8tion.jda.internal.requests.restaction.order.RoleOrderActionImpl;
 import net.dv8tion.jda.internal.requests.restaction.pagination.AuditLogPaginationActionImpl;
 import net.dv8tion.jda.internal.requests.restaction.pagination.BanPaginationActionImpl;
-import net.dv8tion.jda.internal.utils.*;
+import net.dv8tion.jda.internal.utils.Checks;
+import net.dv8tion.jda.internal.utils.EntityString;
+import net.dv8tion.jda.internal.utils.Helpers;
+import net.dv8tion.jda.internal.utils.UnlockHook;
 import net.dv8tion.jda.internal.utils.cache.*;
 import net.dv8tion.jda.internal.utils.concurrent.task.GatewayTask;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
+import net.dv8tion.jda.internal.utils.requestbody.MultipartBody;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -153,6 +158,7 @@ public class GuildImpl implements Guild {
     private int memberCount;
     private int systemChannelFlags;
     private boolean boostProgressBarEnabled;
+    private volatile boolean detached = false;
 
     public GuildImpl(JDAImpl api, long id) {
         this.id = id;
@@ -166,7 +172,90 @@ public class GuildImpl implements Guild {
 
     @Override
     public boolean isDetached() {
-        return false;
+        return detached;
+    }
+
+    public void resetForReload() {
+        // Uncache previous channels from global cache
+        ChannelCacheViewImpl<Channel> channelsView = getJDA().getChannelsView();
+        try (UnlockHook hook = channelsView.writeLock()) {
+            this.channelCache.forEachUnordered(channel -> channelsView.remove(channel.getType(), channel.getIdLong()));
+        }
+
+        // Clear internal caches so they can be repopulated fresh
+        this.channelCache.clear();
+        this.memberCache.clear();
+        this.roleCache.clear();
+        this.emojicache.clear();
+        this.stickerCache.clear();
+        this.soundboardCache.clear();
+        this.voiceStateCache.clear();
+        this.scheduledEventCache.clear();
+        if (this.memberPresences != null) {
+            this.memberPresences.clear();
+        }
+
+        if (this.pendingRequestToSpeak != null) {
+            this.pendingRequestToSpeak.cancel(false);
+            this.pendingRequestToSpeak = null;
+        }
+
+        // Reset state fields
+        this.owner = null;
+        this.afkChannel = null;
+        this.systemChannel = null;
+        this.rulesChannel = null;
+        this.communityUpdatesChannel = null;
+        this.safetyAlertsChannel = null;
+        this.publicRole = null;
+        this.securityIncidentActions = SecurityIncidentActions.disabled();
+        this.securityIncidentDetections = SecurityIncidentDetections.EMPTY;
+        this.verificationLevel = VerificationLevel.UNKNOWN;
+        this.defaultNotificationLevel = NotificationLevel.UNKNOWN;
+        this.mfaLevel = MFALevel.UNKNOWN;
+        this.explicitContentLevel = ExplicitContentLevel.UNKNOWN;
+        this.nsfwLevel = NSFWLevel.UNKNOWN;
+        this.afkTimeout = null;
+        this.boostTier = BoostTier.NONE;
+        this.preferredLocale = DiscordLocale.ENGLISH_US;
+        this.memberCount = 0;
+        this.systemChannelFlags = 0;
+        this.boostProgressBarEnabled = false;
+        this.features = Set.of();
+        this.detached = false;
+    }
+
+    public void detach() {
+        if (detached) {
+            return;
+        }
+        this.detached = true;
+
+        // Uncache channels from global cache
+        ChannelCacheViewImpl<Channel> channelsView = getJDA().getChannelsView();
+        try (UnlockHook hook = channelsView.writeLock()) {
+            this.channelCache.forEachUnordered(channel -> channelsView.remove(channel.getType(), channel.getIdLong()));
+        }
+
+        // Clear internal caches to release large memory footprint
+        this.channelCache.clear();
+        this.memberCache.clear();
+        this.roleCache.clear();
+        this.emojicache.clear();
+        this.stickerCache.clear();
+        this.soundboardCache.clear();
+        this.voiceStateCache.clear();
+        this.scheduledEventCache.clear();
+        if (this.memberPresences != null) {
+            this.memberPresences.clear();
+        }
+        this.owner = null;
+        this.afkChannel = null;
+        this.systemChannel = null;
+        this.rulesChannel = null;
+        this.communityUpdatesChannel = null;
+        this.safetyAlertsChannel = null;
+        this.publicRole = null;
     }
 
     public void invalidate() {
@@ -191,9 +280,10 @@ public class GuildImpl implements Guild {
 
         // cleaning up all users that we do not share a guild with anymore
         // Anything left in memberIds will be removed from the main userMap
-        // Use a new HashSet so that we don't actually modify the Member map so it doesn't affect
+        // Use a new HashSet so that we don't actually modify the Member map so it
+        // doesn't affect
         // Guild#getMembers for the leave event.
-        TLongSet memberIds = getMembersView().keySet(); // copies keys
+        LongSet memberIds = getMembersView().keySet(); // copies keys
         getJDA().getGuildsView().stream()
                 .map(GuildImpl.class::cast)
                 .forEach(g -> memberIds.removeAll(g.getMembersView().keySet()));
@@ -201,15 +291,15 @@ public class GuildImpl implements Guild {
         SnowflakeCacheViewImpl<User> userView = getJDA().getUsersView();
         try (UnlockHook hook = userView.writeLock()) {
             long selfId = getJDA().getSelfUser().getIdLong();
-            memberIds.forEach(memberId -> {
+            memberIds.forEach((long memberId) -> {
                 if (memberId == selfId) {
-                    return true; // don't remove selfUser from cache
+                    return; // don't remove selfUser from cache
                 }
                 userView.remove(memberId);
                 getJDA().getEventCache().clear(EventCache.Type.USER, memberId);
-                return true;
             });
         }
+        this.detached = true;
     }
 
     public void uncacheChannel(GuildChannel channel, boolean keepThreads) {
@@ -247,8 +337,8 @@ public class GuildImpl implements Guild {
 
         return new RestActionImpl<>(
                 getJDA(), route, (response, request) -> response.getArray().stream(DataArray::getObject)
-                        .map(json -> new CommandImpl(getJDA(), this, json))
-                        .collect(Collectors.toList()));
+                        .map(json -> (Command) new CommandImpl(getJDA(), this, json))
+                        .toList());
     }
 
     @Nonnull
@@ -322,7 +412,7 @@ public class GuildImpl implements Guild {
     private List<IntegrationPrivilege> parsePrivilegesList(DataObject obj) {
         return obj.getArray("permissions").stream(DataArray::getObject)
                 .map(this::parsePrivilege)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private IntegrationPrivilege parsePrivilege(DataObject data) {
@@ -532,7 +622,7 @@ public class GuildImpl implements Guild {
     public List<Member> getBoosters() {
         return memberCache.applyStream((members) -> members.filter(m -> m.getTimeBoosted() != null)
                 .sorted(Comparator.comparing(Member::getTimeBoosted))
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     @Override
@@ -589,7 +679,7 @@ public class GuildImpl implements Guild {
                         response.getArray().stream(DataArray::getObject),
                         data -> entityBuilder.createScheduledEvent(this, data),
                         "Failed to parse scheduled event")
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     @Nonnull
@@ -827,7 +917,7 @@ public class GuildImpl implements Guild {
     public List<GuildChannel> getChannels(boolean includeHidden) {
         if (includeHidden) {
             return channelCache.applyStream(stream ->
-                    stream.filter(it -> !it.getType().isThread()).sorted().collect(Helpers.toUnmodifiableList()));
+                    stream.filter(it -> !it.getType().isThread()).sorted().toList());
         }
 
         // When we remove hidden channels there are 2 considerations to account for:
@@ -835,7 +925,8 @@ public class GuildImpl implements Guild {
         // 1. A channel is not visible if we don't have VIEW_CHANNEL permissions
         // 2. A category is not visible if we don't see any channels within it
         //
-        // In our implementation we iterate all applicable channels and only add categories,
+        // In our implementation we iterate all applicable channels and only add
+        // categories,
         // when a member of the category is added too.
         //
         // Note: We avoid using Category#getChannels
@@ -861,7 +952,7 @@ public class GuildImpl implements Guild {
             }
         });
 
-        return Collections.unmodifiableList(new ArrayList<>(channels));
+        return List.copyOf(channels);
     }
 
     @Nonnull
@@ -975,7 +1066,7 @@ public class GuildImpl implements Guild {
                                 response.getArray().stream(DataArray::getObject),
                                 o -> api.getEntityBuilder().createSoundboardSound(o),
                                 "Failed to parse soundboard sound")
-                        .collect(Helpers.toUnmodifiableList()));
+                        .toList());
     }
 
     @Nonnull
@@ -1112,7 +1203,7 @@ public class GuildImpl implements Guild {
     @Override
     public synchronized Task<Void> requestToSpeak() {
         if (!isRequestToSpeakPending()) {
-            pendingRequestToSpeak = new CompletableFuture<>();
+            pendingRequestToSpeak = new RestFuture<>(api);
         }
 
         Task<Void> task = new GatewayTask<>(pendingRequestToSpeak, this::cancelRequestToSpeak);
@@ -1135,7 +1226,7 @@ public class GuildImpl implements Guild {
             return new GatewayTask<>(future, () -> future.cancel(false));
         }
 
-        return new GatewayTask<>(CompletableFuture.completedFuture(null), () -> {});
+        return new GatewayTask<>(new RestFuture<>(api, (Void) null), () -> {});
     }
 
     @Nonnull
@@ -1147,7 +1238,8 @@ public class GuildImpl implements Guild {
     @Nonnull
     @Override
     public List<GuildVoiceState> getVoiceStates() {
-        return this.voiceStateCache.applyStream(stream -> stream.collect(Helpers.toUnmodifiableList()));
+        return this.voiceStateCache.applyStream(
+                stream -> stream.map(GuildVoiceState.class::cast).toList());
     }
 
     @Nonnull
@@ -1203,7 +1295,7 @@ public class GuildImpl implements Guild {
         }
         if (isLoaded()) {
             memberCache.forEachUnordered(callback);
-            return new GatewayTask<>(CompletableFuture.completedFuture(null), () -> {});
+            return new GatewayTask<>(new RestFuture<>(api, (Void) null), () -> {});
         }
 
         MemberChunkManager chunkManager = getJDA().getClient().getChunkManager();
@@ -1244,12 +1336,12 @@ public class GuildImpl implements Guild {
                 "Cannot retrieve presences of members without GUILD_PRESENCES intent!");
 
         if (ids.length == 0) {
-            return new GatewayTask<>(CompletableFuture.completedFuture(Collections.emptyList()), () -> {});
+            return new GatewayTask<>(new RestFuture<>(api, List.of()), () -> {});
         }
         Checks.check(ids.length <= 100, "You can only request 100 members at once");
         MemberChunkManager chunkManager = api.getClient().getChunkManager();
         List<Member> collect = new ArrayList<>(ids.length);
-        CompletableFuture<List<Member>> result = new CompletableFuture<>();
+        CompletableFuture<List<Member>> result = new RestFuture<>(api);
         MemberChunkManager.ChunkRequest handle = chunkManager.chunkGuild(this, includePresence, ids, (last, list) -> {
             collect.addAll(list);
             if (last) {
@@ -1276,7 +1368,7 @@ public class GuildImpl implements Guild {
         MemberChunkManager chunkManager = api.getClient().getChunkManager();
 
         List<Member> collect = new ArrayList<>(limit);
-        CompletableFuture<List<Member>> result = new CompletableFuture<>();
+        CompletableFuture<List<Member>> result = new RestFuture<>(api);
         MemberChunkManager.ChunkRequest handle = chunkManager.chunkGuild(this, prefix, limit, (last, list) -> {
             collect.addAll(list);
             if (last) {
@@ -1305,7 +1397,7 @@ public class GuildImpl implements Guild {
             List<ThreadChannel> list = new ArrayList<>(threads.length());
             EntityBuilder builder = api.getEntityBuilder();
 
-            TLongObjectMap<DataObject> selfThreadMemberMap = new TLongObjectHashMap<>();
+            Long2ObjectMap<DataObject> selfThreadMemberMap = new Long2ObjectOpenHashMap<>();
             for (int i = 0; i < selfThreadMembers.length(); i++) {
                 DataObject selfThreadMember = selfThreadMembers.getObject(i);
 
@@ -1527,7 +1619,7 @@ public class GuildImpl implements Guild {
                 Checks.notNull(role, "Role");
                 Checks.check(role.getGuild().equals(this), "Role is not from the same guild!");
             }
-            body.put("include_roles", Arrays.stream(roles).map(Role::getId).collect(Collectors.toList()));
+            body.put("include_roles", Arrays.stream(roles).map(Role::getId).toList());
         }
         return new AuditableRestActionImpl<>(getJDA(), route, body, (response, request) -> response.getObject()
                 .getInt("pruned", 0));
@@ -1599,7 +1691,10 @@ public class GuildImpl implements Guild {
             checkPosition(user);
         }
 
-        Set<Long> userIds = users.stream().map(UserSnowflake::getIdLong).collect(Collectors.toSet());
+        LongSet userIds = new LongLinkedOpenHashSet(users.size());
+        for (UserSnowflake user : users) {
+            userIds.add(user.getIdLong());
+        }
         DataObject body = DataObject.empty()
                 .put("user_ids", DataArray.fromCollection(userIds))
                 .put("delete_message_seconds", deletionTime.getSeconds());
@@ -1609,10 +1704,10 @@ public class GuildImpl implements Guild {
             DataObject responseBody = res.getObject();
             List<UserSnowflake> bannedUsers = responseBody.getArray("banned_users").stream(DataArray::getLong)
                     .map(UserSnowflake::fromId)
-                    .collect(Collectors.toList());
+                    .toList();
             List<UserSnowflake> failedUsers = responseBody.getArray("failed_users").stream(DataArray::getLong)
                     .map(UserSnowflake::fromId)
-                    .collect(Collectors.toList());
+                    .toList();
             return new BulkBanResponse(bannedUsers, failedUsers);
         });
     }
@@ -1739,7 +1834,8 @@ public class GuildImpl implements Guild {
         Checks.notNull(member, "Member");
         checkGuild(member.getGuild(), "Member");
         checkPermission(Permission.MANAGE_ROLES);
-        Set<Role> currentRoles = new HashSet<>(((MemberImpl) member).getRoleSet());
+        Set<Role> currentRoles =
+                new HashSet<>(((MemberImpl) member).getRoleMap().values());
         if (rolesToAdd != null) {
             checkRoles(rolesToAdd, "add", "to");
             currentRoles.addAll(rolesToAdd);
@@ -1761,7 +1857,7 @@ public class GuildImpl implements Guild {
         checkGuild(member.getGuild(), "Member");
         roles.forEach(role -> {
             Checks.notNull(role, "Role in collection");
-            checkGuild(role.getGuild(), "Role: " + role.toString());
+            checkGuild(role.getGuild(), "Role: " + role);
         });
 
         Checks.check(
@@ -1769,7 +1865,9 @@ public class GuildImpl implements Guild {
                 "Cannot add the PublicRole of a Guild to a Member. All members have this role by default!");
 
         // Return an empty rest action if there were no changes
-        List<Role> memberRoles = member.getRoles();
+        Collection<Role> memberRoles = member instanceof MemberImpl memberImpl
+                ? memberImpl.getRoleMap().values()
+                : member.getUnsortedRoles();
         if (Helpers.deepEqualsUnordered(roles, memberRoles)) {
             return new CompletedRestAction<>(getJDA(), null);
         }
@@ -1784,7 +1882,7 @@ public class GuildImpl implements Guild {
 
         // Check added roles
         for (Role r : roles) {
-            if (!memberRoles.contains(r)) {
+            if (!member.hasRole(r)) {
                 checkPosition(r);
                 Checks.check(!r.isManaged(), "Cannot add managed role to member. Role: %s", r);
             }
@@ -1802,10 +1900,10 @@ public class GuildImpl implements Guild {
     @Override
     public RestAction<RoleMemberCounts> retrieveRoleMemberCounts() {
         return new RestActionImpl<>(api, Route.Guilds.GET_ROLE_MEMBER_COUNTS.compile(getId()), (response, request) -> {
-            TLongIntMap map = new TLongIntHashMap();
+            Long2IntMap map = new Long2IntOpenHashMap();
             response.getObject()
                     .toMap()
-                    .forEach((roleId, count) -> map.put(Long.parseUnsignedLong(roleId), (int) count));
+                    .forEach((roleId, count) -> map.put(Long.parseUnsignedLong(roleId), ((Number) count).intValue()));
             return new RoleMemberCountsImpl(this, map);
         });
     }
@@ -1931,31 +2029,20 @@ public class GuildImpl implements Guild {
 
         // Convert file extension to media-type
         String extension = file.getName().substring(index + 1).toLowerCase(Locale.ROOT);
-        MediaType mediaType;
-        switch (extension) {
-            case "apng":
-            case "png":
-                mediaType = Requester.MEDIA_TYPE_PNG;
-                break;
-            case "gif":
-                mediaType = Requester.MEDIA_TYPE_GIF;
-                break;
-            case "json":
-                mediaType = Requester.MEDIA_TYPE_JSON;
-                break;
-            default:
-                throw new IllegalArgumentException(
-                        "Unsupported file extension: '." + extension + "', must be PNG, GIF, or JSON.");
+        MediaType mediaType = MediaType.fromExtension(extension);
+        if (mediaType != MediaType.PNG && mediaType != MediaType.GIF && mediaType != MediaType.JSON) {
+            throw new IllegalArgumentException(
+                    "Unsupported file extension: '." + extension + "', must be PNG, GIF, or JSON.");
         }
 
         // Add sticker metadata as form parts (because payload_json is broken)
-        MultipartBody.Builder builder = new MultipartBody.Builder().setType(MultipartBody.FORM);
+        MultipartBody.Builder builder = new MultipartBody.Builder();
         builder.addFormDataPart("name", name);
         builder.addFormDataPart("description", description);
         builder.addFormDataPart("tags", csv);
 
         // Attach file asset for sticker image/animation
-        builder.addFormDataPart("file", file.getName(), file.getRequestBody(mediaType));
+        file.addPart(builder, "file", mediaType);
 
         MultipartBody body = builder.build();
         Route.CompiledRoute route = Route.Stickers.CREATE_GUILD_STICKER.compile(getId());
@@ -1986,7 +2073,8 @@ public class GuildImpl implements Guild {
     @Override
     public AuditableRestAction<Void> deleteSoundboardSound(@Nonnull SoundboardSoundSnowflake sound) {
         Checks.notNull(sound, "Sound");
-        // This is the minimum requirements, there are more, but only if the soundboard sound is a complete instance
+        // This is the minimum requirements, there are more, but only if the soundboard
+        // sound is a complete instance
         checkPermission(Permission.MANAGE_GUILD_EXPRESSIONS);
         return new AuditableRestActionImpl<>(
                 api, Route.SoundboardSounds.DELETE_GUILD_SOUNDBOARD_SOUND.compile(this.getId(), sound.getId()));
@@ -2062,7 +2150,7 @@ public class GuildImpl implements Guild {
     protected void checkPosition(Role role) {
         if (!getSelfMember().canInteract(role)) {
             throw new HierarchyException(
-                    "Can't modify a role with higher or equal highest role than yourself! Role: " + role.toString());
+                    "Can't modify a role with higher or equal highest role than yourself! Role: " + role);
         }
     }
 
@@ -2415,7 +2503,7 @@ public class GuildImpl implements Guild {
         return this.voiceStateCache.applyStream(stream -> stream.filter(state -> channel.equals(state.getChannel()))
                 .map(GuildVoiceStateImpl::getMember)
                 .filter(Objects::nonNull) // sanity filter
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     // -- Object overrides --
@@ -2425,10 +2513,9 @@ public class GuildImpl implements Guild {
         if (o == this) {
             return true;
         }
-        if (!(o instanceof GuildImpl)) {
+        if (!(o instanceof GuildImpl oGuild)) {
             return false;
         }
-        GuildImpl oGuild = (GuildImpl) o;
         return this.id == oGuild.id;
     }
 

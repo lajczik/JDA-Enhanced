@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.entities;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.Permission;
@@ -25,6 +25,7 @@ import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.unions.DefaultGuildChannelUnion;
 import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
+import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.cache.CacheView;
 import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.entities.channel.mixin.attribute.IPermissionContainerMixin;
@@ -34,11 +35,8 @@ import net.dv8tion.jda.internal.utils.EntityString;
 import net.dv8tion.jda.internal.utils.Helpers;
 import net.dv8tion.jda.internal.utils.PermissionUtil;
 
-import java.awt.*;
 import java.time.OffsetDateTime;
 import java.util.*;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
@@ -46,7 +44,7 @@ import javax.annotation.Nullable;
 
 public class MemberImpl implements Member, MemberMixin<MemberImpl> {
     private final JDAImpl api;
-    private final Set<Role> roles = ConcurrentHashMap.newKeySet();
+    private final Long2ObjectMap<Role> roles = MiscUtil.newLongMap();
 
     private GuildImpl guild;
     private User user;
@@ -141,7 +139,7 @@ public class MemberImpl implements Member, MemberMixin<MemberImpl> {
     @Override
     public List<Activity> getActivities() {
         MemberPresenceImpl presence = getPresence();
-        return presence == null ? Collections.emptyList() : presence.getActivities();
+        return presence == null ? List.of() : presence.getActivities();
     }
 
     @Nonnull
@@ -192,20 +190,132 @@ public class MemberImpl implements Member, MemberMixin<MemberImpl> {
     @Nonnull
     @Override
     public List<Role> getRoles() {
-        List<Role> roleList = new ArrayList<>(roles);
+        List<Role> roleList = new ArrayList<>(roles.values());
         roleList.sort(Comparator.reverseOrder());
         return Collections.unmodifiableList(roleList);
     }
 
     @Nonnull
     @Override
-    public Set<Role> getUnsortedRoles() {
-        return Collections.unmodifiableSet(roles);
+    public Collection<Role> getUnsortedRoles() {
+        return Collections.unmodifiableCollection(roles.values());
+    }
+
+    @Override
+    public boolean hasRole(long roleId) {
+        return roles.containsKey(roleId);
+    }
+
+    @Override
+    public boolean hasRole(@Nonnull Role role) {
+        Checks.notNull(role, "Role");
+        return roles.containsKey(role.getIdLong());
+    }
+
+    @Override
+    public boolean hasRole(@Nonnull String roleId) {
+        return roles.containsKey(MiscUtil.parseSnowflake(roleId));
+    }
+
+    @Nullable
+    @Override
+    public Role getRole(long roleId) {
+        return roles.get(roleId);
+    }
+
+    @Nullable
+    @Override
+    public Role getRole(@Nonnull String roleId) {
+        return roles.get(MiscUtil.parseSnowflake(roleId));
+    }
+
+    @Override
+    public boolean hasAnyRole(@Nonnull long... roleIds) {
+        Checks.notNull(roleIds, "Role IDs");
+        for (long roleId : roleIds) {
+            if (roles.containsKey(roleId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean hasAnyRole(@Nonnull Role... roles) {
+        Checks.noneNull(roles, "Roles");
+        for (Role role : roles) {
+            if (this.roles.containsKey(role.getIdLong())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean hasAnyRole(@Nonnull Collection<Role> roles) {
+        Checks.noneNull(roles, "Roles");
+        for (Role role : roles) {
+            if (this.roles.containsKey(role.getIdLong())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean hasAllRoles(@Nonnull long... roleIds) {
+        Checks.notNull(roleIds, "Role IDs");
+        for (long roleId : roleIds) {
+            if (!roles.containsKey(roleId)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean hasAllRoles(@Nonnull Role... roles) {
+        Checks.noneNull(roles, "Roles");
+        for (Role role : roles) {
+            if (!this.roles.containsKey(role.getIdLong())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean hasAllRoles(@Nonnull Collection<Role> roles) {
+        Checks.noneNull(roles, "Roles");
+        for (Role role : roles) {
+            if (!this.roles.containsKey(role.getIdLong())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
     public int getFlagsRaw() {
         return flags;
+    }
+
+    @Nonnull
+    @Override
+    public RoleColors getColors() {
+        if (roles.isEmpty()) {
+            return RoleColors.DEFAULT;
+        }
+        Role highestColoredRole = null;
+        for (Role role : roles.values()) {
+            RoleColors roleColors = role.getColors();
+            if (!roleColors.isDefault()) {
+                if (highestColoredRole == null || role.getPositionRaw() > highestColoredRole.getPositionRaw()) {
+                    highestColoredRole = role;
+                }
+            }
+        }
+        return highestColoredRole != null ? highestColoredRole.getColors() : RoleColors.DEFAULT;
     }
 
     @Nonnull
@@ -267,7 +377,7 @@ public class MemberImpl implements Member, MemberMixin<MemberImpl> {
             return true;
         }
 
-        TLongObjectMap<PermissionOverride> existingOverrides =
+        Long2ObjectMap<PermissionOverride> existingOverrides =
                 ((IPermissionContainerMixin<?>) targetChannel).getPermissionOverrideMap();
         for (PermissionOverride override : syncSource.getPermissionOverrides()) {
             PermissionOverride existing = existingOverrides.get(override.getIdLong());
@@ -396,7 +506,7 @@ public class MemberImpl implements Member, MemberMixin<MemberImpl> {
         return this;
     }
 
-    public Set<Role> getRoleSet() {
+    public Long2ObjectMap<Role> getRoleMap() {
         return roles;
     }
 

@@ -16,23 +16,29 @@
 
 package net.dv8tion.jda.internal.handle;
 
-import gnu.trove.iterator.TLongObjectIterator;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.guild.GuildTimeoutEvent;
 import net.dv8tion.jda.api.events.guild.UnavailableGuildLeaveEvent;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
+import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.requests.MemberChunkManager;
 import net.dv8tion.jda.internal.requests.WebSocketClient;
 import net.dv8tion.jda.internal.utils.JDALogger;
+import net.dv8tion.jda.internal.utils.UnlockHook;
+import net.dv8tion.jda.internal.utils.cache.SnowflakeCacheViewImpl;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Future;
@@ -49,11 +55,13 @@ public class GuildSetupController {
     private static final int timeoutThreshold = 60; // Half of 120 rate limit
 
     private final JDAImpl api;
-    private final TLongObjectMap<GuildSetupNode> setupNodes = new TLongObjectHashMap<>();
-    private final TLongSet chunkingGuilds = new TLongHashSet();
-    private final TLongSet unavailableGuilds = new TLongHashSet();
+    private final Long2ObjectMap<GuildSetupNode> setupNodes = new Long2ObjectOpenHashMap<>();
+    private final LongSet chunkingGuilds = new LongOpenHashSet();
+    private final LongSet unavailableGuilds = new LongOpenHashSet();
+    private final Long2ObjectMap<GuildImpl> cachedGuilds = new Long2ObjectOpenHashMap<>();
 
-    // TODO: Rewrite this incompleteCount system to just rely on the state of each node
+    // TODO: Rewrite this incompleteCount system to just rely on the state of each
+    // node
     private int incompleteCount = 0;
 
     private Future<?> timeoutHandle;
@@ -158,6 +166,10 @@ public class GuildSetupController {
         if (isUnavailable(id) && available) {
             log.debug("Leaving unavailable guild with id {}", id);
             remove(id);
+            GuildImpl cached = takeCachedGuild(id);
+            if (cached != null) {
+                cached.detach();
+            }
             api.getEventManager().handle(new UnavailableGuildLeaveEvent(api, api.getResponseTotal(), id));
             return true;
         }
@@ -168,7 +180,8 @@ public class GuildSetupController {
         }
         log.debug("Received guild delete for id: {} available: {}", id, available);
         if (!available) {
-            // The guild is currently unavailable and should be ignored for chunking requests
+            // The guild is currently unavailable and should be ignored for chunking
+            // requests
             if (!node.markedUnavailable) {
                 node.markedUnavailable = true; // this prevents repeated decrements from duplicate events
                 if (incompleteCount > 0) {
@@ -181,6 +194,10 @@ public class GuildSetupController {
         } else {
             // This guild was deleted
             node.cleanup(); // clear EventCache
+            GuildImpl cached = takeCachedGuild(id);
+            if (cached != null) {
+                cached.detach();
+            }
             if (node.isJoin() && !node.requestedChunk) {
                 remove(id);
             } else {
@@ -257,8 +274,18 @@ public class GuildSetupController {
         setupNodes.clear();
         chunkingGuilds.clear();
         unavailableGuilds.clear();
+        clearReloadCandidates();
         incompleteCount = 0;
         close();
+    }
+
+    public void clearReloadCandidates() {
+        if (cachedGuilds.isEmpty()) {
+            return;
+        }
+        List<GuildImpl> toDetach = new ArrayList<>(cachedGuilds.values());
+        cachedGuilds.clear();
+        toDetach.forEach(GuildImpl::detach);
     }
 
     public void close() {
@@ -270,9 +297,7 @@ public class GuildSetupController {
 
     @SuppressWarnings("ReferenceEquality")
     public boolean containsMember(long userId, @Nullable GuildSetupNode excludedNode) {
-        for (TLongObjectIterator<GuildSetupNode> it = setupNodes.iterator(); it.hasNext(); ) {
-            it.advance();
-            GuildSetupNode node = it.value();
+        for (GuildSetupNode node : setupNodes.values()) {
             if (node != excludedNode && node.containsMember(userId)) {
                 return true;
             }
@@ -280,12 +305,12 @@ public class GuildSetupController {
         return false;
     }
 
-    public TLongSet getUnavailableGuilds() {
+    public LongSet getUnavailableGuilds() {
         return unavailableGuilds;
     }
 
     public Set<GuildSetupNode> getSetupNodes() {
-        return new HashSet<>(setupNodes.valueCollection());
+        return new HashSet<>(setupNodes.values());
     }
 
     public Set<GuildSetupNode> getSetupNodes(Status status) {
@@ -323,9 +348,8 @@ public class GuildSetupController {
     }
 
     private void tryChunking() {
-        chunkingGuilds.forEach((id) -> {
+        chunkingGuilds.forEach((long id) -> {
             sendChunkRequest(id);
-            return true;
         });
         chunkingGuilds.clear();
     }
@@ -339,9 +363,35 @@ public class GuildSetupController {
         timeoutHandle = getJDA().getGatewayPool().schedule(this::onTimeout, timeoutDuration, TimeUnit.SECONDS);
     }
 
+    public void onUnavailable(GuildImpl guild) {
+        if (guild != null) {
+            unavailableGuilds.add(guild.getIdLong());
+            cachedGuilds.put(guild.getIdLong(), guild);
+            log.debug(
+                    "Guild with id {} is now marked unavailable. Total: {}",
+                    guild.getIdLong(),
+                    unavailableGuilds.size());
+        }
+    }
+
     public void onUnavailable(long id) {
         unavailableGuilds.add(id);
         log.debug("Guild with id {} is now marked unavailable. Total: {}", id, unavailableGuilds.size());
+    }
+
+    public void cacheGuildsOnInvalidate(SnowflakeCacheViewImpl<Guild> guildView) {
+        try (UnlockHook hook = guildView.readLock()) {
+            guildView.forEach(guild -> {
+                if (guild instanceof GuildImpl) {
+                    cachedGuilds.put(guild.getIdLong(), (GuildImpl) guild);
+                }
+            });
+        }
+        log.debug("Cached {} guilds during session invalidate for in-place reload", cachedGuilds.size());
+    }
+
+    public GuildImpl takeCachedGuild(long id) {
+        return cachedGuilds.remove(id);
     }
 
     public void onTimeout() {
@@ -349,10 +399,9 @@ public class GuildSetupController {
             return;
         }
         log.warn("Automatically marking {} guilds as unavailable due to timeout!", incompleteCount);
-        TLongObjectIterator<GuildSetupNode> iterator = setupNodes.iterator();
+        ObjectIterator<GuildSetupNode> iterator = setupNodes.values().iterator();
         while (iterator.hasNext()) {
-            iterator.advance();
-            GuildSetupNode node = iterator.value();
+            GuildSetupNode node = iterator.next();
             iterator.remove();
             unavailableGuilds.add(node.getIdLong());
             // Inform users that the guild timed out

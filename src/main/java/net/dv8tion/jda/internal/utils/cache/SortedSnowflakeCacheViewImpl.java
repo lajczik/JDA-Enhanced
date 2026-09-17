@@ -19,7 +19,6 @@ package net.dv8tion.jda.internal.utils.cache;
 import net.dv8tion.jda.api.entities.ISnowflake;
 import net.dv8tion.jda.api.utils.cache.SortedSnowflakeCacheView;
 import net.dv8tion.jda.internal.utils.UnlockHook;
-import org.apache.commons.collections4.iterators.ObjectArrayIterator;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -60,7 +59,7 @@ public class SortedSnowflakeCacheViewImpl<T extends ISnowflake & Comparable<? su
     @Override
     public List<T> asList() {
         if (isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
         try (UnlockHook hook = readLock()) {
             List<T> list = getCachedList();
@@ -68,7 +67,7 @@ public class SortedSnowflakeCacheViewImpl<T extends ISnowflake & Comparable<? su
                 return list;
             }
             list = new ArrayList<>(elements.size());
-            elements.forEachValue(list::add);
+            elements.values().forEach(list::add);
             list.sort(comparator);
             return cache(list);
         }
@@ -86,7 +85,7 @@ public class SortedSnowflakeCacheViewImpl<T extends ISnowflake & Comparable<? su
                 return set;
             }
             set = new TreeSet<>(comparator);
-            elements.forEachValue(set::add);
+            elements.values().forEach(set::add);
             return cache(set);
         }
     }
@@ -134,9 +133,9 @@ public class SortedSnowflakeCacheViewImpl<T extends ISnowflake & Comparable<? su
     @Override
     public Iterator<T> iterator() {
         try (UnlockHook hook = readLock()) {
-            T[] arr = elements.values(emptyArray);
+            T[] arr = elements.values().toArray(emptyArray);
             Arrays.sort(arr, comparator);
-            return new ObjectArrayIterator<>(arr);
+            return Arrays.asList(arr).iterator();
         }
     }
 }

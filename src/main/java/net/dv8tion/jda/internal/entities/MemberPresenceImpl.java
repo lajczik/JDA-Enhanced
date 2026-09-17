@@ -20,12 +20,11 @@ import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.ClientType;
 
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 
 public class MemberPresenceImpl {
-    private List<Activity> activities = Collections.emptyList();
+    private List<Activity> activities = List.of();
     private EnumMap<ClientType, OnlineStatus> clientStatus;
     private OnlineStatus status = OnlineStatus.OFFLINE;
 

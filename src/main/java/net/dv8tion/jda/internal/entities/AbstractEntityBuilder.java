@@ -67,6 +67,25 @@ public abstract class AbstractEntityBuilder {
                 .setNSFW(json.getBoolean("nsfw"));
     }
 
+    public static RoleColors createRoleColors(DataObject roleJson) {
+        if (roleJson == null) {
+            return RoleColors.DEFAULT;
+        }
+
+        DataObject colorsJson = roleJson.optObject("colors").orElse(null);
+        if (colorsJson != null) {
+            int primaryColor = colorsJson.getInt("primary_color", Role.DEFAULT_COLOR_RAW);
+            int secondaryColor = colorsJson.getInt("secondary_color", Role.DEFAULT_COLOR_RAW);
+            int tertiaryColor = colorsJson.getInt("tertiary_color", Role.DEFAULT_COLOR_RAW);
+            return new RoleColors(
+                    primaryColor == 0 ? Role.DEFAULT_COLOR_RAW : primaryColor, secondaryColor, tertiaryColor);
+        }
+
+        int color = roleJson.getInt("color", Role.DEFAULT_COLOR_RAW);
+        return new RoleColors(
+                color == 0 ? Role.DEFAULT_COLOR_RAW : color, Role.DEFAULT_COLOR_RAW, Role.DEFAULT_COLOR_RAW);
+    }
+
     protected void configureVoiceChannel(DataObject json, VoiceChannelMixin<?> channel) {
         channel.setParentCategory(json.getLong("parent_id", 0))
                 .setLatestMessageIdLong(json.getLong("last_message_id", 0))
@@ -78,21 +97,8 @@ public abstract class AbstractEntityBuilder {
                 .setBitrate(json.getInt("bitrate"))
                 .setRegion(json.getString("rtc_region", null))
                 //
-                // .setDefaultThreadSlowmode(json.getInt("default_thread_rate_limit_per_user", 0))
-                .setSlowmode(json.getInt("rate_limit_per_user", 0));
-    }
-
-    protected void configureStageChannel(DataObject json, StageChannelMixin<?> channel) {
-        channel.setParentCategory(json.getLong("parent_id", 0))
-                .setLatestMessageIdLong(json.getLong("last_message_id", 0))
-                .setName(json.getString("name"))
-                .setPosition(json.getInt("position"))
-                .setBitrate(json.getInt("bitrate"))
-                .setUserLimit(json.getInt("user_limit", 0))
-                .setNSFW(json.getBoolean("nsfw"))
-                .setRegion(json.getString("rtc_region", null))
-                //
-                // .setDefaultThreadSlowmode(json.getInt("default_thread_rate_limit_per_user", 0))
+                // .setDefaultThreadSlowmode(json.getInt("default_thread_rate_limit_per_user",
+                // 0))
                 .setSlowmode(json.getInt("rate_limit_per_user", 0));
     }
 
@@ -217,8 +223,23 @@ public abstract class AbstractEntityBuilder {
         }
     }
 
+    protected void configureStageChannel(DataObject json, StageChannelMixin<?> channel) {
+        channel.setParentCategory(json.getLong("parent_id", 0))
+                .setLatestMessageIdLong(json.getLong("last_message_id", 0))
+                .setName(json.getString("name"))
+                .setPosition(json.getInt("position"))
+                .setBitrate(json.getInt("bitrate"))
+                .setUserLimit(json.getInt("user_limit", 0))
+                .setNSFW(json.getBoolean("nsfw"))
+                .setRegion(json.getString("rtc_region", null))
+                //
+                // .setDefaultThreadSlowmode(json.getInt("default_thread_rate_limit_per_user",
+                // 0))
+                .setSlowmode(json.getInt("rate_limit_per_user", 0));
+    }
+
     protected void configureRole(DataObject roleJson, RoleMixin<?> role, long id) {
-        RoleColors colors = createRoleColors(roleJson.getObject("colors"));
+        RoleColors colors = createRoleColors(roleJson);
 
         role.setName(roleJson.getString("name"))
                 .setRawPosition(roleJson.getInt("position"))
@@ -238,13 +259,5 @@ public abstract class AbstractEntityBuilder {
         } else {
             role.setIcon(new RoleIcon(iconId, emoji, id));
         }
-    }
-
-    public static RoleColors createRoleColors(DataObject colorsJson) {
-        int primaryColor = colorsJson.getInt("primary_color");
-        int secondaryColor = colorsJson.getInt("secondary_color", Role.DEFAULT_COLOR_RAW);
-        int tertiaryColor = colorsJson.getInt("tertiary_color", Role.DEFAULT_COLOR_RAW);
-
-        return new RoleColors(primaryColor == 0 ? Role.DEFAULT_COLOR_RAW : primaryColor, secondaryColor, tertiaryColor);
     }
 }

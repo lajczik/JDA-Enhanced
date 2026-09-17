@@ -21,8 +21,9 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.utils.cache.MemberCacheView;
 import net.dv8tion.jda.internal.utils.Checks;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -42,7 +43,7 @@ public class MemberCacheViewImpl extends SnowflakeCacheViewImpl<Member> implemen
     public List<Member> getElementsByUsername(@Nonnull String name, boolean ignoreCase) {
         Checks.notEmpty(name, "Name");
         if (isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
         List<Member> members = new ArrayList<>();
         forEach(member -> {
@@ -51,14 +52,14 @@ public class MemberCacheViewImpl extends SnowflakeCacheViewImpl<Member> implemen
                 members.add(member);
             }
         });
-        return Collections.unmodifiableList(members);
+        return List.copyOf(members);
     }
 
     @Nonnull
     @Override
     public List<Member> getElementsByNickname(@Nullable String name, boolean ignoreCase) {
         if (isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
         List<Member> members = new ArrayList<>();
         forEach(member -> {
@@ -74,14 +75,14 @@ public class MemberCacheViewImpl extends SnowflakeCacheViewImpl<Member> implemen
                 members.add(member);
             }
         });
-        return Collections.unmodifiableList(members);
+        return List.copyOf(members);
     }
 
     @Nonnull
     @Override
     public List<Member> getElementsWithRoles(@Nonnull Role... roles) {
         Checks.notNull(roles, "Roles");
-        return getElementsWithRoles(Arrays.asList(roles));
+        return getElementsWithRoles(List.of(roles));
     }
 
     @Nonnull
@@ -89,21 +90,94 @@ public class MemberCacheViewImpl extends SnowflakeCacheViewImpl<Member> implemen
     public List<Member> getElementsWithRoles(@Nonnull Collection<Role> roles) {
         Checks.noneNull(roles, "Roles");
         if (isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
 
-        List<Role> rolesWithoutPublicRole =
-                roles.stream().filter(role -> !role.isPublicRole()).collect(Collectors.toList());
-        if (rolesWithoutPublicRole.isEmpty()) {
+        boolean hasPublicRole = roles.stream().anyMatch(Role::isPublicRole);
+        if (hasPublicRole) {
+            return asList();
+        }
+
+        long[] roleIds = roles.stream().mapToLong(Role::getIdLong).toArray();
+        return getElementsWithRoles(roleIds);
+    }
+
+    @Nonnull
+    @Override
+    public List<Member> getElementsWithRoles(@Nonnull long... roleIds) {
+        Checks.notNull(roleIds, "Role IDs");
+        if (isEmpty()) {
+            return List.of();
+        }
+        if (roleIds.length == 0) {
             return asList();
         }
 
         List<Member> members = new ArrayList<>();
-        forEach(member -> {
-            if (member.getUnsortedRoles().containsAll(rolesWithoutPublicRole)) {
-                members.add(member);
-            }
-        });
-        return Collections.unmodifiableList(members);
+        if (roleIds.length > 1) {
+            forEach(member -> {
+                if (member.hasAllRoles(roleIds)) {
+                    members.add(member);
+                }
+            });
+        } else {
+            long roleId = roleIds[0];
+            forEach(member -> {
+                if (member.hasRole(roleId)) {
+                    members.add(member);
+                }
+            });
+        }
+        return List.copyOf(members);
+    }
+
+    @Nonnull
+    @Override
+    public List<Member> getElementsWithAnyRole(@Nonnull Role... roles) {
+        Checks.notNull(roles, "Roles");
+        return getElementsWithAnyRole(List.of(roles));
+    }
+
+    @Nonnull
+    @Override
+    public List<Member> getElementsWithAnyRole(@Nonnull Collection<Role> roles) {
+        Checks.noneNull(roles, "Roles");
+        if (isEmpty()) {
+            return List.of();
+        }
+
+        boolean hasPublicRole = roles.stream().anyMatch(Role::isPublicRole);
+        if (hasPublicRole) {
+            return asList();
+        }
+
+        long[] roleIds = roles.stream().mapToLong(Role::getIdLong).toArray();
+        return getElementsWithAnyRole(roleIds);
+    }
+
+    @Nonnull
+    @Override
+    public List<Member> getElementsWithAnyRole(@Nonnull long... roleIds) {
+        Checks.notNull(roleIds, "Role IDs");
+        if (isEmpty() || roleIds.length == 0) {
+            return List.of();
+        }
+
+        List<Member> members = new ArrayList<>();
+        if (roleIds.length > 1) {
+            forEach(member -> {
+                if (member.hasAnyRole(roleIds)) {
+                    members.add(member);
+                }
+            });
+        } else {
+            long roleId = roleIds[0];
+            forEach(member -> {
+                if (member.hasRole(roleId)) {
+                    members.add(member);
+                }
+            });
+        }
+        return List.copyOf(members);
     }
 }

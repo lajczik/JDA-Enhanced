@@ -16,10 +16,15 @@
 
 package net.dv8tion.jda.test.entities;
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.entities.EntityBuilder;
@@ -27,6 +32,9 @@ import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.entities.ReceivedMessage;
 import net.dv8tion.jda.internal.entities.SelfUserImpl;
 import net.dv8tion.jda.internal.handle.EventCache;
+import net.dv8tion.jda.internal.handle.GuildSetupController;
+import net.dv8tion.jda.internal.managers.AudioManagerImpl;
+import net.dv8tion.jda.internal.utils.UnlockHook;
 import net.dv8tion.jda.internal.utils.cache.ChannelCacheViewImpl;
 import net.dv8tion.jda.internal.utils.cache.MemberCacheViewImpl;
 import net.dv8tion.jda.internal.utils.cache.SnowflakeCacheViewImpl;
@@ -36,6 +44,8 @@ import net.dv8tion.jda.test.IntegrationTest;
 import net.dv8tion.jda.test.util.MockitoVerifyUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+
+import java.util.EnumSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -141,6 +151,66 @@ class EntityBuilderTest extends IntegrationTest {
 
         assertThat(MockitoVerifyUtils.getInteractions(memberCache)).isEmpty();
         assertInteractionsWithSnapshot(memberCache);
+    }
+
+    @Test
+    void createGuildReusesExistingInstanceFromCache() {
+        EntityBuilder entityBuilder = new EntityBuilder(jda);
+        GuildSetupController setupController = mock(GuildSetupController.class);
+        when(jda.getGuildSetupController()).thenReturn(setupController);
+        when(jda.getGuildById(12345L)).thenReturn(null);
+
+        when(jda.getCacheFlags()).thenReturn(EnumSet.noneOf(CacheFlag.class));
+        when(jda.getGatewayIntents()).thenReturn(EnumSet.noneOf(GatewayIntent.class));
+        when(jda.cacheMember(any())).thenReturn(true);
+        when(jda.getEventCache()).thenReturn(mock(EventCache.class));
+        when(jda.getChannelsView()).thenReturn(new ChannelCacheViewImpl<>(Channel.class));
+        SelfUserImpl selfUser = mock(SelfUserImpl.class);
+        when(selfUser.getIdLong()).thenReturn(999L);
+        when(selfUser.getName()).thenReturn("SelfBot");
+        when(selfUser.getJDA()).thenReturn(jda);
+        when(jda.getSelfUser()).thenReturn(selfUser);
+
+        SnowflakeCacheViewImpl<User> userView = new SnowflakeCacheViewImpl<>(User.class, User::getName);
+        try (UnlockHook hook = userView.writeLock()) {
+            userView.getMap().put(999L, selfUser);
+        }
+        when(jda.getUsersView()).thenReturn(userView);
+        when(jda.getGuildsView()).thenReturn(new SnowflakeCacheViewImpl<>(Guild.class, Guild::getName));
+
+        GuildImpl cachedGuild = new GuildImpl(jda, 12345L);
+        when(setupController.takeCachedGuild(12345L)).thenReturn(cachedGuild);
+
+        DataObject guildJson = DataObject.empty()
+                .put("name", "Reloaded Guild")
+                .put("afk_timeout", 300)
+                .put("roles", DataArray.empty())
+                .put("channels", DataArray.empty())
+                .put("threads", DataArray.empty())
+                .put("guild_scheduled_events", DataArray.empty())
+                .put("emojis", DataArray.empty())
+                .put("voice_states", DataArray.empty());
+
+        DataObject selfMemberJson = DataObject.empty()
+                .put(
+                        "user",
+                        DataObject.empty()
+                                .put("id", 999L)
+                                .put("username", "SelfBot")
+                                .put("discriminator", "0001"))
+                .put("roles", DataArray.empty());
+        Long2ObjectMap<DataObject> members = new Long2ObjectOpenHashMap<>();
+        members.put(999L, selfMemberJson);
+
+        GuildImpl result = entityBuilder.createGuild(12345L, guildJson, members, 1);
+
+        assertThat(result).isSameAs(cachedGuild);
+        assertThat(result.getName()).isEqualTo("Reloaded Guild");
+        assertThat(result.isDetached()).isFalse();
+
+        AudioManagerImpl audioManager = new AudioManagerImpl(cachedGuild);
+        assertThat(audioManager.getGuild()).isSameAs(cachedGuild);
+        assertThat(audioManager.getGuild()).isSameAs(result);
     }
 
     static class TestData {

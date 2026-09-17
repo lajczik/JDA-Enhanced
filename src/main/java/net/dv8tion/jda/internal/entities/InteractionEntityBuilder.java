@@ -39,8 +39,8 @@ import net.dv8tion.jda.internal.interactions.MemberInteractionPermissions;
 import net.dv8tion.jda.internal.utils.JDALogger;
 import org.slf4j.Logger;
 
-import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
@@ -72,11 +72,8 @@ public class InteractionEntityBuilder extends AbstractEntityBuilder {
         DetachedGuildImpl detachedGuild = new DetachedGuildImpl(api, guildId);
         detachedGuild.setLocale(DiscordLocale.from(locale));
         detachedGuild.setFeatures(featuresArray
-                .map(array -> array.stream(DataArray::getString)
-                        // Prevent allocating the same feature string over and over
-                        .map(String::intern)
-                        .collect(Collectors.toSet()))
-                .orElse(Collections.emptySet()));
+                .map(array -> array.stream(DataArray::getString).collect(Collectors.toSet()))
+                .orElse(Set.of()));
 
         return detachedGuild;
     }

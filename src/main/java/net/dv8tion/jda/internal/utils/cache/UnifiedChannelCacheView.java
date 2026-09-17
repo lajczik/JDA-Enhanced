@@ -22,7 +22,6 @@ import net.dv8tion.jda.api.utils.ClosableIterator;
 import net.dv8tion.jda.api.utils.cache.ChannelCacheView;
 import net.dv8tion.jda.internal.utils.ChainedClosableIterator;
 import net.dv8tion.jda.internal.utils.Checks;
-import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -53,13 +52,13 @@ public class UnifiedChannelCacheView<C extends Channel> implements ChannelCacheV
     @Nonnull
     @Override
     public List<C> asList() {
-        return stream().collect(Helpers.toUnmodifiableList());
+        return stream().toList();
     }
 
     @Nonnull
     @Override
     public Set<C> asSet() {
-        return stream().collect(Collectors.collectingAndThen(Collectors.toSet(), Collections::unmodifiableSet));
+        return stream().collect(Collectors.toUnmodifiableSet());
     }
 
     @Nonnull
@@ -83,7 +82,7 @@ public class UnifiedChannelCacheView<C extends Channel> implements ChannelCacheV
     public List<C> getElementsByName(@Nonnull String name, boolean ignoreCase) {
         return supplier.get()
                 .flatMap(view -> view.getElementsByName(name, ignoreCase).stream())
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull

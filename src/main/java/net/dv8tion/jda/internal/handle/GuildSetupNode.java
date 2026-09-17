@@ -16,12 +16,12 @@
 
 package net.dv8tion.jda.internal.handle;
 
-import gnu.trove.iterator.TLongIterator;
-import gnu.trove.iterator.TLongObjectIterator;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import net.dv8tion.jda.api.audio.hooks.ConnectionListener;
 import net.dv8tion.jda.api.audio.hooks.ConnectionStatus;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
@@ -52,8 +52,8 @@ public class GuildSetupNode {
     @SuppressWarnings("JdkObsolete")
     private final List<DataObject> cachedEvents = new LinkedList<>();
 
-    private TLongObjectMap<DataObject> members;
-    private TLongSet removedMembers;
+    private Long2ObjectMap<DataObject> members;
+    private LongSet removedMembers;
     private DataObject partialGuild;
     private int expectedMemberCount = 1;
     boolean requestedChunk;
@@ -91,9 +91,13 @@ public class GuildSetupNode {
     }
 
     public int getCurrentMemberCount() {
-        TLongHashSet knownMembers = new TLongHashSet(members.keySet());
-        knownMembers.removeAll(removedMembers);
-        return knownMembers.size();
+        int count = 0;
+        for (long id : members.keySet()) {
+            if (!removedMembers.contains(id)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     public Type getType() {
@@ -216,7 +220,8 @@ public class GuildSetupNode {
 
     boolean handleMemberChunk(boolean last, DataArray arr) {
         if (partialGuild == null) {
-            // In this case we received a GUILD_DELETE with unavailable = true while chunking
+            // In this case we received a GUILD_DELETE with unavailable = true while
+            // chunking
             // however we have to wait for the GUILD_CREATE with unavailable = false before
             // requesting new chunks
             GuildSetupController.log.debug("Dropping member chunk due to unavailable guild");
@@ -315,9 +320,10 @@ public class GuildSetupNode {
         });
 
         if (members != null) {
-            for (TLongObjectIterator<DataObject> it = members.iterator(); it.hasNext(); ) {
-                it.advance();
-                long userId = it.key();
+            for (ObjectIterator<Long2ObjectMap.Entry<DataObject>> it =
+                            ((Long2ObjectMap.FastEntrySet<DataObject>) members.long2ObjectEntrySet()).fastIterator();
+                    it.hasNext(); ) {
+                long userId = it.next().getLongKey();
                 if (!getController().containsMember(userId, this)) {
                     // if no other setup node contains this userId we clear it here
                     eventCache.clear(EventCache.Type.USER, userId);
@@ -329,29 +335,29 @@ public class GuildSetupNode {
     private void completeSetup() {
         updateStatus(GuildSetupController.Status.BUILDING);
         JDAImpl api = getController().getJDA();
-        for (TLongIterator it = removedMembers.iterator(); it.hasNext(); ) {
-            members.remove(it.next());
+        for (LongIterator it = removedMembers.iterator(); it.hasNext(); ) {
+            members.remove(it.nextLong());
         }
         removedMembers.clear();
         GuildImpl guild = api.getEntityBuilder().createGuild(id, partialGuild, members, expectedMemberCount);
         updateAudioManagerReference(guild);
         switch (type) {
-            case AVAILABLE:
+            case AVAILABLE -> {
                 api.handleEvent(new GuildAvailableEvent(api, api.getResponseTotal(), guild));
                 getController().remove(id);
-                break;
-            case JOIN:
+            }
+            case JOIN -> {
                 api.handleEvent(new GuildJoinEvent(api, api.getResponseTotal(), guild));
                 if (requestedChunk) {
                     getController().ready(id);
                 } else {
                     getController().remove(id);
                 }
-                break;
-            default:
+            }
+            default -> {
                 api.handleEvent(new GuildReadyEvent(api, api.getResponseTotal(), guild));
                 getController().ready(id);
-                break;
+            }
         }
         updateStatus(GuildSetupController.Status.READY);
         GuildSetupController.log.debug("Finished setup for guild {} firing cached events {}", id, cachedEvents.size());
@@ -361,8 +367,8 @@ public class GuildSetupNode {
 
     private void ensureMembers() {
         expectedMemberCount = partialGuild.getInt("member_count");
-        members = new TLongObjectHashMap<>(expectedMemberCount);
-        removedMembers = new TLongHashSet();
+        members = new Long2ObjectOpenHashMap<>(expectedMemberCount);
+        removedMembers = new LongOpenHashSet();
         DataArray memberArray = partialGuild.getArray("members");
         if (!getController().getJDA().chunkGuild(id)) {
             handleMemberChunk(true, memberArray);
@@ -372,8 +378,8 @@ public class GuildSetupNode {
             requestedChunk = true;
         } else if (handleMemberChunk(false, memberArray) && !requestedChunk) {
             // Discord sent us enough members to satisfy the member_count
-            //  but we found duplicates and still didn't reach enough to satisfy the count
-            //  in this case we try to do chunking instead
+            // but we found duplicates and still didn't reach enough to satisfy the count
+            // in this case we try to do chunking instead
             // This is caused by lazy guilds and intended behavior according to jake
             GuildSetupController.log.trace(
                     "Received suspicious members with a guild payload. Attempting to chunk. "
@@ -389,33 +395,23 @@ public class GuildSetupNode {
         }
     }
 
+    @SuppressWarnings("ReferenceEquality")
     private void updateAudioManagerReference(GuildImpl guild) {
         JDAImpl api = getController().getJDA();
         AbstractCacheView<AudioManager> managerView = api.getAudioManagersView();
         try (UnlockHook hook = managerView.writeLock()) {
-            TLongObjectMap<AudioManager> audioManagerMap = managerView.getMap();
+            Long2ObjectMap<AudioManager> audioManagerMap = managerView.getMap();
             AudioManagerImpl mng = (AudioManagerImpl) audioManagerMap.get(id);
             if (mng == null) {
                 return;
             }
             ConnectionListener listener = mng.getConnectionListener();
-            AudioManagerImpl newMng = new AudioManagerImpl(guild);
-            newMng.setSelfMuted(mng.isSelfMuted());
-            newMng.setSelfDeafened(mng.isSelfDeafened());
-            newMng.setQueueTimeout(mng.getConnectTimeout());
-            newMng.setSendingHandler(mng.getSendingHandler());
-            newMng.setReceivingHandler(mng.getReceivingHandler());
-            newMng.setConnectionListener(listener);
-            newMng.setAutoReconnect(mng.isAutoReconnect());
-
             if (mng.isConnected()) {
                 long channelId = mng.getConnectedChannel().getIdLong();
 
                 VoiceChannel channel = api.getVoiceChannelById(channelId);
                 if (channel != null) {
-                    if (mng.isConnected()) {
-                        mng.closeAudioConnection(ConnectionStatus.ERROR_CANNOT_RESUME);
-                    }
+                    mng.closeAudioConnection(ConnectionStatus.ERROR_CANNOT_RESUME);
                 } else {
                     // The voice channel is not cached. It was probably deleted.
                     api.getClient().removeAudioConnection(id);
@@ -424,7 +420,18 @@ public class GuildSetupNode {
                     }
                 }
             }
-            audioManagerMap.put(id, newMng);
+
+            if (mng.getGuild() != guild) {
+                AudioManagerImpl newMng = new AudioManagerImpl(guild);
+                newMng.setSelfMuted(mng.isSelfMuted());
+                newMng.setSelfDeafened(mng.isSelfDeafened());
+                newMng.setQueueTimeout(mng.getConnectTimeout());
+                newMng.setSendingHandler(mng.getSendingHandler());
+                newMng.setReceivingHandler(mng.getReceivingHandler());
+                newMng.setConnectionListener(listener);
+                newMng.setAutoReconnect(mng.isAutoReconnect());
+                audioManagerMap.put(id, newMng);
+            }
         }
     }
 

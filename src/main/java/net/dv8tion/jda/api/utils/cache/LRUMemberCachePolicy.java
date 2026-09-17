@@ -16,8 +16,8 @@
 
 package net.dv8tion.jda.api.utils.cache;
 
-import gnu.trove.map.TObjectIntMap;
-import gnu.trove.map.hash.TObjectIntHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
@@ -60,11 +60,11 @@ public class LRUMemberCachePolicy implements MemberCachePolicy {
     private final int maxMembers;
 
     // Low activity members (usage based, trades memory for cpu time)
-    private final TObjectIntMap<Member> counters;
+    private final Object2IntOpenHashMap<Member> counters;
     private final ArrayDeque<MemberNode> queue;
 
     // High activity members (time based, trades cpu time for memory)
-    private LinkedHashMap<Member, Integer> activeMemberCache;
+    private Object2IntLinkedOpenHashMap<Member> activeMemberCache;
 
     private MemberCachePolicy subPolicy;
     private int useActiveMemberCache;
@@ -86,10 +86,12 @@ public class LRUMemberCachePolicy implements MemberCachePolicy {
         Checks.positive(maxMembers, "Max members");
         Checks.notNull(subPolicy, "MemberCachePolicy");
         this.maxMembers = maxMembers;
-        this.counters = new TObjectIntHashMap<>(maxMembers);
+        this.counters = new Object2IntOpenHashMap<>(maxMembers);
+        this.counters.defaultReturnValue(0);
         this.queue = new ArrayDeque<>(maxMembers);
         this.useActiveMemberCache = Math.max(10, this.maxMembers / 10);
-        this.activeMemberCache = new LinkedHashMap<>();
+        this.activeMemberCache = new Object2IntLinkedOpenHashMap<>();
+        this.activeMemberCache.defaultReturnValue(0);
         this.subPolicy = subPolicy;
     }
 
@@ -133,14 +135,15 @@ public class LRUMemberCachePolicy implements MemberCachePolicy {
             moved.forEach(this::cacheMember);
         }
 
-        this.activeMemberCache = new LinkedHashMap<>();
+        this.activeMemberCache = new Object2IntLinkedOpenHashMap<>();
+        this.activeMemberCache.defaultReturnValue(0);
 
         return this;
     }
 
     @Override
     public synchronized boolean cacheMember(@Nonnull Member member) {
-        int currentCount = this.counters.adjustOrPutValue(member, 1, 1);
+        int currentCount = this.counters.addTo(member, 1) + 1;
 
         if (this.useActiveMemberCache > 0) {
             // Check if this member is a high activity member or low activity member
@@ -157,7 +160,7 @@ public class LRUMemberCachePolicy implements MemberCachePolicy {
                 // This step has O(n) time complexity because it needs to iterate the entire queue
                 // Worst-case: 10 x maxMembers operations
                 this.queue.removeIf((node) -> member.equals(node.member));
-                this.counters.remove(member);
+                this.counters.removeInt(member);
                 this.activeMemberCache.put(member, now());
                 return true;
             }
@@ -178,24 +181,23 @@ public class LRUMemberCachePolicy implements MemberCachePolicy {
     private void evictOldest() {
         Member unloadable = null;
         while (this.counters.size() + this.activeMemberCache.size() > this.maxMembers) {
-            Iterator<Map.Entry<Member, Integer>> activeMemberIterator =
-                    this.activeMemberCache.entrySet().iterator();
-            Map.Entry<Member, Integer> oldestActive =
-                    activeMemberIterator.hasNext() ? activeMemberIterator.next() : null;
+            Member oldestActiveKey = this.activeMemberCache.isEmpty() ? null : this.activeMemberCache.firstKey();
+            int oldestActiveVal =
+                    oldestActiveKey != null ? this.activeMemberCache.getInt(oldestActiveKey) : Integer.MAX_VALUE;
 
             MemberNode removed = this.queue.poll();
-            if (removed == null || oldestActive != null && oldestActive.getValue() < removed.insertionTime) {
-                activeMemberIterator.remove();
-                unloadable = oldestActive.getKey();
+            if (removed == null || (oldestActiveKey != null && oldestActiveVal < removed.insertionTime())) {
+                this.activeMemberCache.removeFirstInt();
+                unloadable = oldestActiveKey;
                 if (removed != null) {
                     this.queue.addFirst(removed);
                 }
             } else {
-                if (this.counters.get(removed.member) <= 1) {
-                    this.counters.remove(removed.member);
-                    unloadable = removed.member;
+                if (this.counters.getInt(removed.member()) <= 1) {
+                    this.counters.removeInt(removed.member());
+                    unloadable = removed.member();
                 } else {
-                    this.counters.adjustValue(removed.member, -1);
+                    this.counters.addTo(removed.member(), -1);
                 }
             }
 
@@ -211,8 +213,8 @@ public class LRUMemberCachePolicy implements MemberCachePolicy {
     private void trimQueue() {
         while (!this.queue.isEmpty()) {
             MemberNode head = this.queue.peek();
-            if (this.counters.get(head) > 1) {
-                this.counters.adjustValue(head.member, -1);
+            if (this.counters.getInt(head.member()) > 1) {
+                this.counters.addTo(head.member(), -1);
                 this.queue.poll();
             } else {
                 break;
@@ -224,13 +226,9 @@ public class LRUMemberCachePolicy implements MemberCachePolicy {
         return (int) (System.currentTimeMillis() / 1000 - EPOCH_SECONDS);
     }
 
-    private static class MemberNode {
-        private final int insertionTime;
-        private final Member member;
-
+    private record MemberNode(int insertionTime, Member member) {
         private MemberNode(Member member) {
-            this.member = member;
-            this.insertionTime = now();
+            this(now(), member);
         }
     }
 }

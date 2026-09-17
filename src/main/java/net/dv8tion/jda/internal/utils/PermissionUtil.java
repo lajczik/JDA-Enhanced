@@ -26,31 +26,36 @@ import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
 import net.dv8tion.jda.api.exceptions.DetachedEntityException;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
-import org.apache.commons.collections4.CollectionUtils;
+import net.dv8tion.jda.internal.entities.MemberImpl;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class PermissionUtil {
     private static final long ALL_PERMISSIONS = Permission.getRaw(Permission.values());
     private static final long ALL_CHANNEL_PERMISSIONS = Permission.getRaw(
-            Arrays.stream(Permission.values()).filter(Permission::isChannel).collect(Collectors.toList()));
+            Arrays.stream(Permission.values()).filter(Permission::isChannel).toList());
 
     /**
-     * Checks if one given Member can interact with a 2nd given Member - in a permission sense (kick/ban/modify perms).
-     * This only checks the Role-Position and does not check the actual permission (kick/ban/manage_role/...)
+     * Checks if one given Member can interact with a 2nd given Member - in a
+     * permission sense (kick/ban/modify perms).
+     * This only checks the Role-Position and does not check the actual permission
+     * (kick/ban/manage_role/...)
      *
-     * @param  issuer
-     *         The member that tries to interact with 2nd member
-     * @param  target
-     *         The member that is the target of the interaction
+     * @param issuer
+     *               The member that tries to interact with 2nd member
+     * @param target
+     *               The member that is the target of the interaction
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is {@code null}
-     *         or the provided entities are not from the same guild
+     *                                  if any of the provided parameters is
+     *                                  {@code null}
+     *                                  or the provided entities are not from the
+     *                                  same guild
      *
      * @return True, if issuer can interact with target in guild
      */
@@ -68,23 +73,41 @@ public class PermissionUtil {
         if (target.isOwner()) {
             return false;
         }
-        List<Role> issuerRoles = issuer.getRoles();
-        List<Role> targetRoles = target.getRoles();
-        return !issuerRoles.isEmpty() && (targetRoles.isEmpty() || canInteract(issuerRoles.get(0), targetRoles.get(0)));
+        Role issuerHighest = getHighestRole(issuer);
+        Role targetHighest = getHighestRole(target);
+        return issuerHighest != null && (targetHighest == null || canInteract(issuerHighest, targetHighest));
+    }
+
+    private static Role getHighestRole(Member member) {
+        if (member instanceof MemberImpl memberImpl) {
+            Role highest = null;
+            for (Role role : memberImpl.getRoleMap().values()) {
+                if (highest == null || role.getPositionRaw() > highest.getPositionRaw()) {
+                    highest = role;
+                }
+            }
+            return highest;
+        }
+        List<Role> roles = member.getRoles();
+        return roles.isEmpty() ? null : roles.getFirst();
     }
 
     /**
-     * Checks if a given Member can interact with a given Role - in a permission sense (kick/ban/modify perms).
-     * This only checks the Role-Position and does not check the actual permission (kick/ban/manage_role/...)
+     * Checks if a given Member can interact with a given Role - in a permission
+     * sense (kick/ban/modify perms).
+     * This only checks the Role-Position and does not check the actual permission
+     * (kick/ban/manage_role/...)
      *
-     * @param  issuer
-     *         The member that tries to interact with the role
-     * @param  target
-     *         The role that is the target of the interaction
+     * @param issuer
+     *               The member that tries to interact with the role
+     * @param target
+     *               The role that is the target of the interaction
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is {@code null}
-     *         or the provided entities are not from the same guild
+     *                                  if any of the provided parameters is
+     *                                  {@code null}
+     *                                  or the provided entities are not from the
+     *                                  same guild
      *
      * @return True, if issuer can interact with target
      */
@@ -99,22 +122,26 @@ public class PermissionUtil {
         if (issuer.isOwner()) {
             return true;
         }
-        List<Role> issuerRoles = issuer.getRoles();
-        return !issuerRoles.isEmpty() && canInteract(issuerRoles.get(0), target);
+        Role issuerHighest = getHighestRole(issuer);
+        return issuerHighest != null && canInteract(issuerHighest, target);
     }
 
     /**
-     * Checks if one given Role can interact with a 2nd given Role - in a permission sense (kick/ban/modify perms).
-     * This only checks the Role-Position and does not check the actual permission (kick/ban/manage_role/...)
+     * Checks if one given Role can interact with a 2nd given Role - in a permission
+     * sense (kick/ban/modify perms).
+     * This only checks the Role-Position and does not check the actual permission
+     * (kick/ban/manage_role/...)
      *
-     * @param  issuer
-     *         The role that tries to interact with 2nd role
-     * @param  target
-     *         The role that is the target of the interaction
+     * @param issuer
+     *               The role that tries to interact with 2nd role
+     * @param target
+     *               The role that is the target of the interaction
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is {@code null}
-     *         or the provided entities are not from the same guild
+     *                                  if any of the provided parameters is
+     *                                  {@code null}
+     *                                  or the provided entities are not from the
+     *                                  same guild
      *
      * @return True, if issuer can interact with target
      */
@@ -129,21 +156,28 @@ public class PermissionUtil {
     }
 
     /**
-     * Check whether the provided {@link net.dv8tion.jda.api.entities.Member Member} can use the specified {@link RichCustomEmoji Emoji}.
+     * Check whether the provided {@link Member}
+     * can use the specified {@link RichCustomEmoji Emoji}.
      *
-     * <p>If the specified Member is not in the emoji's guild or the emoji provided is from a message this will return false.
-     * Otherwise, it will check if the emoji is restricted to any roles and if that is the case if the Member has one of these.
+     * <p>
+     * If the specified Member is not in the emoji's guild or the emoji provided is
+     * from a message this will return false.
+     * Otherwise, it will check if the emoji is restricted to any roles and if that
+     * is the case if the Member has one of these.
      *
-     * <br><b>Note</b>: This is not checking if the issuer owns the Guild or not.
+     * <br>
+     * <b>Note</b>: This is not checking if the issuer owns the Guild or not.
      *
-     * @param  issuer
-     *         The member that tries to interact with the Emoji
-     * @param  emoji
-     *         The emoji that is the target interaction
+     * @param issuer
+     *               The member that tries to interact with the Emoji
+     * @param emoji
+     *               The emoji that is the target interaction
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is {@code null}
-     *         or the provided entities are not from the same guild
+     *                                  if any of the provided parameters is
+     *                                  {@code null}
+     *                                  or the provided entities are not from the
+     *                                  same guild
      *
      * @return True, if the issuer can interact with the emoji
      */
@@ -156,27 +190,32 @@ public class PermissionUtil {
         }
 
         return emoji.getRoles().isEmpty() // emoji restricted to roles -> check if the issuer has them
-                || CollectionUtils.containsAny(issuer.getRoles(), emoji.getRoles());
+                || !Collections.disjoint(issuer.getRoles(), emoji.getRoles());
     }
 
     /**
-     * Checks whether the specified {@link RichCustomEmoji Emoji} can be used by the provided
-     * {@link net.dv8tion.jda.api.entities.User User} in the {@link MessageChannel MessageChannel}.
+     * Checks whether the specified {@link RichCustomEmoji Emoji} can be used by the
+     * provided
+     * {@link User} in the {@link MessageChannel
+     * MessageChannel}.
      *
-     * @param  issuer
-     *         The user that tries to interact with the emoji
-     * @param  emoji
-     *         The emoji that is the target interaction
-     * @param  channel
-     *         The MessageChannel this emoji should be interacted within
-     * @param  botOverride
-     *         Whether bots can use non-managed emojis in other guilds
+     * @param issuer
+     *                    The user that tries to interact with the emoji
+     * @param emoji
+     *                    The emoji that is the target interaction
+     * @param channel
+     *                    The MessageChannel this emoji should be interacted within
+     * @param botOverride
+     *                    Whether bots can use non-managed emojis in other guilds
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is {@code null}
-     *         or the provided entities are not from the same guild
+     *                                  if any of the provided parameters is
+     *                                  {@code null}
+     *                                  or the provided entities are not from the
+     *                                  same guild
      *
-     * @return True, if the issuer can interact with the emoji within the specified MessageChannel
+     * @return True, if the issuer can interact with the emoji within the specified
+     *         MessageChannel
      */
     public static boolean canInteract(User issuer, RichCustomEmoji emoji, MessageChannel channel, boolean botOverride) {
         Checks.notNull(issuer, "Issuer Member");
@@ -190,7 +229,8 @@ public class PermissionUtil {
         if (!canInteract(member, emoji)) {
             return false;
         }
-        // external means it is available outside of its own guild - works for bots or if its
+        // external means it is available outside of its own guild - works for bots or
+        // if its
         // managed
         // currently we cannot check whether other users have nitro, we assume no here
         boolean external = emoji.isManaged() || (issuer.isBot() && botOverride);
@@ -208,45 +248,62 @@ public class PermissionUtil {
     }
 
     /**
-     * Checks whether the specified {@link RichCustomEmoji} can be used by the provided
-     * {@link net.dv8tion.jda.api.entities.User User} in the {@link MessageChannel MessageChannel}.
+     * Checks whether the specified {@link RichCustomEmoji} can be used by the
+     * provided
+     * {@link User} in the {@link MessageChannel
+     * MessageChannel}.
      *
-     * @param  issuer
-     *         The user that tries to interact with the emoji
-     * @param  emoji
-     *         The emoji that is the target interaction
-     * @param  channel
-     *         The MessageChannel this emoji should be interacted within
+     * @param issuer
+     *                The user that tries to interact with the emoji
+     * @param emoji
+     *                The emoji that is the target interaction
+     * @param channel
+     *                The MessageChannel this emoji should be interacted within
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is {@code null}
-     *         or the provided entities are not from the same guild
+     *                                  if any of the provided parameters is
+     *                                  {@code null}
+     *                                  or the provided entities are not from the
+     *                                  same guild
      *
-     * @return True, if the issuer can interact with the emoji within the specified MessageChannel
+     * @return True, if the issuer can interact with the emoji within the specified
+     *         MessageChannel
      */
     public static boolean canInteract(User issuer, RichCustomEmoji emoji, MessageChannel channel) {
         return canInteract(issuer, emoji, channel, true);
     }
 
     /**
-     * Checks to see if the {@link net.dv8tion.jda.api.entities.Member Member} has the specified {@link net.dv8tion.jda.api.Permission Permissions}
-     * in the specified {@link net.dv8tion.jda.api.entities.Guild Guild}. This method properly deals with Owner status.
+     * Checks to see if the {@link Member} has
+     * the specified {@link Permission Permissions}
+     * in the specified {@link Guild}. This
+     * method properly deals with Owner status.
      *
-     * <p><b>Note:</b> this is based on effective permissions, not literal permissions. If a member has permissions that would
-     * enable them to do something without the literal permission to do it, this will still return true.
-     * <br>Example: If a member has the {@link net.dv8tion.jda.api.Permission#ADMINISTRATOR} permission, they will be able to
-     * {@link net.dv8tion.jda.api.Permission#MANAGE_SERVER} as well, even without the literal permissions.
+     * <p>
+     * <b>Note:</b> this is based on effective permissions, not literal permissions.
+     * If a member has permissions that would
+     * enable them to do something without the literal permission to do it, this
+     * will still return true.
+     * <br>
+     * Example: If a member has the
+     * {@link Permission#ADMINISTRATOR} permission, they will be
+     * able to
+     * {@link Permission#MANAGE_SERVER} as well, even without
+     * the literal permissions.
      *
-     * @param  member
-     *         The {@link net.dv8tion.jda.api.entities.Member Member} whose permissions are being checked.
-     * @param  permissions
-     *         The {@link net.dv8tion.jda.api.Permission Permissions} being checked for.
+     * @param member
+     *                    The {@link Member}
+     *                    whose permissions are being checked.
+     * @param permissions
+     *                    The {@link Permission Permissions}
+     *                    being checked for.
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is null
+     *                                  if any of the provided parameters is null
      *
      * @return True -
-     *         if the {@link net.dv8tion.jda.api.entities.Member Member} effectively has the specified {@link net.dv8tion.jda.api.Permission Permissions}.
+     *         if the {@link Member} effectively
+     *         has the specified {@link Permission Permissions}.
      */
     public static boolean checkPermission(Member member, Permission... permissions) {
         Checks.notNull(member, "Member");
@@ -258,28 +315,43 @@ public class PermissionUtil {
     }
 
     /**
-     * Checks to see if the {@link net.dv8tion.jda.api.entities.Member Member} has the specified {@link net.dv8tion.jda.api.Permission Permissions}
-     * in the specified {@link IPermissionContainer GuildChannel}. This method properly deals with
-     * {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} and Owner status.
+     * Checks to see if the {@link Member} has
+     * the specified {@link Permission Permissions}
+     * in the specified {@link IPermissionContainer GuildChannel}. This method
+     * properly deals with
+     * {@link PermissionOverride PermissionOverrides}
+     * and Owner status.
      *
-     * <p><b>Note:</b> this is based on effective permissions, not literal permissions. If a member has permissions that would
-     * enable them to do something without the literal permission to do it, this will still return true.
-     * <br>Example: If a member has the {@link net.dv8tion.jda.api.Permission#ADMINISTRATOR} permission, they will be able to
-     * {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND} in every channel.
+     * <p>
+     * <b>Note:</b> this is based on effective permissions, not literal permissions.
+     * If a member has permissions that would
+     * enable them to do something without the literal permission to do it, this
+     * will still return true.
+     * <br>
+     * Example: If a member has the
+     * {@link Permission#ADMINISTRATOR} permission, they will be
+     * able to
+     * {@link Permission#MESSAGE_SEND} in every channel.
      *
-     * @param  member
-     *         The {@link net.dv8tion.jda.api.entities.Member Member} whose permissions are being checked.
-     * @param  channel
-     *         The {@link IPermissionContainer GuildChannel} being checked.
-     * @param  permissions
-     *         The {@link net.dv8tion.jda.api.Permission Permissions} being checked for.
+     * @param member
+     *                    The {@link Member}
+     *                    whose permissions are being checked.
+     * @param channel
+     *                    The {@link IPermissionContainer GuildChannel} being
+     *                    checked.
+     * @param permissions
+     *                    The {@link Permission Permissions}
+     *                    being checked for.
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is {@code null}
-     *         or the provided entities are not from the same guild
+     *                                  if any of the provided parameters is
+     *                                  {@code null}
+     *                                  or the provided entities are not from the
+     *                                  same guild
      *
      * @return True -
-     *         if the {@link net.dv8tion.jda.api.entities.Member Member} effectively has the specified {@link net.dv8tion.jda.api.Permission Permissions}.
+     *         if the {@link Member} effectively
+     *         has the specified {@link Permission Permissions}.
      */
     public static boolean checkPermission(IPermissionContainer channel, Member member, Permission... permissions) {
         Checks.notNull(channel, "Channel");
@@ -293,17 +365,20 @@ public class PermissionUtil {
     }
 
     /**
-     * Checks if the member has any of the specified permissions. Also checks for owners and administrators.
+     * Checks if the member has any of the specified permissions. Also checks for
+     * owners and administrators.
      *
-     * @param  member
-     *         The member whose permissions are being checked
-     * @param  permissions
-     *         The permissions being checked for
+     * @param member
+     *                    The member whose permissions are being checked
+     * @param permissions
+     *                    The permissions being checked for
      *
      * @throws IllegalArgumentException
-     *         If any of the provided parameters are null, or no permissions were given
+     *                                         If any of the provided parameters are
+     *                                         null, or no permissions were given
      * @throws InsufficientPermissionException
-     *         If the member has none of the specified permissions
+     *                                         If the member has none of the
+     *                                         specified permissions
      */
     public static void requireAnyPermission(Member member, Permission... permissions) {
         Checks.notNull(member, "Member");
@@ -321,24 +396,34 @@ public class PermissionUtil {
     }
 
     /**
-     * Gets the {@code long} representation of the effective permissions allowed for this {@link net.dv8tion.jda.api.entities.Member Member}
-     * in this {@link net.dv8tion.jda.api.entities.Guild Guild}. This can be used in conjunction with
-     * {@link net.dv8tion.jda.api.Permission#getPermissions(long) Permission.getPermissions(int)} to easily get a list of all
-     * {@link net.dv8tion.jda.api.Permission Permissions} that this member has in this {@link net.dv8tion.jda.api.entities.Guild Guild}.
+     * Gets the {@code long} representation of the effective permissions allowed for
+     * this {@link Member}
+     * in this {@link Guild}. This can be used in
+     * conjunction with
+     * {@link Permission#getPermissions(long)
+     * Permission.getPermissions(int)} to easily get a list of all
+     * {@link Permission Permissions} that this member has in
+     * this {@link Guild}.
      *
-     * <p><b>This only returns the Guild-level permissions!</b>
+     * <p>
+     * <b>This only returns the Guild-level permissions!</b>
      *
-     * @param  member
-     *         The {@link net.dv8tion.jda.api.entities.Member Member} whose permissions are being checked.
+     * @param member
+     *               The {@link Member} whose
+     *               permissions are being checked.
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is {@code null}
-     *         or the provided entities are not from the same guild
+     *                                  if any of the provided parameters is
+     *                                  {@code null}
+     *                                  or the provided entities are not from the
+     *                                  same guild
      * @throws DetachedEntityException
-     *         If the provided member is in a guild the bot is not a member of
+     *                                  If the provided member is in a guild the bot
+     *                                  is not a member of
      *
      * @return The {@code long} representation of the literal permissions that
-     *         this {@link net.dv8tion.jda.api.entities.Member Member} has in this {@link net.dv8tion.jda.api.entities.Guild Guild}.
+     *         this {@link Member} has in this
+     *         {@link Guild}.
      */
     public static long getEffectivePermission(Member member) {
         Checks.notNull(member, "Member");
@@ -354,7 +439,10 @@ public class PermissionUtil {
         }
         // Default to binary OR of all global permissions in this guild
         long permission = member.getGuild().getPublicRole().getPermissionsRaw();
-        for (Role role : member.getUnsortedRoles()) {
+        Collection<Role> memberRoles = member instanceof MemberImpl memberImpl
+                ? memberImpl.getRoleMap().values()
+                : member.getUnsortedRoles();
+        for (Role role : memberRoles) {
             permission |= role.getPermissionsRaw();
             if (isApplied(permission, Permission.ADMINISTRATOR.getRawValue())) {
                 return ALL_PERMISSIONS;
@@ -369,24 +457,36 @@ public class PermissionUtil {
     }
 
     /**
-     * Gets the {@code long} representation of the effective permissions allowed for this {@link net.dv8tion.jda.api.entities.Member Member}
-     * in this {@link IPermissionContainer GuildChannel}. This can be used in conjunction with
-     * {@link net.dv8tion.jda.api.Permission#getPermissions(long) Permission.getPermissions(long)} to easily get a list of all
-     * {@link net.dv8tion.jda.api.Permission Permissions} that this member can use in this {@link IPermissionContainer GuildChannel}.
-     * <br>This functions very similarly to how {@link net.dv8tion.jda.api.entities.Role#getPermissionsRaw() Role.getPermissionsRaw()}.
+     * Gets the {@code long} representation of the effective permissions allowed for
+     * this {@link Member}
+     * in this {@link IPermissionContainer GuildChannel}. This can be used in
+     * conjunction with
+     * {@link Permission#getPermissions(long)
+     * Permission.getPermissions(long)} to easily get a list of all
+     * {@link Permission Permissions} that this member can use
+     * in this {@link IPermissionContainer GuildChannel}.
+     * <br>
+     * This functions very similarly to how
+     * {@link Role#getPermissionsRaw()
+     * Role.getPermissionsRaw()}.
      *
-     * @param  channel
-     *         The {@link IPermissionContainer GuildChannel} being checked.
-     * @param  member
-     *         The {@link net.dv8tion.jda.api.entities.Member Member} whose permissions are being checked.
+     * @param channel
+     *                The {@link IPermissionContainer GuildChannel} being checked.
+     * @param member
+     *                The {@link Member} whose
+     *                permissions are being checked.
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is {@code null}
-     *         or the provided entities are not from the same guild
+     *                                  if any of the provided parameters is
+     *                                  {@code null}
+     *                                  or the provided entities are not from the
+     *                                  same guild
      * @throws DetachedEntityException
-     *         If the provided member is in a guild the bot is not a member of
+     *                                  If the provided member is in a guild the bot
+     *                                  is not a member of
      *
-     * @return The {@code long} representation of the effective permissions that this {@link net.dv8tion.jda.api.entities.Member Member}
+     * @return The {@code long} representation of the effective permissions that
+     *         this {@link Member}
      *         has in this {@link IPermissionContainer GuildChannel}.
      */
     public static long getEffectivePermission(GuildChannel channel, Member member) {
@@ -415,22 +515,19 @@ public class PermissionUtil {
 
         // MANAGE_CHANNEL allows to delete channels within a category
         // (this is undocumented behavior)
-        if (channel instanceof ICategorizableChannel) {
-            ICategorizableChannel categorizableChannel = (ICategorizableChannel) channel;
+        if (channel instanceof ICategorizableChannel categorizableChannel) {
             if (categorizableChannel.getParentCategory() != null
                     && checkPermission(categorizableChannel.getParentCategory(), member, Permission.MANAGE_CHANNEL)) {
                 permission |= Permission.MANAGE_CHANNEL.getRawValue();
             }
         }
 
-        AtomicLong allow = new AtomicLong(0);
-        AtomicLong deny = new AtomicLong(0);
-        getExplicitOverrides(channel, member, allow, deny);
-        permission = apply(permission, allow.get(), deny.get());
+        permission = applyExplicitOverrides(channel, member, permission);
         long viewChannel = Permission.VIEW_CHANNEL.getRawValue();
         long connectChannel = Permission.VOICE_CONNECT.getRawValue();
 
-        // When the permission to view the channel or to connect to the channel is not applied it is
+        // When the permission to view the channel or to connect to the channel is not
+        // applied it is
         // not granted
         // This means that we have no access to this channel at all
         // See https://github.com/discord/discord-api-docs/issues/1522
@@ -447,21 +544,30 @@ public class PermissionUtil {
     }
 
     /**
-     * Gets the {@code long} representation of the effective permissions allowed for this {@link net.dv8tion.jda.api.entities.Role Role}
-     * in this {@link IPermissionContainer GuildChannel}. This can be used in conjunction with
-     * {@link net.dv8tion.jda.api.Permission#getPermissions(long) Permission.getPermissions(long)} to easily get a list of all
-     * {@link net.dv8tion.jda.api.Permission Permissions} that this role can use in this {@link IPermissionContainer GuildChannel}.
+     * Gets the {@code long} representation of the effective permissions allowed for
+     * this {@link Role}
+     * in this {@link IPermissionContainer GuildChannel}. This can be used in
+     * conjunction with
+     * {@link Permission#getPermissions(long)
+     * Permission.getPermissions(long)} to easily get a list of all
+     * {@link Permission Permissions} that this role can use in
+     * this {@link IPermissionContainer GuildChannel}.
      *
-     * @param  channel
-     *         The {@link IPermissionContainer GuildChannel} in which permissions are being checked.
-     * @param  role
-     *         The {@link net.dv8tion.jda.api.entities.Role Role} whose permissions are being checked.
+     * @param channel
+     *                The {@link IPermissionContainer GuildChannel} in which
+     *                permissions are being checked.
+     * @param role
+     *                The {@link Role} whose
+     *                permissions are being checked.
      *
      * @throws IllegalArgumentException
-     *         if any of the provided parameters is {@code null}
-     *         or the provided entities are not from the same guild
+     *                                  if any of the provided parameters is
+     *                                  {@code null}
+     *                                  or the provided entities are not from the
+     *                                  same guild
      *
-     * @return The {@code long} representation of the effective permissions that this {@link net.dv8tion.jda.api.entities.Role Role}
+     * @return The {@code long} representation of the effective permissions that
+     *         this {@link Role}
      *         has in this {@link IPermissionContainer GuildChannel}
      */
     public static long getEffectivePermission(GuildChannel channel, Role role) {
@@ -482,23 +588,32 @@ public class PermissionUtil {
     }
 
     /**
-     * Retrieves the explicit permissions of the specified {@link net.dv8tion.jda.api.entities.Member Member}
-     * in its hosting {@link net.dv8tion.jda.api.entities.Guild Guild}.
-     * <br>This method does not calculate the owner in.
+     * Retrieves the explicit permissions of the specified
+     * {@link Member}
+     * in its hosting {@link Guild}.
+     * <br>
+     * This method does not calculate the owner in.
      *
-     * <p>All permissions returned are explicitly granted to this Member via its {@link net.dv8tion.jda.api.entities.Role Roles}.
-     * <br>Permissions like {@link net.dv8tion.jda.api.Permission#ADMINISTRATOR Permission.ADMINISTRATOR} do not
+     * <p>
+     * All permissions returned are explicitly granted to this Member via its
+     * {@link Role Roles}.
+     * <br>
+     * Permissions like {@link Permission#ADMINISTRATOR
+     * Permission.ADMINISTRATOR} do not
      * grant other permissions in this value.
      *
-     * @param  member
-     *         The non-null {@link net.dv8tion.jda.api.entities.Member Member} for which to get implicit permissions
+     * @param member
+     *               The non-null {@link Member}
+     *               for which to get implicit permissions
      *
      * @throws IllegalArgumentException
-     *         If the specified member is {@code null}
+     *                                  If the specified member is {@code null}
      * @throws DetachedEntityException
-     *         If the provided member is in a guild the bot is not a member of
+     *                                  If the provided member is in a guild the bot
+     *                                  is not a member of
      *
-     * @return Primitive (unsigned) long value with the implicit permissions of the specified member
+     * @return Primitive (unsigned) long value with the implicit permissions of the
+     *         specified member
      */
     public static long getExplicitPermission(Member member) {
         Checks.notNull(member, "Member");
@@ -512,7 +627,10 @@ public class PermissionUtil {
         Guild guild = member.getGuild();
         long permission = guild.getPublicRole().getPermissionsRaw();
 
-        for (Role role : member.getUnsortedRoles()) {
+        Collection<Role> memberRoles = member instanceof MemberImpl memberImpl
+                ? memberImpl.getRoleMap().values()
+                : member.getUnsortedRoles();
+        for (Role role : memberRoles) {
             permission |= role.getPermissionsRaw();
         }
 
@@ -520,58 +638,95 @@ public class PermissionUtil {
     }
 
     /**
-     * Retrieves the explicit permissions of the specified {@link net.dv8tion.jda.api.entities.Member Member}
-     * in its hosting {@link net.dv8tion.jda.api.entities.Guild Guild} and specific {@link IPermissionContainer GuildChannel}.
-     * <br>This method does not calculate the owner in.
-     * <b>Allowed permissions override denied permissions of {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides}!</b>
+     * Retrieves the explicit permissions of the specified
+     * {@link Member}
+     * in its hosting {@link Guild} and specific
+     * {@link IPermissionContainer GuildChannel}.
+     * <br>
+     * This method does not calculate the owner in.
+     * <b>Allowed permissions override denied permissions of
+     * {@link PermissionOverride
+     * PermissionOverrides}!</b>
      *
-     * <p>All permissions returned are explicitly granted to this Member via its {@link net.dv8tion.jda.api.entities.Role Roles}.
-     * <br>Permissions like {@link net.dv8tion.jda.api.Permission#ADMINISTRATOR Permission.ADMINISTRATOR} do not
+     * <p>
+     * All permissions returned are explicitly granted to this Member via its
+     * {@link Role Roles}.
+     * <br>
+     * Permissions like {@link Permission#ADMINISTRATOR
+     * Permission.ADMINISTRATOR} do not
      * grant other permissions in this value.
-     * <p>This factor in all {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} that affect this member
+     * <p>
+     * This factor in all {@link PermissionOverride
+     * PermissionOverrides} that affect this member
      * and only grants the ones that are explicitly given.
      *
-     * @param  channel
-     *         The target channel of which to check {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides}
-     * @param  member
-     *         The non-null {@link net.dv8tion.jda.api.entities.Member Member} for which to get implicit permissions
+     * @param channel
+     *                The target channel of which to check
+     *                {@link PermissionOverride
+     *                PermissionOverrides}
+     * @param member
+     *                The non-null {@link Member
+     *                Member} for which to get implicit permissions
      *
      * @throws IllegalArgumentException
-     *         If any of the arguments is {@code null}
-     *         or the specified entities are not from the same {@link net.dv8tion.jda.api.entities.Guild Guild}
+     *                                  If any of the arguments is {@code null}
+     *                                  or the specified entities are not from the
+     *                                  same
+     *                                  {@link Guild
+     *                                  Guild}
      *
-     * @return Primitive (unsigned) long value with the implicit permissions of the specified member in the specified channel
+     * @return Primitive (unsigned) long value with the implicit permissions of the
+     *         specified member in the specified channel
      */
     public static long getExplicitPermission(GuildChannel channel, Member member) {
         return getExplicitPermission(channel, member, true);
     }
 
     /**
-     * Retrieves the explicit permissions of the specified {@link net.dv8tion.jda.api.entities.Member Member}
-     * in its hosting {@link net.dv8tion.jda.api.entities.Guild Guild} and specific {@link IPermissionContainer GuildChannel}.
-     * <br>This method does not calculate the owner in.
-     * <b>Allowed permissions override denied permissions of {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides}!</b>
+     * Retrieves the explicit permissions of the specified
+     * {@link Member}
+     * in its hosting {@link Guild} and specific
+     * {@link IPermissionContainer GuildChannel}.
+     * <br>
+     * This method does not calculate the owner in.
+     * <b>Allowed permissions override denied permissions of
+     * {@link PermissionOverride
+     * PermissionOverrides}!</b>
      *
-     * <p>All permissions returned are explicitly granted to this Member via its {@link net.dv8tion.jda.api.entities.Role Roles}.
-     * <br>Permissions like {@link net.dv8tion.jda.api.Permission#ADMINISTRATOR Permission.ADMINISTRATOR} do not
+     * <p>
+     * All permissions returned are explicitly granted to this Member via its
+     * {@link Role Roles}.
+     * <br>
+     * Permissions like {@link Permission#ADMINISTRATOR
+     * Permission.ADMINISTRATOR} do not
      * grant other permissions in this value.
-     * <p>This factor in all {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} that affect this member
+     * <p>
+     * This factor in all {@link PermissionOverride
+     * PermissionOverrides} that affect this member
      * and only grants the ones that are explicitly given.
      *
-     * @param  channel
-     *         The target channel of which to check {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides}
-     * @param  member
-     *         The non-null {@link net.dv8tion.jda.api.entities.Member Member} for which to get implicit permissions
-     * @param  includeRoles
-     *         Whether the base role permissions should be included
+     * @param channel
+     *                     The target channel of which to check
+     *                     {@link PermissionOverride
+     *                     PermissionOverrides}
+     * @param member
+     *                     The non-null {@link Member
+     *                     Member} for which to get implicit permissions
+     * @param includeRoles
+     *                     Whether the base role permissions should be included
      *
      * @throws IllegalArgumentException
-     *         If any of the arguments is {@code null}
-     *         or the specified entities are not from the same {@link net.dv8tion.jda.api.entities.Guild Guild}
+     *                                  If any of the arguments is {@code null}
+     *                                  or the specified entities are not from the
+     *                                  same
+     *                                  {@link Guild
+     *                                  Guild}
      * @throws DetachedEntityException
-     *         If the provided member is in a guild the bot is not a member of
+     *                                  If the provided member is in a guild the bot
+     *                                  is not a member of
      *
-     * @return Primitive (unsigned) long value with the implicit permissions of the specified member in the specified channel
+     * @return Primitive (unsigned) long value with the implicit permissions of the
+     *         specified member in the specified channel
      */
     public static long getExplicitPermission(GuildChannel channel, Member member, boolean includeRoles) {
         Checks.notNull(channel, "Channel");
@@ -586,70 +741,102 @@ public class PermissionUtil {
 
         long permission = includeRoles ? getExplicitPermission(member) : 0L;
 
-        AtomicLong allow = new AtomicLong(0);
-        AtomicLong deny = new AtomicLong(0);
-
-        // populates allow/deny
-        getExplicitOverrides(channel, member, allow, deny);
-
-        return apply(permission, allow.get(), deny.get());
+        return applyExplicitOverrides(channel, member, permission);
     }
 
     /**
-     * Retrieves the explicit permissions of the specified {@link net.dv8tion.jda.api.entities.Role Role}
-     * in its hosting {@link net.dv8tion.jda.api.entities.Guild Guild} and specific {@link IPermissionContainer GuildChannel}.
-     * <br><b>Allowed permissions override denied permissions of {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides}!</b>
+     * Retrieves the explicit permissions of the specified
+     * {@link Role}
+     * in its hosting {@link Guild} and specific
+     * {@link IPermissionContainer GuildChannel}.
+     * <br>
+     * <b>Allowed permissions override denied permissions of
+     * {@link PermissionOverride
+     * PermissionOverrides}!</b>
      *
-     * <p>All permissions returned are explicitly granted to this Role.
-     * <br>Permissions like {@link net.dv8tion.jda.api.Permission#ADMINISTRATOR Permission.ADMINISTRATOR} do not
+     * <p>
+     * All permissions returned are explicitly granted to this Role.
+     * <br>
+     * Permissions like {@link Permission#ADMINISTRATOR
+     * Permission.ADMINISTRATOR} do not
      * grant other permissions in this value.
-     * <p>This factor in existing {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} if possible.
+     * <p>
+     * This factor in existing
+     * {@link PermissionOverride PermissionOverrides}
+     * if possible.
      *
-     * @param  channel
-     *         The target channel of which to check {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides}
-     * @param  role
-     *         The non-null {@link net.dv8tion.jda.api.entities.Role Role} for which to get implicit permissions
+     * @param channel
+     *                The target channel of which to check
+     *                {@link PermissionOverride
+     *                PermissionOverrides}
+     * @param role
+     *                The non-null {@link Role}
+     *                for which to get implicit permissions
      *
      * @throws IllegalArgumentException
-     *         If any of the arguments is {@code null}
-     *         or the specified entities are not from the same {@link net.dv8tion.jda.api.entities.Guild Guild}
+     *                                  If any of the arguments is {@code null}
+     *                                  or the specified entities are not from the
+     *                                  same
+     *                                  {@link Guild
+     *                                  Guild}
      *
-     * @return Primitive (unsigned) long value with the implicit permissions of the specified role in the specified channel
+     * @return Primitive (unsigned) long value with the implicit permissions of the
+     *         specified role in the specified channel
      */
     public static long getExplicitPermission(GuildChannel channel, Role role) {
         return getExplicitPermission(channel, role, true);
     }
 
     /**
-     * Retrieves the explicit permissions of the specified {@link net.dv8tion.jda.api.entities.Role Role}
-     * in its hosting {@link net.dv8tion.jda.api.entities.Guild Guild} and specific {@link IPermissionContainer GuildChannel}.
-     * <br><b>Allowed permissions override denied permissions of {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides}!</b>
+     * Retrieves the explicit permissions of the specified
+     * {@link Role}
+     * in its hosting {@link Guild} and specific
+     * {@link IPermissionContainer GuildChannel}.
+     * <br>
+     * <b>Allowed permissions override denied permissions of
+     * {@link PermissionOverride
+     * PermissionOverrides}!</b>
      *
-     * <p>All permissions returned are explicitly granted to this Role.
-     * <br>Permissions like {@link net.dv8tion.jda.api.Permission#ADMINISTRATOR Permission.ADMINISTRATOR} do not
+     * <p>
+     * All permissions returned are explicitly granted to this Role.
+     * <br>
+     * Permissions like {@link Permission#ADMINISTRATOR
+     * Permission.ADMINISTRATOR} do not
      * grant other permissions in this value.
-     * <p>This factor in existing {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} if possible.
+     * <p>
+     * This factor in existing
+     * {@link PermissionOverride PermissionOverrides}
+     * if possible.
      *
-     * @param  channel
-     *         The target channel of which to check {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides}
-     * @param  role
-     *         The non-null {@link net.dv8tion.jda.api.entities.Role Role} for which to get implicit permissions
-     * @param  includeRoles
-     *         Whether the base role permissions should be included
+     * @param channel
+     *                     The target channel of which to check
+     *                     {@link PermissionOverride
+     *                     PermissionOverrides}
+     * @param role
+     *                     The non-null {@link Role
+     *                     Role} for which to get implicit permissions
+     * @param includeRoles
+     *                     Whether the base role permissions should be included
      *
      * @throws IllegalArgumentException
-     *         If any of the arguments is {@code null}
-     *         or the specified entities are not from the same {@link net.dv8tion.jda.api.entities.Guild Guild}
+     *                                  If any of the arguments is {@code null}
+     *                                  or the specified entities are not from the
+     *                                  same
+     *                                  {@link Guild
+     *                                  Guild}
      * @throws DetachedEntityException
-     *         If the provided role is in a guild the bot is not a member of
+     *                                  If the provided role is in a guild the bot
+     *                                  is not a member of
      *
-     * @return Primitive (unsigned) long value with the implicit permissions of the specified role in the specified channel
+     * @return Primitive (unsigned) long value with the implicit permissions of the
+     *         specified role in the specified channel
      */
     public static long getExplicitPermission(GuildChannel channel, Role role, boolean includeRoles) {
         Checks.notNull(channel, "Channel");
         Checks.notNull(role, "Role");
 
-        // Can't know exactly what the role's permissions in that channel are, since we don't have
+        // Can't know exactly what the role's permissions in that channel are, since we
+        // don't have
         // the overrides.
         if (role.isDetached()) {
             throw new DetachedEntityException("Cannot get the explicit permissions of a detached role");
@@ -675,7 +862,7 @@ public class PermissionUtil {
         return override == null ? permission : apply(permission, override.getAllowedRaw(), override.getDeniedRaw());
     }
 
-    private static void getExplicitOverrides(GuildChannel channel, Member member, AtomicLong allow, AtomicLong deny) {
+    private static long applyExplicitOverrides(GuildChannel channel, Member member, long permission) {
         IPermissionContainer permsChannel = channel.getPermissionContainer();
         PermissionOverride override =
                 permsChannel.getPermissionOverride(member.getGuild().getPublicRole());
@@ -688,7 +875,6 @@ public class PermissionUtil {
 
         long allowRole = 0;
         long denyRole = 0;
-        // create temporary bit containers for role cascade
         for (Role role : member.getUnsortedRoles()) {
             override = permsChannel.getPermissionOverride(role);
             if (override != null) {
@@ -708,12 +894,11 @@ public class PermissionUtil {
             long oAllow = override.getAllowedRaw();
             allowRaw = (allowRaw & ~oDeny) | oAllow;
             denyRaw = (denyRaw & ~oAllow) | oDeny;
-            // this time we need to exclude new allowed bits from old denied ones and OR the new
+            // this time we need to exclude new allowed bits from old denied ones and OR the
+            // new
             // denied bits as final overrides
         }
-        // set as resulting values
-        allow.set(allowRaw);
-        deny.set(denyRaw);
+        return apply(permission, allowRaw, denyRaw);
     }
 
     /*

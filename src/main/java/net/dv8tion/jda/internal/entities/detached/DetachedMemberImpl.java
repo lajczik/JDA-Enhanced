@@ -34,10 +34,8 @@ import net.dv8tion.jda.internal.interactions.MemberInteractionPermissions;
 import net.dv8tion.jda.internal.utils.EntityString;
 import net.dv8tion.jda.internal.utils.Helpers;
 
-import java.awt.*;
 import java.time.OffsetDateTime;
 import java.util.*;
-import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -178,6 +176,63 @@ public class DetachedMemberImpl implements Member, MemberMixin<DetachedMemberImp
     @Nonnull
     @Override
     public Set<Role> getUnsortedRoles() {
+        throw detachedException();
+    }
+
+    @Override
+    public boolean hasRole(long roleId) {
+        throw detachedException();
+    }
+
+    @Override
+    public boolean hasRole(@Nonnull Role role) {
+        throw detachedException();
+    }
+
+    @Override
+    public boolean hasRole(@Nonnull String roleId) {
+        throw detachedException();
+    }
+
+    @Nullable
+    @Override
+    public Role getRole(long roleId) {
+        throw detachedException();
+    }
+
+    @Nullable
+    @Override
+    public Role getRole(@Nonnull String roleId) {
+        throw detachedException();
+    }
+
+    @Override
+    public boolean hasAnyRole(@Nonnull long... roleIds) {
+        throw detachedException();
+    }
+
+    @Override
+    public boolean hasAnyRole(@Nonnull Role... roles) {
+        throw detachedException();
+    }
+
+    @Override
+    public boolean hasAnyRole(@Nonnull Collection<Role> roles) {
+        throw detachedException();
+    }
+
+    @Override
+    public boolean hasAllRoles(@Nonnull long... roleIds) {
+        throw detachedException();
+    }
+
+    @Override
+    public boolean hasAllRoles(@Nonnull Role... roles) {
+        throw detachedException();
+    }
+
+    @Override
+    public boolean hasAllRoles(@Nonnull Collection<Role> roles) {
         throw detachedException();
     }
 
