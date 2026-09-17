@@ -3,6 +3,7 @@ config.json
 tokens.json
 .version
 publishing-keyring.gpg
+.profileconfig.json
 
 # music files
 *.mp3

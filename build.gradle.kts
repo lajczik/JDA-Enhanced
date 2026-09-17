@@ -20,6 +20,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import de.undercouch.gradle.tasks.download.Download
 import net.dv8tion.jda.gradle.Version
 import net.dv8tion.jda.gradle.plugins.applyAudioExclusions
+import net.dv8tion.jda.gradle.plugins.applyNettyExclusions
 import net.dv8tion.jda.gradle.plugins.applyOpusExclusions
 import net.dv8tion.jda.gradle.tasks.VerifyBytecodeVersion
 import net.ltgt.gradle.errorprone.errorprone
@@ -29,7 +30,6 @@ import org.jetbrains.gradle.ext.JUnit as JUnitRunConfiguration
 import org.jetbrains.gradle.ext.copyright
 import org.jetbrains.gradle.ext.runConfigurations
 import org.jetbrains.gradle.ext.settings
-import org.openrewrite.gradle.AbstractRewriteTask
 
 plugins {
     artifacts
@@ -40,12 +40,11 @@ plugins {
     `maven-publish`
     signing
 
-    alias(libs.plugins.shadow)
+    id("com.gradleup.shadow")
     alias(libs.plugins.versions)
     alias(libs.plugins.version.catalog.update)
     alias(libs.plugins.spotless)
     alias(libs.plugins.errorprone)
-    alias(libs.plugins.openrewrite)
     alias(libs.plugins.ideax)
     alias(libs.plugins.nmcp)
     alias(libs.plugins.nmcp.aggregation)
@@ -59,15 +58,35 @@ plugins {
 ////////////////////////////////////
 
 val exampleJavaVersion = JavaLanguageVersion.of(25)
-val libraryJavaVersion = JavaLanguageVersion.of(8)
+val libraryJavaVersion = JavaLanguageVersion.of(21)
+group = "net.dv8tion"
+version = "6.6.0"
 
 projectEnvironment {
-    version = Version(major = "6", minor = "5", revision = "0", classifier = null)
+    version = Version(major = "6", minor = "6", revision = "0", classifier = null)
 }
 
 artifactFilters {
-    opusExclusions.addAll("natives/**", "com/sun/jna/**", "club/minnced/opus/util/*", "tomp2p/opuswrapper/*")
-    additionalAudioExclusions.addAll("com/google/crypto/tink/**", "com/google/gson/**", "com/google/protobuf/**", "google/protobuf/**")
+    opusExclusions.addAll(
+        "club.minnced:opus-java",
+        "club.minnced:opus-java-api",
+        "club.minnced:opus-java-natives",
+        "net.java.dev.jna:jna",
+        "tomp2p:opus-wrapper",
+    )
+    additionalAudioExclusions.addAll(
+        "com.google.crypto.tink:tink",
+        "com.google.protobuf:protobuf-java",
+        "com.google.code.gson:gson",
+    )
+    nettyExclusions.addAll(
+        "io.netty:netty-transport-classes-epoll",
+        "io.netty:netty-transport-native-epoll",
+        "io.netty:netty-transport-classes-kqueue",
+        "io.netty:netty-transport-native-kqueue",
+        "io.netty:netty-tcnative-classes",
+        "com.github.luben:zstd-jni",
+    )
 }
 
 apiModelGenerator {
@@ -139,13 +158,6 @@ val examples = sourceSets.create("examples") {
     runtimeClasspath += sourceSets["main"].output
 }
 
-val testJava8 = sourceSets.create("testJava8") {
-    java.srcDir("src/test-java8/java")
-    resources.srcDir("src/test-java8/resources")
-    compileClasspath += sourceSets["main"].output
-    runtimeClasspath += sourceSets["main"].output
-}
-
 java {
     withJavadocJar()
     withSourcesJar()
@@ -153,11 +165,6 @@ java {
     toolchain {
         languageVersion.set(exampleJavaVersion)
     }
-}
-
-val java8Toolchain = javaToolchains.launcherFor {
-    languageVersion.set(libraryJavaVersion)
-    vendor.set(JvmVendorSpec.ADOPTIUM)
 }
 
 
@@ -171,12 +178,8 @@ val currentJavaVersion = JavaVersion.current().majorVersion
 
 val mockitoAgent = configurations.create("mockitoAgent")
 
-val testJava8Implementation = configurations.getByName("testJava8Implementation") {
-    extendsFrom(configurations.implementation.get())
-}
-
-val testJava8RuntimeOnly = configurations.getByName("testJava8RuntimeOnly") {
-    extendsFrom(configurations.runtimeOnly.get())
+val examplesCompileOnly = configurations.getByName("examplesCompileOnly") {
+    extendsFrom(configurations.compileOnly.get())
 }
 
 val examplesImplementation = configurations.getByName("examplesImplementation") {
@@ -191,21 +194,34 @@ dependencies {
     /* ABI dependencies */
 
     //Code safety
-    compileOnly(libs.findbugs)
+    compileOnly(libs.spotbugs)
     compileOnly(libs.jetbrains.annotations)
+    compileOnly(libs.errorprone.annotations)
 
     //Logger
     api(libs.slf4j)
 
     //Web Connection Support
-    api(libs.websocket.client)
-    api(libs.okhttp)
+    api(libs.reactor.netty.http) {
+        exclude(group = "io.netty", module = "netty-codec-http3")
+        exclude(group = "io.netty", module = "netty-codec-native-quic")
+        exclude(group = "io.netty", module = "netty-resolver-dns-native-macos")
+        exclude(group = "io.netty", module = "netty-resolver-dns-classes-macos")
+    }
+    api(libs.netty.codec.http)
+    api(libs.netty.handler)
+    api(libs.netty.tcnative.classes)
+    api(libs.netty.codec.classes.quic)
+    api(libs.netty.transport.classes.epoll)
+    api(variantOf(libs.netty.transport.native.epoll) { classifier("linux-x86_64") })
+    api(variantOf(libs.netty.transport.native.epoll) { classifier("linux-aarch_64") })
+    compileOnly(libs.netty.transport.classes.kqueue)
+
+    //Decompression Support
+    api(libs.zstd)
 
     //Opus library support
     api(libs.opus)
-
-    //Collections Utility
-    api(libs.commons.collections)
 
     //we use this only together with opus-java
     // if that dependency is excluded it also doesn't need jna anymore
@@ -215,51 +231,38 @@ dependencies {
     /* Internal dependencies */
 
     //General Utility
-    implementation(libs.trove4j)
-    implementation(libs.bundles.jackson)
+    api(libs.fastutil)
+    api(libs.nanojson)
+    compileOnly(libs.bundles.jackson3)
+    compileOnly(libs.bundles.jackson2)
 
     //Audio crypto libraries
-    implementation(libs.tink)
+    implementation(libs.tink) {
+        exclude(group = "com.google.protobuf", module = "protobuf-java")
+        exclude(group = "com.google.code.gson", module = "gson")
+        exclude(group = "com.google.code.findbugs", module = "jsr305")
+        exclude(group = "com.google.errorprone", module = "error_prone_annotations")
+    }
 
     examplesImplementation(libs.jdave)
 
     testImplementation(libs.bundles.junit)
+    testImplementation(libs.bundles.jackson3)
+    testImplementation(libs.bundles.jackson2)
     testImplementation(libs.reflections)
     testImplementation(libs.mockito)
     testImplementation(libs.assertj)
     testImplementation(libs.commons.lang3)
     testImplementation(libs.logback.classic)
     testImplementation(libs.archunit)
-
-    testJava8Implementation(libs.bundles.junit.java8)
-    testJava8Implementation(libs.assertj)
+    testImplementation(libs.jetbrains.annotations)
 
     mockitoAgent(libs.mockito) {
         isTransitive = false
     }
 
-    // OpenRewrite
-    testImplementation(platform(libs.openrewrite.bom))
-    rewrite(platform(libs.openrewrite.bom))
-
-    // rewrite-java dependencies only necessary for Java Recipe development
-    testImplementation("org.openrewrite:rewrite-java")
-    testImplementation("org.openrewrite.recipe:rewrite-java-dependencies")
-
-    testRuntimeOnly("org.openrewrite:rewrite-java-${currentJavaVersion}")
-
-    // For authoring tests for any kind of Recipe
-    testImplementation("org.openrewrite:rewrite-test")
-
-    // Needed for rewrite gradle tasks
-    rewrite("org.openrewrite.recipe:rewrite-static-analysis")
-    rewrite("net.dv8tion.jda:formatter-recipes")
-
     // Linting & Formatting
     errorprone(libs.errorprone.core)
-
-    // Publishing
-    nmcpAggregation(rootProject)
 }
 
 fun isNonStable(version: String): Boolean {
@@ -284,21 +287,9 @@ versionCatalogUpdate {
 
 ////////////////////////////////////
 //                                //
-//    Formatting and Linting      //
+//      Formatting & Linting      //
 //                                //
 ////////////////////////////////////
-
-rewrite {
-    failOnDryRunResults = true
-    throwOnParseFailures = true
-
-    activeRecipe("org.openrewrite.staticanalysis.NeedBraces")
-    activeRecipe("org.openrewrite.staticanalysis.NoFinalizedLocalVariables")
-    activeRecipe("net.dv8tion.jda.recipe.JavadocFormatter")
-    activeRecipe("MigrateToJavaxAnnotations")
-
-    exclusion("*.kts", "**/*.kts", "**/*.kt")
-}
 
 spotless {
     encoding("UTF-8")
@@ -330,14 +321,6 @@ spotless {
     }
 }
 
-tasks.named("spotlessJavaCheck").configure {
-    dependsOn(tasks.named("rewriteDryRun"))
-}
-
-tasks.named("spotlessJavaApply").configure {
-    dependsOn(tasks.named("rewriteRun"))
-}
-
 val enableErrorpronePatching = tasks.register("enableErrorpronePatching") {
     group = "verification"
 
@@ -353,33 +336,22 @@ val enableErrorpronePatching = tasks.register("enableErrorpronePatching") {
 
 tasks.register("format") {
     group = "verification"
-    dependsOn(enableErrorpronePatching)
     dependsOn(tasks.named("spotlessApply"))
-    dependsOn(tasks.named("versionCatalogFormat"))
 }
 
 val checkFormat = tasks.register("checkFormat") {
     group = "verification"
     dependsOn(tasks.named("spotlessCheck"))
-    dependsOn(tasks.named("rewriteDryRun"))
 }
 
 tasks.named("check").configure {
     dependsOn(checkFormat)
 }
 
+val versionCatalogFile = file("gradle/libs.versions.toml")
 tasks.named("versionCatalogFormat").configure {
-    val versionCatalogFile = file("$projectDir/gradle/libs.versions.toml")
-
     inputs.file(versionCatalogFile)
     outputs.file(versionCatalogFile)
-}
-
-tasks.withType(AbstractRewriteTask::class).configureEach {
-    inputs.files(fileTree("src") {
-        include("**/*.java")
-    })
-    outputs.upToDateWhen { true }
 }
 
 ////////////////////////////////////
@@ -396,6 +368,11 @@ val jar = tasks.getByName<Jar>("jar") {
 val shadowJar = tasks.getByName<ShadowJar>("shadowJar") {
     archiveClassifier.set("withDependencies")
     exclude("*.pom")
+    exclude("**/*.kotlin_metadata")
+    exclude("**/*.kotlin_builtins")
+    exclude("META-INF/*.kotlin_module")
+    exclude("META-INF/maven/**")
+    exclude("META-INF/proguard/**")
 }
 
 val noOpusJar = tasks.register<ShadowJar>("noOpusJar") {
@@ -405,6 +382,11 @@ val noOpusJar = tasks.register<ShadowJar>("noOpusJar") {
     configurations = shadowJar.configurations
     from(sourceSets["main"].output)
     applyOpusExclusions(artifactFilters)
+    exclude("**/*.kotlin_metadata")
+    exclude("**/*.kotlin_builtins")
+    exclude("META-INF/*.kotlin_module")
+    exclude("META-INF/maven/**")
+    exclude("META-INF/proguard/**")
     manifest.from(jar.manifest)
 }
 
@@ -416,6 +398,13 @@ val minimalJar = tasks.register<ShadowJar>("minimalJar") {
     configurations = shadowJar.configurations
     from(sourceSets["main"].output)
     applyAudioExclusions(artifactFilters)
+    applyNettyExclusions(artifactFilters)
+    exclude("**/*.kotlin_metadata")
+    exclude("**/*.kotlin_builtins")
+    exclude("META-INF/*.kotlin_module")
+    exclude("META-INF/maven/**")
+    exclude("META-INF/proguard/**")
+
     manifest.from(jar.manifest)
 }
 
@@ -429,7 +418,7 @@ val javadoc = tasks.getByName<Javadoc>("javadoc") {
 
         author()
         tags("incubating:a:Incubating:")
-        links("https://docs.oracle.com/en/java/javase/$currentJavaVersion/docs/api/", "https://takahikokawasaki.github.io/nv-websocket-client/")
+        links("https://docs.oracle.com/en/java/javase/$currentJavaVersion/docs/api/", "https://netty.io/4.2/api/")
 
         addStringOption("-link-modularity-mismatch", "info")
         addStringOption("-release", libraryJavaVersion.asInt().toString())
@@ -450,17 +439,7 @@ tasks.withType<JavaCompile>().configureEach {
 
     options.compilerArgs.addAll(listOf(
             "-Werror",
-            "-Xlint:all",
-            // warnings for --release 8
-            "-Xlint:-options",
-            // warnings for missing serialVersionUID in exceptions (we don't intend for exceptions to be serialized)
-            "-Xlint:-serial",
-            // warnings for calling member methods in constructor, which we do for argument checks
-            "-Xlint:-this-escape",
-            // warnings for unused resource in try-with-resources (we use them for locks)
-            "-Xlint:-try",
-            // warnings for potentially unsafe varargs, this is already handled by @SafeVarargs
-            "-Xlint:-varargs",
+            "-Xlint:all,-try,-varargs,-serial,-deprecation,-this-escape"
     ))
 
     options.errorprone {
@@ -480,7 +459,11 @@ tasks.withType<JavaCompile>().configureEach {
                 "MathAbsoluteNegative",
                 "MixedMutabilityReturnType",
                 "OperatorPrecedence",
+                "PatternMatchingInstanceof",
+                "StatementSwitchToExpressionSwitch",
                 "StringSplitter",
+                "ParameterName",
+                "StringConcatToTextBlock",
                 "TypeParameterUnusedInFormals",
                 "UnnecessaryLambda",
                 "UnusedMethod",
@@ -491,10 +474,6 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 val compileJava = tasks.getByName<JavaCompile>("compileJava") {
-    options.release = libraryJavaVersion.asInt()
-}
-
-tasks.named<JavaCompile>("compileTestJava8Java") {
     options.release = libraryJavaVersion.asInt()
 }
 
@@ -519,18 +498,6 @@ tasks.build.configure {
 //       Test Configuration       //
 //                                //
 ////////////////////////////////////
-
-
-val downloadRecipeClasspath = tasks.register<Download>("downloadRecipeClasspath") {
-    val targetVersion = "5.6.1"
-    src("https://repo.maven.apache.org/maven2/net/dv8tion/JDA/$targetVersion/JDA-$targetVersion.jar")
-    dest("src/test/resources/META-INF/rewrite/classpath/JDA-$targetVersion.jar")
-    overwrite(false)
-}
-
-tasks.named("processTestResources").configure {
-    dependsOn(downloadRecipeClasspath)
-}
 
 
 tasks.register<Test>("updateTestSnapshots") {
@@ -562,26 +529,10 @@ tasks.test {
     }
 }
 
-val testJava8Compatibility = tasks.register<Test>("testJava8Compatibility") {
-    group = "verification"
-
-    useJUnitPlatform()
-    failFast = true
-
-    testClassesDirs = testJava8.output.classesDirs
-    classpath = testJava8.runtimeClasspath
-
-    javaLauncher = java8Toolchain.get()
-}
-
-tasks.named("check").configure {
-    dependsOn(testJava8Compatibility)
-}
-
 val verifyBytecodeVersion = tasks.register<VerifyBytecodeVersion>("verifyBytecodeVersion") {
     group = "verification"
 
-    expectedMajorVersion = 52
+    expectedMajorVersion = 65
     classes.from(compileJava.outputs.files.asFileTree.matching {
         include("**/*.class")
     })
