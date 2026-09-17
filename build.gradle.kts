@@ -39,6 +39,7 @@ plugins {
     `maven-publish`
     signing
 
+    // Provided via buildSrc on the buildscript classpath; version cannot be specified here
     id("com.gradleup.shadow")
     alias(libs.plugins.versions)
     alias(libs.plugins.version.catalog.update)
