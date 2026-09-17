@@ -18,7 +18,6 @@ package net.dv8tion.jda.internal.utils;
 
 import net.dv8tion.jda.api.utils.ClosableIterator;
 import net.dv8tion.jda.api.utils.cache.CacheView;
-import org.slf4j.Logger;
 
 import java.util.HashSet;
 import java.util.Iterator;
@@ -26,7 +25,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 public class ChainedClosableIterator<T> implements ClosableIterator<T> {
-    private static final Logger log = JDALogger.getLog(ClosableIterator.class);
     private final Set<T> items;
     private final Iterator<? extends CacheView<T>> generator;
     private ClosableIterator<T> currentIterator;
@@ -116,14 +114,5 @@ public class ChainedClosableIterator<T> implements ClosableIterator<T> {
         T tmp = item;
         item = null;
         return tmp;
-    }
-
-    @Override
-    @Deprecated // Deprecated in Java 9 because the finalization system is being changed/removed
-    protected void finalize() {
-        if (currentIterator != null) {
-            log.error("Finalizing without closing, performing force close on lock");
-            close();
-        }
     }
 }
