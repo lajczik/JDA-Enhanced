@@ -16,24 +16,37 @@
 
 package net.dv8tion.jda.gradle.plugins
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.provider.SetProperty
-import org.gradle.api.tasks.AbstractCopyTask
 
 interface ArtifactFilters {
     val opusExclusions: SetProperty<String>
     val additionalAudioExclusions: SetProperty<String>
+    val nettyExclusions: SetProperty<String>
 }
 
-fun AbstractCopyTask.applyOpusExclusions(filters: ArtifactFilters) {
-    for (exclusion in filters.opusExclusions.get()) {
-        exclude(exclusion)
+fun ShadowJar.applyOpusExclusions(filters: ArtifactFilters) {
+    dependencies {
+        for (exclusion in filters.opusExclusions.get()) {
+            exclude(dependency(exclusion))
+        }
     }
 }
 
-fun AbstractCopyTask.applyAudioExclusions(filters: ArtifactFilters) {
+fun ShadowJar.applyAudioExclusions(filters: ArtifactFilters) {
     applyOpusExclusions(filters)
 
-    for (exclusion in filters.opusExclusions.get()) {
-        exclude(exclusion)
+    dependencies {
+        for (exclusion in filters.additionalAudioExclusions.get()) {
+            exclude(dependency(exclusion))
+        }
+    }
+}
+
+fun ShadowJar.applyNettyExclusions(filters: ArtifactFilters) {
+    dependencies {
+        for (exclusion in filters.nettyExclusions.get()) {
+            exclude(dependency(exclusion))
+        }
     }
 }

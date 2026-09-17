@@ -38,8 +38,6 @@ import java.util.Locale
 import javax.annotation.Nonnull
 import javax.lang.model.element.Modifier
 
-const val nullableType = "MaybeNull"
-
 class ModelSourceCodeGenerator(val packageName: String, val context: ParserContext, val typeNameModifier: (name: String) -> String = { it }) {
     val includeNonNull: AnnotationSpec
         = AnnotationSpec
@@ -288,11 +286,7 @@ class ModelSourceCodeGenerator(val packageName: String, val context: ParserConte
         }
 
         fun getFieldType(): TypeName {
-            return if (nullable) {
-                ParameterizedTypeName.get(
-                        ClassName.get(packageName, nullableType),
-                        type.box())
-            } else if (optional) {
+            return if (optional || nullable) {
                 type.box()
             } else {
                 type
@@ -359,15 +353,9 @@ class ModelSourceCodeGenerator(val packageName: String, val context: ParserConte
             classBuilder.addMethod(generateSetter(className))
         }
 
-        fun getterCodeBlock(): CodeBlock = when {
-            nullable -> CodeBlock.of("return this.$normalizedIdentifier == null ? null : this.$normalizedIdentifier.value();")
-            else -> CodeBlock.of("return this.$normalizedIdentifier;")
-        }
+        fun getterCodeBlock(): CodeBlock = CodeBlock.of("return this.$normalizedIdentifier;")
 
-        fun setterCodeBlock(): CodeBlock = when {
-            nullable -> CodeBlock.of("this.$normalizedIdentifier = new $nullableType<>($normalizedIdentifier);\nreturn this;")
-            else -> CodeBlock.of("this.$normalizedIdentifier = $normalizedIdentifier;\nreturn this;")
-        }
+        fun setterCodeBlock(): CodeBlock = CodeBlock.of("this.$normalizedIdentifier = $normalizedIdentifier;\nreturn this;")
     }
 }
 

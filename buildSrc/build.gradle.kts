@@ -33,6 +33,7 @@ repositories {
 dependencies {
     implementation(gradleApi())
     implementation(libs.gradle.plugin.download)
+    implementation(libs.gradle.plugin.shadow)
     implementation(libs.javaparser)
     implementation(libs.javapoet)
     implementation(libs.tools.jackson)
