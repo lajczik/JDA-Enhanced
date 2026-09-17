@@ -23,7 +23,6 @@ import javax.annotation.Nonnull;
 /**
  * Indicates that JDA encountered a Throwable that could not be forwarded to another end-user frontend.
  * <br>For instance this is fired for events in internal WebSocket handling or audio threads.
- * This includes {@link java.lang.Error Errors} and {@link com.neovisionaries.ws.client.WebSocketException WebSocketExceptions}
  *
  * <p>It is not recommended to simply use this and print each event as some throwables were already logged
  * by JDA. See {@link #isLogged()}.

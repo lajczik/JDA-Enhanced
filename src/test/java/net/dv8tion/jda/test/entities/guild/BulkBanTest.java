@@ -43,7 +43,7 @@ public class BulkBanTest extends AbstractGuildTest {
     void testMissingPermissions() {
         hasPermission(false);
 
-        assertThatThrownBy(() -> guild.ban(Collections.emptyList(), Duration.ZERO))
+        assertThatThrownBy(() -> guild.ban(List.of(), Duration.ZERO))
                 .isInstanceOf(InsufficientPermissionException.class)
                 .hasMessage("Cannot perform action due to a lack of Permission. Missing permission: "
                         + Permission.BAN_MEMBERS);
@@ -66,7 +66,7 @@ public class BulkBanTest extends AbstractGuildTest {
     void testInvalidInputs() {
         hasPermission(true);
 
-        assertDurationChecks("Deletion timeframe", duration -> guild.ban(Collections.emptyList(), duration))
+        assertDurationChecks("Deletion timeframe", duration -> guild.ban(List.of(), duration))
                 .checksNotNegative()
                 .throwsFor(
                         Duration.ofDays(100),

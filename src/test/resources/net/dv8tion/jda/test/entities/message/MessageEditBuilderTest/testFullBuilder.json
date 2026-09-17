@@ -4,7 +4,7 @@
     "replied_user" : true
   },
   "attachments" : [ {
-    "content_type" : "application/octet-stream; charset=utf-8",
+    "content_type" : "application/octet-stream",
     "description" : "",
     "filename" : "logo.png",
     "id" : 0,

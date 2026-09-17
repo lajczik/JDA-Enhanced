@@ -50,64 +50,64 @@ public class MessageEmbed implements SerializableData {
     /**
      * The maximum length an embed title can have
      *
-     * @see net.dv8tion.jda.api.EmbedBuilder#setTitle(String) EmbedBuilder.setTitle(title)
-     * @see net.dv8tion.jda.api.EmbedBuilder#addField(String, String, boolean) EmbedBuilder.addField(title, value, inline)
+     * @see EmbedBuilder#setTitle(String) EmbedBuilder.setTitle(title)
+     * @see EmbedBuilder#addField(String, String, boolean) EmbedBuilder.addField(title, value, inline)
      */
     public static final int TITLE_MAX_LENGTH = 256;
 
     /**
      * The maximum length the author name of an embed can have
      *
-     * @see net.dv8tion.jda.api.EmbedBuilder#setAuthor(String) (String) EmbedBuilder.setAuthor(title)
-     * @see net.dv8tion.jda.api.EmbedBuilder#setAuthor(String, String) EmbedBuilder.setAuthor(title, url)
-     * @see net.dv8tion.jda.api.EmbedBuilder#setAuthor(String, String, String) EmbedBuilder.setAuthor(title, url, iconUrl)
+     * @see EmbedBuilder#setAuthor(String) (String) EmbedBuilder.setAuthor(title)
+     * @see EmbedBuilder#setAuthor(String, String) EmbedBuilder.setAuthor(title, url)
+     * @see EmbedBuilder#setAuthor(String, String, String) EmbedBuilder.setAuthor(title, url, iconUrl)
      */
     public static final int AUTHOR_MAX_LENGTH = 256;
 
     /**
      * The maximum length an embed field value can have
      *
-     * @see net.dv8tion.jda.api.EmbedBuilder#addField(String, String, boolean) EmbedBuilder.addField(title, value, inline)
+     * @see EmbedBuilder#addField(String, String, boolean) EmbedBuilder.addField(title, value, inline)
      */
     public static final int VALUE_MAX_LENGTH = 1024;
 
     /**
      * The maximum length the description of an embed can have
      *
-     * @see net.dv8tion.jda.api.EmbedBuilder#setDescription(CharSequence) EmbedBuilder.setDescription(text)
+     * @see EmbedBuilder#setDescription(CharSequence) EmbedBuilder.setDescription(text)
      */
     public static final int DESCRIPTION_MAX_LENGTH = 4096;
 
     /**
      * The maximum length the footer of an embed can have
      *
-     * @see net.dv8tion.jda.api.EmbedBuilder#setFooter(String, String) EmbedBuilder.setFooter(text, iconUrl)
+     * @see EmbedBuilder#setFooter(String, String) EmbedBuilder.setFooter(text, iconUrl)
      */
     public static final int TEXT_MAX_LENGTH = 2048;
 
     /**
      * The maximum length any URL can have inside an embed
      *
-     * @see net.dv8tion.jda.api.EmbedBuilder#setTitle(String, String) EmbedBuilder.setTitle(text, url)
-     * @see net.dv8tion.jda.api.EmbedBuilder#setAuthor(String, String, String) EmbedBuilder.setAuthor(text, url, iconUrl)
-     * @see net.dv8tion.jda.api.EmbedBuilder#setFooter(String, String) EmbedBuilder.setFooter(text, url)
+     * @see EmbedBuilder#setTitle(String, String) EmbedBuilder.setTitle(text, url)
+     * @see EmbedBuilder#setAuthor(String, String, String) EmbedBuilder.setAuthor(text, url, iconUrl)
+     * @see EmbedBuilder#setFooter(String, String) EmbedBuilder.setFooter(text, url)
      */
     public static final int URL_MAX_LENGTH = 2000;
 
     /**
      * The maximum amount of total visible characters an embed can have
      *
-     * @see net.dv8tion.jda.api.EmbedBuilder#setDescription(CharSequence)
-     * @see net.dv8tion.jda.api.EmbedBuilder#setTitle(String)
-     * @see net.dv8tion.jda.api.EmbedBuilder#setFooter(String, String)
-     * @see net.dv8tion.jda.api.EmbedBuilder#addField(String, String, boolean)
+     * @see EmbedBuilder#setDescription(CharSequence)
+     * @see EmbedBuilder#setTitle(String)
+     * @see EmbedBuilder#setFooter(String, String)
+     * @see EmbedBuilder#addField(String, String, boolean)
      */
     public static final int EMBED_MAX_LENGTH_BOT = 6000;
 
     /**
      * The maximum amount of total embed fields the embed can hold
      *
-     * @see net.dv8tion.jda.api.EmbedBuilder#addField(String, String, boolean)
+     * @see EmbedBuilder#addField(String, String, boolean)
      */
     public static final int MAX_FIELD_AMOUNT = 25;
 
@@ -158,8 +158,7 @@ public class MessageEmbed implements SerializableData {
         this.videoInfo = videoInfo;
         this.footer = footer;
         this.image = image;
-        this.fields =
-                fields != null && !fields.isEmpty() ? Collections.unmodifiableList(fields) : Collections.emptyList();
+        this.fields = fields != null && !fields.isEmpty() ? List.copyOf(fields) : List.of();
         this.flags = flags;
     }
 
@@ -176,7 +175,7 @@ public class MessageEmbed implements SerializableData {
 
     /**
      * The title of the embed. Typically this will be the html title of the webpage that is being embedded.<br>
-     * If no title could be found, like the case of {@link EmbedType EmbedType} = {@link net.dv8tion.jda.api.entities.EmbedType#IMAGE IMAGE},
+     * If no title could be found, like the case of {@link EmbedType EmbedType} = {@link EmbedType#IMAGE IMAGE},
      * this method will return null.
      *
      * @return Possibly-null String containing the title of the embedded resource.
@@ -199,9 +198,9 @@ public class MessageEmbed implements SerializableData {
     }
 
     /**
-     * The {@link net.dv8tion.jda.api.entities.EmbedType EmbedType} of this embed.
+     * The {@link EmbedType} of this embed.
      *
-     * @return The {@link net.dv8tion.jda.api.entities.EmbedType EmbedType} of this embed.
+     * @return The {@link EmbedType} of this embed.
      */
     @Nonnull
     public EmbedType getType() {
@@ -209,10 +208,10 @@ public class MessageEmbed implements SerializableData {
     }
 
     /**
-     * The information about the {@link net.dv8tion.jda.api.entities.MessageEmbed.Thumbnail Thumbnail} image to be displayed with the embed.
-     * <br>If a {@link net.dv8tion.jda.api.entities.MessageEmbed.Thumbnail Thumbnail} was not part of this embed, this returns null.
+     * The information about the {@link MessageEmbed.Thumbnail Thumbnail} image to be displayed with the embed.
+     * <br>If a {@link MessageEmbed.Thumbnail Thumbnail} was not part of this embed, this returns null.
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.MessageEmbed.Thumbnail Thumbnail} instance
+     * @return Possibly-null {@link MessageEmbed.Thumbnail Thumbnail} instance
      *         containing general information on the displayable thumbnail.
      */
     @Nullable
@@ -224,7 +223,7 @@ public class MessageEmbed implements SerializableData {
      * The information on site from which the embed was generated from.
      * <br>If Discord did not generate any deliverable information about the site, this returns null.
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.MessageEmbed.Provider Provider}
+     * @return Possibly-null {@link MessageEmbed.Provider Provider}
      *         containing site information.
      */
     @Nullable
@@ -236,7 +235,7 @@ public class MessageEmbed implements SerializableData {
      * The information on the creator of the embedded content.
      * <br>This is typically used to represent the account on the providing site.
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.MessageEmbed.AuthorInfo AuthorInfo}
+     * @return Possibly-null {@link MessageEmbed.AuthorInfo AuthorInfo}
      *         containing author information.
      */
     @Nullable
@@ -247,10 +246,10 @@ public class MessageEmbed implements SerializableData {
     /**
      * The information about the video which should be displayed as an embed.
      * <br>This is used when sites with HTML5 players are linked and embedded. Most commonly Youtube.
-     * <br>If this {@link net.dv8tion.jda.api.entities.EmbedType EmbedType} != {@link net.dv8tion.jda.api.entities.EmbedType#VIDEO VIDEO}
+     * <br>If this {@link EmbedType} != {@link EmbedType#VIDEO VIDEO}
      * this will always return null.
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.MessageEmbed.VideoInfo VideoInfo}
+     * @return Possibly-null {@link MessageEmbed.VideoInfo VideoInfo}
      *         containing the information about the video which should be embedded.
      */
     @Nullable
@@ -262,7 +261,7 @@ public class MessageEmbed implements SerializableData {
      * The footer (bottom) of the embedded content.
      * <br>This is typically used for timestamps or site icons.
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.MessageEmbed.Footer Footer}
+     * @return Possibly-null {@link MessageEmbed.Footer Footer}
      *         containing the embed footer content.
      */
     @Nullable
@@ -273,7 +272,7 @@ public class MessageEmbed implements SerializableData {
     /**
      * The information about the image in the message embed
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.MessageEmbed.ImageInfo ImageInfo}
+     * @return Possibly-null {@link MessageEmbed.ImageInfo ImageInfo}
      *         containing image information.
      */
     @Nullable
@@ -287,7 +286,7 @@ public class MessageEmbed implements SerializableData {
      * to determine if it will fall in-line with other fields. If the embed contains no
      * fields, an empty list will be returned.
      *
-     * @return Never-null (but possibly empty) immutable  List of {@link net.dv8tion.jda.api.entities.MessageEmbed.Field Field} objects
+     * @return Never-null (but possibly empty) immutable  List of {@link MessageEmbed.Field Field} objects
      *         containing field information.
      */
     @Nonnull
@@ -464,7 +463,7 @@ public class MessageEmbed implements SerializableData {
     }
 
     /**
-     * Creates a new {@link net.dv8tion.jda.api.utils.data.DataObject}
+     * Creates a new {@link DataObject}
      * used for sending.
      *
      * @return JSONObject for this embed

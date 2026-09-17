@@ -150,10 +150,9 @@ public class Timestamp {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof Timestamp)) {
+        if (!(o instanceof Timestamp other)) {
             return false;
         }
-        Timestamp other = (Timestamp) o;
         return timestamp == other.timestamp && format == other.format;
     }
 

@@ -17,11 +17,9 @@
 package net.dv8tion.jda.api.audit;
 
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.ISnowflake;
-import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.entities.Webhook;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.guild.GuildAuditLogEntryCreateEvent;
+import net.dv8tion.jda.api.requests.restaction.pagination.AuditLogPaginationAction;
 import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.entities.UserImpl;
 import net.dv8tion.jda.internal.entities.WebhookImpl;
@@ -38,9 +36,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Single entry for an {@link net.dv8tion.jda.api.requests.restaction.pagination.AuditLogPaginationAction AuditLogPaginationAction}.
+ * Single entry for an {@link AuditLogPaginationAction}.
  * <br>This entry contains all options/changes and details for the action
- * that was logged by the {@link net.dv8tion.jda.api.entities.Guild Guild} audit-logs.
+ * that was logged by the {@link Guild} audit-logs.
  */
 public class AuditLogEntry implements ISnowflake {
     protected final long id;
@@ -77,10 +75,8 @@ public class AuditLogEntry implements ISnowflake {
         this.user = user;
         this.webhook = webhook;
         this.reason = reason;
-        this.changes =
-                changes != null && !changes.isEmpty() ? Collections.unmodifiableMap(changes) : Collections.emptyMap();
-        this.options =
-                options != null && !options.isEmpty() ? Collections.unmodifiableMap(options) : Collections.emptyMap();
+        this.changes = changes != null && !changes.isEmpty() ? Collections.unmodifiableMap(changes) : Map.of();
+        this.options = options != null && !options.isEmpty() ? Collections.unmodifiableMap(options) : Map.of();
     }
 
     @Override
@@ -90,7 +86,7 @@ public class AuditLogEntry implements ISnowflake {
 
     /**
      * The id for the target entity.
-     * <br>This references an entity based on the {@link net.dv8tion.jda.api.audit.TargetType TargetType}
+     * <br>This references an entity based on the {@link TargetType}
      * which is specified by {@link #getTargetType()}!
      *
      * @return The target id
@@ -101,7 +97,7 @@ public class AuditLogEntry implements ISnowflake {
 
     /**
      * The id for the target entity.
-     * <br>This references an entity based on the {@link net.dv8tion.jda.api.audit.TargetType TargetType}
+     * <br>This references an entity based on the {@link TargetType}
      * which is specified by {@link #getTargetType()}!
      *
      * @return The target id
@@ -112,7 +108,7 @@ public class AuditLogEntry implements ISnowflake {
     }
 
     /**
-     * The {@link net.dv8tion.jda.api.entities.Webhook Webhook} that the target id of this audit-log entry refers to
+     * The {@link Webhook} that the target id of this audit-log entry refers to
      *
      * @return Possibly-null Webhook instance
      */
@@ -122,7 +118,7 @@ public class AuditLogEntry implements ISnowflake {
     }
 
     /**
-     * The {@link net.dv8tion.jda.api.entities.Guild Guild} this audit-log entry refers to
+     * The {@link Guild} this audit-log entry refers to
      *
      * @return The Guild instance
      */
@@ -183,10 +179,10 @@ public class AuditLogEntry implements ISnowflake {
     }
 
     /**
-     * Key-Value {@link java.util.Map Map} containing all {@link AuditLogChange
+     * Key-Value {@link Map} containing all {@link AuditLogChange
      * AuditLogChanges} made in this entry.
      * The keys for the returned map are case-insensitive keys defined in the regarding AuditLogChange value.
-     * <br>To iterate only the changes you can use {@link java.util.Map#values() Map.values()}!
+     * <br>To iterate only the changes you can use {@link Map#values() Map.values()}!
      *
      * @return Key-Value Map of changes
      */
@@ -200,7 +196,7 @@ public class AuditLogEntry implements ISnowflake {
      * <br>This lookup is case-insensitive!
      *
      * @param  key
-     *         The {@link net.dv8tion.jda.api.audit.AuditLogKey AuditLogKey} to look for
+     *         The {@link AuditLogKey} to look for
      *
      * @return Possibly-null value corresponding to the specified key
      */
@@ -227,9 +223,9 @@ public class AuditLogEntry implements ISnowflake {
      * Filters all changes by the specified keys
      *
      * @param  keys
-     *         Varargs {@link net.dv8tion.jda.api.audit.AuditLogKey AuditLogKeys} to look for
+     *         Varargs {@link AuditLogKey AuditLogKeys} to look for
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If provided with null array
      *
      * @return Possibly-empty, never-null immutable list of {@link AuditLogChange AuditLogChanges}
@@ -249,14 +245,14 @@ public class AuditLogEntry implements ISnowflake {
     }
 
     /**
-     * Key-Value {@link java.util.Map Map} containing all Options made in this entry. The keys for the returned map are
+     * Key-Value {@link Map} containing all Options made in this entry. The keys for the returned map are
      * case-insensitive keys defined in the regarding AuditLogChange value.
-     * <br>To iterate only the changes you can use {@link java.util.Map#values() Map.values()}!
+     * <br>To iterate only the changes you can use {@link Map#values() Map.values()}!
      *
      * <p>Options may include secondary targets or details that do not qualify as "change".
      * <br>An example of that would be the {@code member} option
-     * for {@link net.dv8tion.jda.api.audit.ActionType#CHANNEL_OVERRIDE_UPDATE CHANNEL_OVERRIDE_UPDATE}
-     * containing the user_id of a {@link net.dv8tion.jda.api.entities.Member Member}.
+     * for {@link ActionType#CHANNEL_OVERRIDE_UPDATE CHANNEL_OVERRIDE_UPDATE}
+     * containing the user_id of a {@link Member}.
      *
      * @return Key-Value Map of changes
      */
@@ -274,7 +270,7 @@ public class AuditLogEntry implements ISnowflake {
      * @param  name
      *         The field name to look for
      *
-     * @throws java.lang.ClassCastException
+     * @throws ClassCastException
      *         If the type-cast failed for the generic type.
      *
      * @return Possibly-null value corresponding to the specified key
@@ -291,11 +287,11 @@ public class AuditLogEntry implements ISnowflake {
      * @param  <T>
      *         The expected type for this option <br>Will be used for casting
      * @param  option
-     *         The {@link net.dv8tion.jda.api.audit.AuditLogOption AuditLogOption}
+     *         The {@link AuditLogOption}
      *
-     * @throws java.lang.ClassCastException
+     * @throws ClassCastException
      *         If the type-cast failed for the generic type.
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If provided with {@code null} option.
      *
      * @return Possibly-null value corresponding to the specified option constant
@@ -308,14 +304,14 @@ public class AuditLogEntry implements ISnowflake {
 
     /**
      * Constructs a filtered, immutable list of options corresponding to
-     * the provided {@link net.dv8tion.jda.api.audit.AuditLogOption AuditLogOptions}.
+     * the provided {@link AuditLogOption AuditLogOptions}.
      * <br>This will exclude options with {@code null} values!
      *
      * @param  options
-     *         The not-null {@link net.dv8tion.jda.api.audit.AuditLogOption AuditLogOptions}
+     *         The not-null {@link AuditLogOption AuditLogOptions}
      *         which will be used to gather option values via {@link #getOption(AuditLogOption) getOption(AuditLogOption)}!
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If provided with null options
      *
      * @return Unmodifiable list of representative values
@@ -335,10 +331,10 @@ public class AuditLogEntry implements ISnowflake {
     }
 
     /**
-     * The {@link net.dv8tion.jda.api.audit.ActionType ActionType} defining what auditable
+     * The {@link ActionType} defining what auditable
      * Action is referred to by this entry.
      *
-     * @return The {@link net.dv8tion.jda.api.audit.ActionType ActionType}
+     * @return The {@link ActionType}
      */
     @Nonnull
     public ActionType getType() {
@@ -356,11 +352,11 @@ public class AuditLogEntry implements ISnowflake {
     }
 
     /**
-     * The {@link net.dv8tion.jda.api.audit.TargetType TargetType} defining what kind of
+     * The {@link TargetType} defining what kind of
      * entity was targeted by this action.
      * <br>Shortcut for {@code getType().getTargetType()}
      *
-     * @return The {@link net.dv8tion.jda.api.audit.TargetType TargetType}
+     * @return The {@link TargetType}
      */
     @Nonnull
     public TargetType getTargetType() {

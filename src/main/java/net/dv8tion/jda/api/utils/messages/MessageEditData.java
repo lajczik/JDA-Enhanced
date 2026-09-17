@@ -19,13 +19,15 @@ package net.dv8tion.jda.api.utils.messages;
 import net.dv8tion.jda.api.components.MessageTopLevelComponentUnion;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.WebhookClient;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.interactions.InteractionHook;
+import net.dv8tion.jda.api.interactions.callbacks.IMessageEditCallback;
 import net.dv8tion.jda.api.utils.AttachedFile;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.api.utils.data.SerializableData;
-import net.dv8tion.jda.internal.utils.Helpers;
 import net.dv8tion.jda.internal.utils.IOUtil;
 import net.dv8tion.jda.internal.utils.message.MessageUtil;
 
@@ -41,9 +43,9 @@ import static net.dv8tion.jda.api.utils.messages.MessageEditBuilder.*;
  *
  * @see MessageEditBuilder
  * @see MessageChannel#editMessageById(String, MessageEditData)
- * @see net.dv8tion.jda.api.interactions.callbacks.IMessageEditCallback#editMessage(MessageEditData) IMessageEditCallback.editMessage(MessageEditData)
- * @see net.dv8tion.jda.api.entities.WebhookClient#editMessageById(String, MessageEditData) WebhookClient.editMessageById(String, MessageEditData)
- * @see net.dv8tion.jda.api.interactions.InteractionHook#editOriginal(MessageEditData) InteractionHook.editOriginal(MessageEditData)
+ * @see IMessageEditCallback#editMessage(MessageEditData) IMessageEditCallback.editMessage(MessageEditData)
+ * @see WebhookClient#editMessageById(String, MessageEditData) WebhookClient.editMessageById(String, MessageEditData)
+ * @see InteractionHook#editOriginal(MessageEditData) InteractionHook.editOriginal(MessageEditData)
  */
 public class MessageEditData implements MessageData, AutoCloseable, SerializableData {
     protected final AllowedMentionsData mentions;
@@ -350,7 +352,7 @@ public class MessageEditData implements MessageData, AutoCloseable, Serializable
         return files.stream()
                 .filter(FileUpload.class::isInstance)
                 .map(FileUpload.class::cast)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     /**

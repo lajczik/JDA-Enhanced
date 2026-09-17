@@ -17,10 +17,13 @@
 package net.dv8tion.jda.api.events.emoji.update;
 
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.cache.CacheFlag;
 
-import java.util.List;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 
@@ -31,18 +34,18 @@ import javax.annotation.Nonnull;
  *
  * <p><b>Requirements</b><br>
  *
- * <p>This event requires the {@link net.dv8tion.jda.api.utils.cache.CacheFlag#EMOJI EMOJI} CacheFlag to be enabled, which requires
- * the {@link net.dv8tion.jda.api.requests.GatewayIntent#GUILD_EXPRESSIONS GUILD_EXPRESSIONS} intent.
+ * <p>This event requires the {@link CacheFlag#EMOJI EMOJI} CacheFlag to be enabled, which requires
+ * the {@link GatewayIntent#GUILD_EXPRESSIONS GUILD_EXPRESSIONS} intent.
  *
- * <br>{@link net.dv8tion.jda.api.JDABuilder#createLight(String) createLight(String)} disables that CacheFlag by default!
+ * <br>{@link JDABuilder#createLight(String) createLight(String)} disables that CacheFlag by default!
  *
  * <p>Identifier: {@code roles}
  */
-public class EmojiUpdateRolesEvent extends GenericEmojiUpdateEvent<List<Role>> {
+public class EmojiUpdateRolesEvent extends GenericEmojiUpdateEvent<Set<Role>> {
     public static final String IDENTIFIER = "roles";
 
     public EmojiUpdateRolesEvent(
-            @Nonnull JDA api, long responseNumber, @Nonnull RichCustomEmoji emoji, @Nonnull List<Role> oldRoles) {
+            @Nonnull JDA api, long responseNumber, @Nonnull RichCustomEmoji emoji, @Nonnull Set<Role> oldRoles) {
         super(api, responseNumber, emoji, oldRoles, emoji.getRoles(), IDENTIFIER);
     }
 
@@ -52,7 +55,7 @@ public class EmojiUpdateRolesEvent extends GenericEmojiUpdateEvent<List<Role>> {
      * @return The old role whitelist
      */
     @Nonnull
-    public List<Role> getOldRoles() {
+    public Set<Role> getOldRoles() {
         return getOldValue();
     }
 
@@ -62,19 +65,19 @@ public class EmojiUpdateRolesEvent extends GenericEmojiUpdateEvent<List<Role>> {
      * @return The new role whitelist
      */
     @Nonnull
-    public List<Role> getNewRoles() {
+    public Set<Role> getNewRoles() {
         return getNewValue();
     }
 
     @Nonnull
     @Override
-    public List<Role> getOldValue() {
+    public Set<Role> getOldValue() {
         return super.getOldValue();
     }
 
     @Nonnull
     @Override
-    public List<Role> getNewValue() {
+    public Set<Role> getNewValue() {
         return super.getNewValue();
     }
 }

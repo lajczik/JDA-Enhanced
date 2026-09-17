@@ -17,12 +17,13 @@
 package net.dv8tion.jda.api.utils;
 
 import net.dv8tion.jda.api.entities.ISnowflake;
+import net.dv8tion.jda.api.entities.MessageHistory;
 import net.dv8tion.jda.internal.utils.Checks;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Calendar;
-import java.util.TimeZone;
 
 import javax.annotation.Nonnull;
 
@@ -36,7 +37,7 @@ public class TimeUtil {
 
     /**
      * Converts the provided epoch millisecond timestamp to a Discord Snowflake.
-     * <br>This can be used as a marker/pivot for {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} creation.
+     * <br>This can be used as a marker/pivot for {@link MessageHistory} creation.
      *
      * @param  millisTimestamp
      *         The epoch millis to convert
@@ -59,9 +60,7 @@ public class TimeUtil {
     @Nonnull
     public static OffsetDateTime getTimeCreated(long entityId) {
         long timestamp = (entityId >>> TIMESTAMP_OFFSET) + DISCORD_EPOCH;
-        Calendar gmt = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
-        gmt.setTimeInMillis(timestamp);
-        return OffsetDateTime.ofInstant(gmt.toInstant(), gmt.getTimeZone().toZoneId());
+        return OffsetDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC);
     }
 
     /**

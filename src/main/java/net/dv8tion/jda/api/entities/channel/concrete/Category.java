@@ -17,13 +17,19 @@
 package net.dv8tion.jda.api.entities.channel.concrete;
 
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.PermissionOverride;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.attribute.*;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.exceptions.DetachedEntityException;
+import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.managers.channel.concrete.CategoryManager;
+import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.restaction.ChannelAction;
 import net.dv8tion.jda.api.requests.restaction.order.CategoryOrderAction;
 import net.dv8tion.jda.api.requests.restaction.order.ChannelOrderAction;
@@ -31,7 +37,6 @@ import net.dv8tion.jda.api.requests.restaction.order.OrderAction;
 import net.dv8tion.jda.api.utils.cache.SnowflakeCacheView;
 import net.dv8tion.jda.api.utils.cache.SortedChannelCacheView;
 import net.dv8tion.jda.api.utils.cache.SortedSnowflakeCacheView;
-import net.dv8tion.jda.internal.utils.Helpers;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
@@ -58,7 +63,7 @@ public interface Category
      * All {@link GuildChannel Channels} listed for this Category.
      * <br>Includes all types of channels, except for threads.
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return Immutable list of all child channels
@@ -70,14 +75,15 @@ public interface Category
                 getGuild().getChannelCache().ofType(ICategorizableChannel.class);
         return filtered.applyStream(stream -> stream.filter(it -> this.equals(it.getParentCategory()))
                 .sorted()
-                .collect(Helpers.toUnmodifiableList()));
+                .map(GuildChannel.class::cast)
+                .toList());
     }
 
     /**
      * All {@link TextChannel TextChannels}
      * listed for this Category
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return Immutable list of all child TextChannels
@@ -88,14 +94,14 @@ public interface Category
         SortedSnowflakeCacheView<TextChannel> filtered = getGuild().getTextChannelCache();
         return filtered.applyStream(stream -> stream.filter(channel -> equals(channel.getParentCategory()))
                 .sorted()
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     /**
      * All {@link NewsChannel NewsChannels}
      * listed for this Category
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return Immutable list of all child NewsChannels
@@ -106,13 +112,13 @@ public interface Category
         SortedSnowflakeCacheView<NewsChannel> filtered = getGuild().getNewsChannelCache();
         return filtered.applyStream(stream -> stream.filter(channel -> equals(channel.getParentCategory()))
                 .sorted()
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     /**
-     * All {@link net.dv8tion.jda.api.entities.channel.concrete.ForumChannel ForumChannels} listed for this Category
+     * All {@link ForumChannel ForumChannels} listed for this Category
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return Immutable list of all child ForumChannels
@@ -123,13 +129,13 @@ public interface Category
         SortedSnowflakeCacheView<ForumChannel> filtered = getGuild().getForumChannelCache();
         return filtered.applyStream(stream -> stream.filter(channel -> equals(channel.getParentCategory()))
                 .sorted()
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     /**
-     * All {@link net.dv8tion.jda.api.entities.channel.concrete.MediaChannel MediaChannels} listed for this Category
+     * All {@link MediaChannel MediaChannels} listed for this Category
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return Immutable list of all child ForumChannels
@@ -140,14 +146,14 @@ public interface Category
         SnowflakeCacheView<MediaChannel> filtered = getGuild().getMediaChannelCache();
         return filtered.applyStream(stream -> stream.filter(channel -> equals(channel.getParentCategory()))
                 .sorted()
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     /**
      * All {@link VoiceChannel VoiceChannels}
      * listed for this Category
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return Immutable list of all child VoiceChannels
@@ -158,14 +164,14 @@ public interface Category
         SortedSnowflakeCacheView<VoiceChannel> filtered = getGuild().getVoiceChannelCache();
         return filtered.applyStream(stream -> stream.filter(channel -> equals(channel.getParentCategory()))
                 .sorted()
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     /**
      * All {@link StageChannel StageChannel}
      * listed for this Category
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return Immutable list of all child StageChannel
@@ -176,39 +182,39 @@ public interface Category
         SortedSnowflakeCacheView<StageChannel> filtered = getGuild().getStageChannelCache();
         return filtered.applyStream(stream -> stream.filter(channel -> equals(channel.getParentCategory()))
                 .sorted()
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     /**
      * Creates a new {@link TextChannel TextChannel} with this Category as parent.
      * For this to be successful, the logged in account has to have the
-     * {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
+     * {@link Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
      *
-     * <p>This will copy all {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} of this Category!
+     * <p>This will copy all {@link PermissionOverride PermissionOverrides} of this Category!
      * Unless the bot is unable to sync it with this category due to permission escalation.
      * See {@link IPermissionHolder#canSync(IPermissionContainer, IPermissionContainer)} for details.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>Possible {@link ErrorResponse ErrorResponses} caused by
+     * the returned {@link RestAction} include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The channel could not be created due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
+     *     <li>{@link ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
      *     <br>The maximum number of channels were exceeded</li>
      * </ul>
      *
      * @param  name
      *         The name of the TextChannel to create (up to {@value Channel#MAX_NAME_LENGTH} characters)
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL} permission
+     * @throws InsufficientPermissionException
+     *         If the logged in account does not have the {@link Permission#MANAGE_CHANNEL} permission
      * @throws IllegalArgumentException
      *         If the provided name is {@code null}, empty, or longer than {@value Channel#MAX_NAME_LENGTH} characters
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A specific {@link ChannelAction ChannelAction}
@@ -219,35 +225,35 @@ public interface Category
     ChannelAction<TextChannel> createTextChannel(@Nonnull String name);
 
     /**
-     * Creates a new {@link net.dv8tion.jda.api.entities.channel.concrete.NewsChannel NewsChannel} with this Category as parent.
+     * Creates a new {@link NewsChannel} with this Category as parent.
      * For this to be successful, the logged in account has to have the
-     * {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
+     * {@link Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
      *
-     * <p>This will copy all {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} of this Category!
+     * <p>This will copy all {@link PermissionOverride PermissionOverrides} of this Category!
      * Unless the bot is unable to sync it with this category due to permission escalation.
      * See {@link IPermissionHolder#canSync(IPermissionContainer, IPermissionContainer)} for details.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>Possible {@link ErrorResponse ErrorResponses} caused by
+     * the returned {@link RestAction} include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The channel could not be created due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
+     *     <li>{@link ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
      *     <br>The maximum number of channels were exceeded</li>
      * </ul>
      *
      * @param  name
      *         The name of the NewsChannel to create (up to {@value Channel#MAX_NAME_LENGTH} characters)
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL} permission
+     * @throws InsufficientPermissionException
+     *         If the logged in account does not have the {@link Permission#MANAGE_CHANNEL} permission
      * @throws IllegalArgumentException
      *         If the provided name is {@code null}, empty, or longer than {@value Channel#MAX_NAME_LENGTH} characters
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A specific {@link ChannelAction ChannelAction}
@@ -260,33 +266,33 @@ public interface Category
     /**
      * Creates a new {@link VoiceChannel VoiceChannel} with this Category as parent.
      * For this to be successful, the logged in account has to have the
-     * {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
+     * {@link Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
      *
-     * <p>This will copy all {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} of this Category!
+     * <p>This will copy all {@link PermissionOverride PermissionOverrides} of this Category!
      * Unless the bot is unable to sync it with this category due to permission escalation.
      * See {@link IPermissionHolder#canSync(IPermissionContainer, IPermissionContainer)} for details.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>Possible {@link ErrorResponse ErrorResponses} caused by
+     * the returned {@link RestAction} include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The channel could not be created due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
+     *     <li>{@link ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
      *     <br>The maximum number of channels were exceeded</li>
      * </ul>
      *
      * @param  name
      *         The name of the VoiceChannel to create (up to {@value Channel#MAX_NAME_LENGTH} characters)
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL} permission
+     * @throws InsufficientPermissionException
+     *         If the logged in account does not have the {@link Permission#MANAGE_CHANNEL} permission
      * @throws IllegalArgumentException
      *         If the provided name is {@code null}, empty, or longer than {@value Channel#MAX_NAME_LENGTH} characters
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A specific {@link ChannelAction ChannelAction}
@@ -299,33 +305,33 @@ public interface Category
     /**
      * Creates a new {@link StageChannel StageChannel} with this Category as parent.
      * For this to be successful, the logged in account has to have the
-     * {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
+     * {@link Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
      *
-     * <p>This will copy all {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} of this Category!
+     * <p>This will copy all {@link PermissionOverride PermissionOverrides} of this Category!
      * Unless the bot is unable to sync it with this category due to permission escalation.
      * See {@link IPermissionHolder#canSync(IPermissionContainer, IPermissionContainer)} for details.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>Possible {@link ErrorResponse ErrorResponses} caused by
+     * the returned {@link RestAction} include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The channel could not be created due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
+     *     <li>{@link ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
      *     <br>The maximum number of channels were exceeded</li>
      * </ul>
      *
      * @param  name
      *         The name of the StageChannel to create (up to {@value Channel#MAX_NAME_LENGTH} characters)
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL} permission
+     * @throws InsufficientPermissionException
+     *         If the logged in account does not have the {@link Permission#MANAGE_CHANNEL} permission
      * @throws IllegalArgumentException
      *         If the provided name is {@code null}, empty, or longer than {@value Channel#MAX_NAME_LENGTH} characters
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A specific {@link ChannelAction ChannelAction}
@@ -338,33 +344,33 @@ public interface Category
     /**
      * Creates a new {@link ForumChannel} with this Category as parent.
      * For this to be successful, the logged in account has to have the
-     * {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
+     * {@link Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
      *
-     * <p>This will copy all {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} of this Category!
+     * <p>This will copy all {@link PermissionOverride PermissionOverrides} of this Category!
      * Unless the bot is unable to sync it with this category due to permission escalation.
      * See {@link IPermissionHolder#canSync(IPermissionContainer, IPermissionContainer)} for details.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>Possible {@link ErrorResponse ErrorResponses} caused by
+     * the returned {@link RestAction} include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The channel could not be created due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
+     *     <li>{@link ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
      *     <br>The maximum number of channels were exceeded</li>
      * </ul>
      *
      * @param  name
      *         The name of the ForumChannel to create (up to {@value Channel#MAX_NAME_LENGTH} characters)
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL} permission
+     * @throws InsufficientPermissionException
+     *         If the logged in account does not have the {@link Permission#MANAGE_CHANNEL} permission
      * @throws IllegalArgumentException
      *         If the provided name is {@code null}, empty, or longer than {@value Channel#MAX_NAME_LENGTH} characters
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A specific {@link ChannelAction ChannelAction}
@@ -377,33 +383,33 @@ public interface Category
     /**
      * Creates a new {@link MediaChannel} with this Category as parent.
      * For this to be successful, the logged in account has to have the
-     * {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
+     * {@link Permission#MANAGE_CHANNEL MANAGE_CHANNEL} Permission in this Category.
      *
-     * <p>This will copy all {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverrides} of this Category!
+     * <p>This will copy all {@link PermissionOverride PermissionOverrides} of this Category!
      * Unless the bot is unable to sync it with this category due to permission escalation.
      * See {@link IPermissionHolder#canSync(IPermissionContainer, IPermissionContainer)} for details.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>Possible {@link ErrorResponse ErrorResponses} caused by
+     * the returned {@link RestAction} include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The channel could not be created due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} permission was removed</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
+     *     <li>{@link ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
      *     <br>The maximum number of channels were exceeded</li>
      * </ul>
      *
      * @param  name
      *         The name of the MediaChannel to create (up to {@value Channel#MAX_NAME_LENGTH} characters)
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link net.dv8tion.jda.api.Permission#MANAGE_CHANNEL} permission
+     * @throws InsufficientPermissionException
+     *         If the logged in account does not have the {@link Permission#MANAGE_CHANNEL} permission
      * @throws IllegalArgumentException
      *         If the provided name is {@code null}, empty, or longer than {@value Channel#MAX_NAME_LENGTH} characters
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A specific {@link ChannelAction ChannelAction}
@@ -424,16 +430,16 @@ public interface Category
      * {@link OrderAction#moveTo(int) to} a specific position.
      * <br>This uses <b>ascending</b> order with a 0 based index.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNNKOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNNKOWN_CHANNEL}
      *     <br>One of the channels has been deleted before the completion of the task.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
      *     <br>The currently logged in account was removed from the Guild.</li>
      * </ul>
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A {@link CategoryOrderAction CategoryOrderAction} for
@@ -455,16 +461,16 @@ public interface Category
      * {@link OrderAction#moveTo(int) to} a specific position.
      * <br>This uses <b>ascending</b> order with a 0 based index.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNNKOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNNKOWN_CHANNEL}
      *     <br>One of the channels has been deleted before the completion of the task.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
      *     <br>The currently logged in account was removed from the Guild.</li>
      * </ul>
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A {@link CategoryOrderAction CategoryOrderAction} for
@@ -485,7 +491,7 @@ public interface Category
                 .map(IMemberContainer::getMembers)
                 .flatMap(List::stream)
                 .distinct()
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull

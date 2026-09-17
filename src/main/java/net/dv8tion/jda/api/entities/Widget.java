@@ -156,7 +156,7 @@ public interface Widget extends ISnowflake {
      * @see     Widget#getMemberById(String)
      * @see     VoiceChannel#getMembers()
      */
-    public interface Member extends IMentionable {
+    interface Member extends IMentionable {
 
         /**
          * Returns whether or not the given member is a bot account
@@ -357,7 +357,7 @@ public interface Widget extends ISnowflake {
          * Gets the online status of the member. The widget does not show
          * offline members, so this status should never be offline
          *
-         * @return the {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} of the member
+         * @return the {@link OnlineStatus} of the member
          */
         @Nonnull
         OnlineStatus getOnlineStatus();
@@ -367,7 +367,7 @@ public interface Widget extends ISnowflake {
          * <br>This game cannot be a stream.
          * If the user is not currently playing a game, this will return null.
          *
-         * @return Possibly-null {@link net.dv8tion.jda.api.entities.Activity Activity} containing the game
+         * @return Possibly-null {@link Activity} containing the game
          *         that the member is currently playing.
          */
         @Nullable
@@ -398,7 +398,7 @@ public interface Widget extends ISnowflake {
      * @see     Widget#getVoiceChannelById(long)
      * @see     Widget#getVoiceChannelById(String)
      */
-    public interface VoiceChannel extends ISnowflake {
+    interface VoiceChannel extends ISnowflake {
 
         /**
          * Gets the integer position of the channel
@@ -433,11 +433,11 @@ public interface Widget extends ISnowflake {
     }
 
     /**
-     * Represents a {@link net.dv8tion.jda.api.entities.Widget.Member Member's} voice state
+     * Represents a {@link Widget.Member Member's} voice state
      *
      * @see     Member#getVoiceState()
      */
-    public interface VoiceState {
+    interface VoiceState {
 
         /**
          * Gets the channel the member is in
@@ -505,7 +505,7 @@ public interface Widget extends ISnowflake {
         boolean isDeafened();
 
         /**
-         * Gets the {@link net.dv8tion.jda.api.entities.Widget.Member Member} to which this
+         * Gets the {@link Widget.Member Member} to which this
          * VoiceState belongs
          *
          * @return the member
@@ -514,8 +514,8 @@ public interface Widget extends ISnowflake {
         Member getMember();
 
         /**
-         * Gets the {@link net.dv8tion.jda.api.entities.Widget Widget} to which the
-         * {@link net.dv8tion.jda.api.entities.Widget.Member Member} of this VoiceState belongs
+         * Gets the {@link Widget} to which the
+         * {@link Widget.Member Member} of this VoiceState belongs
          *
          * @return the widget
          */

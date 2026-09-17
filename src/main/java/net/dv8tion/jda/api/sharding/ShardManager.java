@@ -16,6 +16,7 @@
 
 package net.dv8tion.jda.api.sharding;
 
+import io.netty.channel.EventLoopGroup;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDA.Status;
 import net.dv8tion.jda.api.OnlineStatus;
@@ -28,10 +29,13 @@ import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
 import net.dv8tion.jda.api.exceptions.InvalidTokenException;
+import net.dv8tion.jda.api.hooks.InterfacedEventManager;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.utils.MiscUtil;
+import net.dv8tion.jda.api.utils.NettyConfig;
 import net.dv8tion.jda.api.utils.cache.CacheView;
 import net.dv8tion.jda.api.utils.cache.ChannelCacheView;
 import net.dv8tion.jda.api.utils.cache.ShardCacheView;
@@ -40,11 +44,12 @@ import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.requests.CompletedRestAction;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
-import net.dv8tion.jda.internal.utils.Helpers;
 import net.dv8tion.jda.internal.utils.cache.UnifiedChannelCacheView;
 import org.jetbrains.annotations.Unmodifiable;
+import reactor.netty.http.client.HttpClient;
 
 import java.util.*;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
@@ -58,7 +63,7 @@ import javax.annotation.Nullable;
  * It contains several methods to make your life with sharding easier.
  *
  * <br>Custom implementations may not support all methods and throw
- * {@link java.lang.UnsupportedOperationException UnsupportedOperationExceptions} instead.
+ * {@link UnsupportedOperationException UnsupportedOperationExceptions} instead.
  *
  * @author Aljoscha Grebe
  */
@@ -66,13 +71,13 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     /**
      * Adds all provided listeners to the event-listeners that will be used to handle events.
      *
-     * <p>Note: when using the {@link net.dv8tion.jda.api.hooks.InterfacedEventManager InterfacedEventListener} (default),
-     * the given listener <b>must</b> be an instance of {@link net.dv8tion.jda.api.hooks.EventListener EventListener}!
+     * <p>Note: when using the {@link InterfacedEventManager InterfacedEventListener} (default),
+     * the given listener <b>must</b> be an instance of {@link EventListener}!
      *
      * @param  listeners
      *         The listener(s) which will react to events.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If either listeners or one of it's objects is {@code null}.
      */
     default void addEventListener(@Nonnull Object... listeners) {
@@ -86,7 +91,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * @param  listeners
      *         The listener(s) to be removed.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If either listeners or one of it's objects is {@code null}.
      */
     default void removeEventListener(@Nonnull Object... listeners) {
@@ -98,13 +103,13 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * Adds listeners provided by the listener provider to each shard to the event-listeners that will be used to handle events.
      * The listener provider gets a shard id applied and is expected to return a listener.
      *
-     * <p>Note: when using the {@link net.dv8tion.jda.api.hooks.InterfacedEventManager InterfacedEventListener} (default),
-     * the given listener <b>must</b> be an instance of {@link net.dv8tion.jda.api.hooks.EventListener EventListener}!
+     * <p>Note: when using the {@link InterfacedEventManager InterfacedEventListener} (default),
+     * the given listener <b>must</b> be an instance of {@link EventListener}!
      *
      * @param  eventListenerProvider
      *         The provider of listener(s) which will react to events.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided listener provider or any of the listeners or provides are {@code null}.
      */
     default void addEventListeners(@Nonnull IntFunction<Object> eventListenerProvider) {
@@ -126,7 +131,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      *         Gets shard ids applied and is expected to return a collection of listeners that shall be removed from
      *         the respective shards
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided event listeners provider is {@code null}.
      */
     default void removeEventListeners(@Nonnull IntFunction<Collection<Object>> eventListenerProvider) {
@@ -146,7 +151,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * @param  eventListenerProvider
      *         The provider of listeners that shall be removed.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided listener provider is {@code null}.
      */
     default void removeEventListenerProvider(@Nonnull IntFunction<Object> eventListenerProvider) {}
@@ -168,7 +173,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Returns the amount of shards managed by this {@link net.dv8tion.jda.api.sharding.ShardManager ShardManager}.
+     * Returns the amount of shards managed by this {@link ShardManager}.
      * This includes shards currently queued for a restart.
      *
      * @return The managed amount of shards.
@@ -194,7 +199,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * Used to access application details of this bot.
      * <br>Since this is the same for every shard it picks {@link JDA#retrieveApplicationInfo()} from any shard.
      *
-     * @throws java.lang.IllegalStateException
+     * @throws IllegalStateException
      *         If there is no running shard
      *
      * @return The Application registry for this bot.
@@ -212,7 +217,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * The average time in milliseconds between all shards that discord took to respond to our last heartbeat.
      * This roughly represents the WebSocket ping of this session. If there are no shards running, this will return {@code -1}.
      *
-     * <p><b>{@link net.dv8tion.jda.api.requests.RestAction RestAction} request times do not
+     * <p><b>{@link RestAction} request times do not
      * correlate to this value!</b>
      *
      * @return The average time in milliseconds between heartbeat and the heartbeat ack response
@@ -226,10 +231,10 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView} of
-     * all cached {@link net.dv8tion.jda.api.entities.channel.concrete.Category Categories} visible to this ShardManager instance.
+     * {@link SnowflakeCacheView} of
+     * all cached {@link Category Categories} visible to this ShardManager instance.
      *
-     * @return {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView}
+     * @return {@link SnowflakeCacheView}
      */
     @Override
     @Nonnull
@@ -261,7 +266,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * @param  id
      *         The id of the requested {@link RichCustomEmoji}.
      *
-     * @throws java.lang.NumberFormatException
+     * @throws NumberFormatException
      *         If the provided {@code id} cannot be parsed by {@link Long#parseLong(String)}
      *
      * @return An {@link RichCustomEmoji} represented by this id or null if none is found in
@@ -273,10 +278,10 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Unified {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView} of
+     * Unified {@link SnowflakeCacheView} of
      * all cached {@link RichCustomEmoji RichCustomEmojis} visible to this ShardManager instance.
      *
-     * @return Unified {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView}
+     * @return Unified {@link SnowflakeCacheView}
      */
     @Nonnull
     default SnowflakeCacheView<RichCustomEmoji> getEmojiCache() {
@@ -328,13 +333,13 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * This returns the {@link net.dv8tion.jda.api.entities.Guild Guild} which has the same id as the one provided.
+     * This returns the {@link Guild} which has the same id as the one provided.
      * <br>If there is no connected guild with an id that matches the provided one, this will return {@code null}.
      *
      * @param  id
-     *         The id of the {@link net.dv8tion.jda.api.entities.Guild Guild}.
+     *         The id of the {@link Guild}.
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.Guild Guild} with matching id.
+     * @return Possibly-null {@link Guild} with matching id.
      */
     @Nullable
     default Guild getGuildById(long id) {
@@ -342,13 +347,13 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * This returns the {@link net.dv8tion.jda.api.entities.Guild Guild} which has the same id as the one provided.
+     * This returns the {@link Guild} which has the same id as the one provided.
      * <br>If there is no connected guild with an id that matches the provided one, this will return {@code null}.
      *
      * @param  id
-     *         The id of the {@link net.dv8tion.jda.api.entities.Guild Guild}.
+     *         The id of the {@link Guild}.
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.Guild Guild} with matching id.
+     * @return Possibly-null {@link Guild} with matching id.
      */
     @Nullable
     default Guild getGuildById(@Nonnull String id) {
@@ -356,15 +361,15 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * An unmodifiable list of all {@link net.dv8tion.jda.api.entities.Guild Guilds} that have the same name as the one provided.
-     * <br>If there are no {@link net.dv8tion.jda.api.entities.Guild Guilds} with the provided name, this will return an empty list.
+     * An unmodifiable list of all {@link Guild Guilds} that have the same name as the one provided.
+     * <br>If there are no {@link Guild Guilds} with the provided name, this will return an empty list.
      *
      * @param  name
-     *         The name of the requested {@link net.dv8tion.jda.api.entities.Guild Guilds}.
+     *         The name of the requested {@link Guild Guilds}.
      * @param  ignoreCase
-     *         Whether to ignore case or not when comparing the provided name to each {@link net.dv8tion.jda.api.entities.Guild#getName()}.
+     *         Whether to ignore case or not when comparing the provided name to each {@link Guild#getName()}.
      *
-     * @return Possibly-empty list of all the {@link net.dv8tion.jda.api.entities.Guild Guilds} that all have the same name as the provided name.
+     * @return Possibly-empty list of all the {@link Guild Guilds} that all have the same name as the provided name.
      */
     @Nonnull
     @Unmodifiable
@@ -373,10 +378,10 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView} of
-     * all cached {@link net.dv8tion.jda.api.entities.Guild Guilds} visible to this ShardManager instance.
+     * {@link SnowflakeCacheView} of
+     * all cached {@link Guild Guilds} visible to this ShardManager instance.
      *
-     * @return {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView}
+     * @return {@link SnowflakeCacheView}
      */
     @Nonnull
     default SnowflakeCacheView<Guild> getGuildCache() {
@@ -384,8 +389,8 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * An unmodifiable List of all {@link net.dv8tion.jda.api.entities.Guild Guilds} that the logged account is connected to.
-     * <br>If this account is not connected to any {@link net.dv8tion.jda.api.entities.Guild Guilds}, this will return
+     * An unmodifiable List of all {@link Guild Guilds} that the logged account is connected to.
+     * <br>If this account is not connected to any {@link Guild Guilds}, this will return
      * an empty list.
      *
      * <p>This copies the backing store into a list. This means every call
@@ -393,7 +398,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * a local variable or use {@link #getGuildCache()} and use its more efficient
      * versions of handling these values.
      *
-     * @return Possibly-empty list of all the {@link net.dv8tion.jda.api.entities.Guild Guilds} that this account is connected to.
+     * @return Possibly-empty list of all the {@link Guild Guilds} that this account is connected to.
      */
     @Nonnull
     @Unmodifiable
@@ -402,12 +407,12 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Gets all {@link net.dv8tion.jda.api.entities.Guild Guilds} that contain all given users as their members.
+     * Gets all {@link Guild Guilds} that contain all given users as their members.
      *
      * @param  users
-     *         The users which all the returned {@link net.dv8tion.jda.api.entities.Guild Guilds} must contain.
+     *         The users which all the returned {@link Guild Guilds} must contain.
      *
-     * @return Unmodifiable list of all {@link net.dv8tion.jda.api.entities.Guild Guild} instances which have all {@link net.dv8tion.jda.api.entities.UserSnowflake Users} in them.
+     * @return Unmodifiable list of all {@link Guild} instances which have all {@link UserSnowflake Users} in them.
      */
     @Nonnull
     @Unmodifiable
@@ -415,16 +420,16 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
         Checks.noneNull(users, "users");
         return this.getGuildCache().stream()
                 .filter(guild -> users.stream().allMatch(guild::isMember))
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     /**
-     * Gets all {@link net.dv8tion.jda.api.entities.Guild Guilds} that contain all given users as their members.
+     * Gets all {@link Guild Guilds} that contain all given users as their members.
      *
      * @param  users
-     *         The users which all the returned {@link net.dv8tion.jda.api.entities.Guild Guilds} must contain.
+     *         The users which all the returned {@link Guild Guilds} must contain.
      *
-     * @return Unmodifiable list of all {@link net.dv8tion.jda.api.entities.Guild Guild} instances which have all {@link net.dv8tion.jda.api.entities.UserSnowflake Users} in them.
+     * @return Unmodifiable list of all {@link Guild} instances which have all {@link UserSnowflake Users} in them.
      */
     @Nonnull
     @Unmodifiable
@@ -434,26 +439,26 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Attempts to retrieve a {@link net.dv8tion.jda.api.entities.User User} object based on the provided id.
+     * Attempts to retrieve a {@link User} object based on the provided id.
      * <br>This first calls {@link #getUserById(long)}, and if the return is {@code null} then a request
      * is made to the Discord servers.
      *
-     * <p>The returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} can encounter the following Discord errors:
+     * <p>The returned {@link RestAction} can encounter the following Discord errors:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_USER ErrorResponse.UNKNOWN_USER}
-     *     <br>Occurs when the provided id does not refer to a {@link net.dv8tion.jda.api.entities.User User}
+     *     <li>{@link ErrorResponse#UNKNOWN_USER ErrorResponse.UNKNOWN_USER}
+     *     <br>Occurs when the provided id does not refer to a {@link User}
      *     known by Discord. Typically occurs when developers provide an incomplete id (cut short).</li>
      * </ul>
      *
      * @param  id
-     *         The id of the requested {@link net.dv8tion.jda.api.entities.User User}.
+     *         The id of the requested {@link User}.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided id String is not a valid snowflake.
-     * @throws java.lang.IllegalStateException
+     * @throws IllegalStateException
      *         If there isn't any active shards.
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction} - Type: {@link net.dv8tion.jda.api.entities.User User}
+     * @return {@link RestAction} - Type: {@link User}
      *         <br>On request, gets the User with id matching provided id from Discord.
      */
     @Nonnull
@@ -463,24 +468,24 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Attempts to retrieve a {@link net.dv8tion.jda.api.entities.User User} object based on the provided id.
+     * Attempts to retrieve a {@link User} object based on the provided id.
      * <br>This first calls {@link #getUserById(long)}, and if the return is {@code null} then a request
      * is made to the Discord servers.
      *
-     * <p>The returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} can encounter the following Discord errors:
+     * <p>The returned {@link RestAction} can encounter the following Discord errors:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_USER ErrorResponse.UNKNOWN_USER}
-     *     <br>Occurs when the provided id does not refer to a {@link net.dv8tion.jda.api.entities.User User}
+     *     <li>{@link ErrorResponse#UNKNOWN_USER ErrorResponse.UNKNOWN_USER}
+     *     <br>Occurs when the provided id does not refer to a {@link User}
      *     known by Discord. Typically occurs when developers provide an incomplete id (cut short).</li>
      * </ul>
      *
      * @param  id
-     *         The id of the requested {@link net.dv8tion.jda.api.entities.User User}.
+     *         The id of the requested {@link User}.
      *
-     * @throws java.lang.IllegalStateException
+     * @throws IllegalStateException
      *         If there isn't any active shards.
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction} - Type: {@link net.dv8tion.jda.api.entities.User User}
+     * @return {@link RestAction} - Type: {@link User}
      *         <br>On request, gets the User with id matching provided id from Discord.
      */
     @Nonnull
@@ -523,10 +528,10 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * @param  tag
      *         The Discord Tag in the format {@code Username#Discriminator}
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided tag is null or not in the described format
      *
-     * @return The {@link net.dv8tion.jda.api.entities.User} for the discord tag or null if no user has the provided tag
+     * @return The {@link User} for the discord tag or null if no user has the provided tag
      */
     @Nullable
     default User getUserByTag(@Nonnull String tag) {
@@ -553,10 +558,10 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * @param  discriminator
      *         The discriminator of the user
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided arguments are null or not in the described format
      *
-     * @return The {@link net.dv8tion.jda.api.entities.User} for the discord tag or null if no user has the provided tag
+     * @return The {@link User} for the discord tag or null if no user has the provided tag
      */
     @Nullable
     default User getUserByTag(@Nonnull String username, @Nonnull String discriminator) {
@@ -567,14 +572,14 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * An unmodifiable list of all known {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannels}.
+     * An unmodifiable list of all known {@link PrivateChannel PrivateChannels}.
      *
      * <p>This copies the backing store into a list. This means every call
      * creates a new list with O(n) complexity. It is recommended to store this into
      * a local variable or use {@link #getPrivateChannelCache()} and use its more efficient
      * versions of handling these values.
      *
-     * @return Possibly-empty list of all {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannels}.
+     * @return Possibly-empty list of all {@link PrivateChannel PrivateChannels}.
      */
     @Nonnull
     @Unmodifiable
@@ -583,14 +588,14 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Retrieves the {@link net.dv8tion.jda.api.entities.Role Role} associated to the provided id. <br>This iterates
-     * over all {@link net.dv8tion.jda.api.entities.Guild Guilds} and check whether a Role from that Guild is assigned
+     * Retrieves the {@link Role} associated to the provided id. <br>This iterates
+     * over all {@link Guild Guilds} and check whether a Role from that Guild is assigned
      * to the specified ID and will return the first that can be found.
      *
      * @param  id
      *         The id of the searched Role
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.Role Role} for the specified ID
+     * @return Possibly-null {@link Role} for the specified ID
      */
     @Nullable
     default Role getRoleById(long id) {
@@ -598,17 +603,17 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Retrieves the {@link net.dv8tion.jda.api.entities.Role Role} associated to the provided id. <br>This iterates
-     * over all {@link net.dv8tion.jda.api.entities.Guild Guilds} and check whether a Role from that Guild is assigned
+     * Retrieves the {@link Role} associated to the provided id. <br>This iterates
+     * over all {@link Guild Guilds} and check whether a Role from that Guild is assigned
      * to the specified ID and will return the first that can be found.
      *
      * @param  id
      *         The id of the searched Role
      *
-     * @throws java.lang.NumberFormatException
+     * @throws NumberFormatException
      *         If the provided {@code id} cannot be parsed by {@link Long#parseLong(String)}
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.Role Role} for the specified ID
+     * @return Possibly-null {@link Role} for the specified ID
      */
     @Nullable
     default Role getRoleById(@Nonnull String id) {
@@ -616,10 +621,10 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Unified {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView} of
-     * all cached {@link net.dv8tion.jda.api.entities.Role Roles} visible to this ShardManager instance.
+     * Unified {@link SnowflakeCacheView} of
+     * all cached {@link Role Roles} visible to this ShardManager instance.
      *
-     * @return Unified {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView}
+     * @return Unified {@link SnowflakeCacheView}
      */
     @Nonnull
     default SnowflakeCacheView<Role> getRoleCache() {
@@ -627,8 +632,8 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * All {@link net.dv8tion.jda.api.entities.Role Roles} this ShardManager instance can see. <br>This will iterate over each
-     * {@link net.dv8tion.jda.api.entities.Guild Guild} retrieved from {@link #getGuilds()} and collect its {@link
+     * All {@link Role Roles} this ShardManager instance can see. <br>This will iterate over each
+     * {@link Guild} retrieved from {@link #getGuilds()} and collect its {@link
      * net.dv8tion.jda.api.entities.Guild#getRoles() Guild.getRoles()}.
      *
      * <p>This copies the backing store into a list. This means every call
@@ -645,9 +650,9 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Retrieves all {@link net.dv8tion.jda.api.entities.Role Roles} visible to this ShardManager instance.
+     * Retrieves all {@link Role Roles} visible to this ShardManager instance.
      * <br>This simply filters the Roles returned by {@link #getRoles()} with the provided name, either using
-     * {@link String#equals(Object)} or {@link String#equalsIgnoreCase(String)} on {@link net.dv8tion.jda.api.entities.Role#getName()}.
+     * {@link String#equals(Object)} or {@link String#equalsIgnoreCase(String)} on {@link Role#getName()}.
      *
      * @param  name
      *         The name for the Roles
@@ -663,14 +668,14 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * This returns the {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} which has the same id as the one provided.
-     * <br>If there is no known {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} with an id that matches the provided
+     * This returns the {@link PrivateChannel} which has the same id as the one provided.
+     * <br>If there is no known {@link PrivateChannel} with an id that matches the provided
      * one, then this will return {@code null}.
      *
      * @param  id
-     *         The id of the {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel}.
+     *         The id of the {@link PrivateChannel}.
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} with matching id.
+     * @return Possibly-null {@link PrivateChannel} with matching id.
      */
     @Nullable
     default PrivateChannel getPrivateChannelById(long id) {
@@ -678,17 +683,17 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * This returns the {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} which has the same id as the one provided.
-     * <br>If there is no known {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} with an id that matches the provided
+     * This returns the {@link PrivateChannel} which has the same id as the one provided.
+     * <br>If there is no known {@link PrivateChannel} with an id that matches the provided
      * one, this will return {@code null}.
      *
      * @param  id
-     *         The id of the {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel}.
+     *         The id of the {@link PrivateChannel}.
      *
-     * @throws java.lang.NumberFormatException
+     * @throws NumberFormatException
      *         If the provided {@code id} cannot be parsed by {@link Long#parseLong(String)}
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} with matching id.
+     * @return Possibly-null {@link PrivateChannel} with matching id.
      */
     @Nullable
     default PrivateChannel getPrivateChannelById(@Nonnull String id) {
@@ -696,10 +701,10 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView} of
-     * all cached {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannels} visible to this ShardManager instance.
+     * {@link SnowflakeCacheView} of
+     * all cached {@link PrivateChannel PrivateChannels} visible to this ShardManager instance.
      *
-     * @return {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView}
+     * @return {@link SnowflakeCacheView}
      */
     @Nonnull
     default SnowflakeCacheView<PrivateChannel> getPrivateChannelCache() {
@@ -784,13 +789,13 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * This returns the {@link net.dv8tion.jda.api.JDA JDA} instance which has the same id as the one provided.
+     * This returns the {@link JDA} instance which has the same id as the one provided.
      * <br>If there is no shard with an id that matches the provided one, this will return {@code null}.
      *
      * @param  id
      *         The id of the shard.
      *
-     * @return The {@link net.dv8tion.jda.api.JDA JDA} instance with the given shardId or
+     * @return The {@link JDA} instance with the given shardId or
      *         {@code null} if no shard has the given id
      */
     @Nullable
@@ -799,13 +804,13 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * This returns the {@link net.dv8tion.jda.api.JDA JDA} instance which has the same id as the one provided.
+     * This returns the {@link JDA} instance which has the same id as the one provided.
      * <br>If there is no shard with an id that matches the provided one, this will return {@code null}.
      *
      * @param  id
      *         The id of the shard.
      *
-     * @return The {@link net.dv8tion.jda.api.JDA JDA} instance with the given shardId or
+     * @return The {@link JDA} instance with the given shardId or
      *         {@code null} if no shard has the given id
      */
     @Nullable
@@ -815,7 +820,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
 
     /**
      * Unified {@link ShardCacheView ShardCacheView} of
-     * all cached {@link net.dv8tion.jda.api.JDA JDA} bound to this ShardManager instance.
+     * all cached {@link JDA} bound to this ShardManager instance.
      *
      * @return Unified {@link ShardCacheView ShardCacheView}
      */
@@ -823,14 +828,14 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     ShardCacheView getShardCache();
 
     /**
-     * Gets all {@link net.dv8tion.jda.api.JDA JDA} instances bound to this ShardManager.
+     * Gets all {@link JDA} instances bound to this ShardManager.
      *
      * <p>This copies the backing store into a list. This means every call
      * creates a new list with O(n) complexity. It is recommended to store this into
      * a local variable or use {@link #getShardCache()} and use its more efficient
      * versions of handling these values.
      *
-     * @return An immutable list of all managed {@link net.dv8tion.jda.api.JDA JDA} instances.
+     * @return An immutable list of all managed {@link JDA} instances.
      */
     @Nonnull
     @Unmodifiable
@@ -839,13 +844,13 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * This returns the {@link net.dv8tion.jda.api.JDA.Status JDA.Status} of the shard which has the same id as the one provided.
+     * This returns the {@link JDA.Status} of the shard which has the same id as the one provided.
      * <br>If there is no shard with an id that matches the provided one, this will return {@code null}.
      *
      * @param  shardId
      *         The id of the shard.
      *
-     * @return The {@link net.dv8tion.jda.api.JDA.Status JDA.Status} of the shard with the given shardId or
+     * @return The {@link JDA.Status} of the shard with the given shardId or
      *         {@code null} if no shard has the given id
      */
     @Nullable
@@ -855,7 +860,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Gets the current {@link net.dv8tion.jda.api.JDA.Status Status} of all shards.
+     * Gets the current {@link JDA.Status Status} of all shards.
      *
      * @return All current shard statuses.
      */
@@ -867,13 +872,13 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * This returns the {@link net.dv8tion.jda.api.entities.User User} which has the same id as the one provided.
+     * This returns the {@link User} which has the same id as the one provided.
      * <br>If there is no visible user with an id that matches the provided one, this will return {@code null}.
      *
      * @param  id
-     *         The id of the requested {@link net.dv8tion.jda.api.entities.User User}.
+     *         The id of the requested {@link User}.
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.User User} with matching id.
+     * @return Possibly-null {@link User} with matching id.
      */
     @Nullable
     default User getUserById(long id) {
@@ -881,13 +886,13 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * This returns the {@link net.dv8tion.jda.api.entities.User User} which has the same id as the one provided.
+     * This returns the {@link User} which has the same id as the one provided.
      * <br>If there is no visible user with an id that matches the provided one, this will return {@code null}.
      *
      * @param  id
-     *         The id of the requested {@link net.dv8tion.jda.api.entities.User User}.
+     *         The id of the requested {@link User}.
      *
-     * @return Possibly-null {@link net.dv8tion.jda.api.entities.User User} with matching id.
+     * @return Possibly-null {@link User} with matching id.
      */
     @Nullable
     default User getUserById(@Nonnull String id) {
@@ -895,10 +900,10 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView} of
-     * all cached {@link net.dv8tion.jda.api.entities.User Users} visible to this ShardManager instance.
+     * {@link SnowflakeCacheView} of
+     * all cached {@link User Users} visible to this ShardManager instance.
      *
-     * @return {@link net.dv8tion.jda.api.utils.cache.SnowflakeCacheView SnowflakeCacheView}
+     * @return {@link SnowflakeCacheView}
      */
     @Nonnull
     default SnowflakeCacheView<User> getUserCache() {
@@ -906,9 +911,9 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * An unmodifiable list of all {@link net.dv8tion.jda.api.entities.User Users} that share a
-     * {@link net.dv8tion.jda.api.entities.Guild Guild} with the currently logged in account.
-     * <br>This list will never contain duplicates and represents all {@link net.dv8tion.jda.api.entities.User Users}
+     * An unmodifiable list of all {@link User Users} that share a
+     * {@link Guild} with the currently logged in account.
+     * <br>This list will never contain duplicates and represents all {@link User Users}
      * that JDA can currently see.
      *
      * <p>If the developer is sharding, then only users from guilds connected to the specifically logged in
@@ -919,7 +924,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * a local variable or use {@link #getUserCache()} and use its more efficient
      * versions of handling these values.
      *
-     * @return List of all {@link net.dv8tion.jda.api.entities.User Users} that are visible to JDA.
+     * @return List of all {@link User Users} that are visible to JDA.
      */
     @Nonnull
     @Unmodifiable
@@ -933,7 +938,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * <p>As all shards need to connect to discord again this will take equally long as the startup of a new ShardManager
      * (using the 5000ms + backoff as delay between starting new JDA instances).
      *
-     * @throws java.util.concurrent.RejectedExecutionException
+     * @throws RejectedExecutionException
      *         If {@link #shutdown()} has already been invoked
      */
     void restart();
@@ -945,42 +950,42 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * @param  id
      *         The id of the target shard
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If shardId is negative or higher than maxShardId
-     * @throws java.util.concurrent.RejectedExecutionException
+     * @throws RejectedExecutionException
      *         If {@link #shutdown()} has already been invoked
      */
     void restart(int id);
 
     /**
-     * Sets the {@link net.dv8tion.jda.api.entities.Activity Activity} for all shards.
-     * <br>An Activity can be retrieved via {@link net.dv8tion.jda.api.entities.Activity#playing(String)}.
+     * Sets the {@link Activity} for all shards.
+     * <br>An Activity can be retrieved via {@link Activity#playing(String)}.
      * For streams you provide a valid streaming url as second parameter.
      *
      * <p>This will also change the activity for shards that are created in the future.
      *
      * @param  activity
-     *         A {@link net.dv8tion.jda.api.entities.Activity Activity} instance or null to reset
+     *         A {@link Activity} instance or null to reset
      *
-     * @see    net.dv8tion.jda.api.entities.Activity#playing(String)
-     * @see    net.dv8tion.jda.api.entities.Activity#streaming(String, String)
+     * @see    Activity#playing(String)
+     * @see    Activity#streaming(String, String)
      */
     default void setActivity(@Nullable Activity activity) {
         this.setActivityProvider(id -> activity);
     }
 
     /**
-     * Sets provider that provider the {@link net.dv8tion.jda.api.entities.Activity Activity} for all shards.
-     * <br>A Activity can be retrieved via {@link net.dv8tion.jda.api.entities.Activity#playing(String)}.
+     * Sets provider that provider the {@link Activity} for all shards.
+     * <br>A Activity can be retrieved via {@link Activity#playing(String)}.
      * For streams you provide a valid streaming url as second parameter.
      *
      * <p>This will also change the provider for shards that are created in the future.
      *
      * @param  activityProvider
-     *         Provider for an {@link net.dv8tion.jda.api.entities.Activity Activity} instance or null to reset
+     *         Provider for an {@link Activity} instance or null to reset
      *
-     * @see    net.dv8tion.jda.api.entities.Activity#playing(String)
-     * @see    net.dv8tion.jda.api.entities.Activity#streaming(String, String)
+     * @see    Activity#playing(String)
+     * @see    Activity#streaming(String, String)
      */
     default void setActivityProvider(@Nullable IntFunction<? extends Activity> activityProvider) {
         this.getShardCache().forEach(jda -> jda.getPresence()
@@ -1019,43 +1024,43 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Sets the {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} and {@link net.dv8tion.jda.api.entities.Activity Activity} for all shards.
+     * Sets the {@link OnlineStatus} and {@link Activity} for all shards.
      *
      * <p>This will also change the status for shards that are created in the future.
      *
      * @param  status
-     *         The {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus}
+     *         The {@link OnlineStatus}
      *         to be used (OFFLINE/null {@literal ->} INVISIBLE)
      * @param  activity
-     *         A {@link net.dv8tion.jda.api.entities.Activity Activity} instance or null to reset
+     *         A {@link Activity} instance or null to reset
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If the provided OnlineStatus is {@link net.dv8tion.jda.api.OnlineStatus#UNKNOWN UNKNOWN}
+     * @throws IllegalArgumentException
+     *         If the provided OnlineStatus is {@link OnlineStatus#UNKNOWN UNKNOWN}
      *
-     * @see    net.dv8tion.jda.api.entities.Activity#playing(String)
-     * @see    net.dv8tion.jda.api.entities.Activity#streaming(String, String)
+     * @see    Activity#playing(String)
+     * @see    Activity#streaming(String, String)
      */
     default void setPresence(@Nullable OnlineStatus status, @Nullable Activity activity) {
         this.setPresenceProvider(id -> status, id -> activity);
     }
 
     /**
-     * Sets the provider that provides the {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} and
-     * {@link net.dv8tion.jda.api.entities.Activity Activity} for all shards.
+     * Sets the provider that provides the {@link OnlineStatus} and
+     * {@link Activity} for all shards.
      *
      * <p>This will also change the status for shards that are created in the future.
      *
      * @param  statusProvider
-     *         The {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus}
+     *         The {@link OnlineStatus}
      *         to be used (OFFLINE/null {@literal ->} INVISIBLE)
      * @param  activityProvider
-     *         A {@link net.dv8tion.jda.api.entities.Activity Activity} instance or null to reset
+     *         A {@link Activity} instance or null to reset
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If the provided OnlineStatus is {@link net.dv8tion.jda.api.OnlineStatus#UNKNOWN UNKNOWN}
+     * @throws IllegalArgumentException
+     *         If the provided OnlineStatus is {@link OnlineStatus#UNKNOWN UNKNOWN}
      *
-     * @see    net.dv8tion.jda.api.entities.Activity#playing(String)
-     * @see    net.dv8tion.jda.api.entities.Activity#streaming(String, String)
+     * @see    Activity#playing(String)
+     * @see    Activity#streaming(String, String)
      */
     default void setPresenceProvider(
             @Nullable IntFunction<OnlineStatus> statusProvider,
@@ -1071,32 +1076,32 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
     }
 
     /**
-     * Sets the {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} for all shards.
+     * Sets the {@link OnlineStatus} for all shards.
      *
      * <p>This will also change the status for shards that are created in the future.
      *
      * @param  status
-     *         The {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus}
+     *         The {@link OnlineStatus}
      *         to be used (OFFLINE/null {@literal ->} INVISIBLE)
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If the provided OnlineStatus is {@link net.dv8tion.jda.api.OnlineStatus#UNKNOWN UNKNOWN}
+     * @throws IllegalArgumentException
+     *         If the provided OnlineStatus is {@link OnlineStatus#UNKNOWN UNKNOWN}
      */
     default void setStatus(@Nullable OnlineStatus status) {
         this.setStatusProvider(id -> status);
     }
 
     /**
-     * Sets the provider that provides the {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} for all shards.
+     * Sets the provider that provides the {@link OnlineStatus} for all shards.
      *
      * <p>This will also change the provider for shards that are created in the future.
      *
      * @param  statusProvider
-     *         The {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus}
+     *         The {@link OnlineStatus}
      *         to be used (OFFLINE/null {@literal ->} INVISIBLE)
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If the provided OnlineStatus is {@link net.dv8tion.jda.api.OnlineStatus#UNKNOWN UNKNOWN}
+     * @throws IllegalArgumentException
+     *         If the provided OnlineStatus is {@link OnlineStatus#UNKNOWN UNKNOWN}
      */
     default void setStatusProvider(@Nullable IntFunction<OnlineStatus> statusProvider) {
         this.getShardCache().forEach(jda -> jda.getPresence()
@@ -1112,7 +1117,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      *
      * <br>This will shutdown the internal queue worker for (re-)starts of shards.
      * This means {@link #restart(int)}, {@link #restart()}, and {@link #start(int)} will throw
-     * {@link java.util.concurrent.RejectedExecutionException}.
+     * {@link RejectedExecutionException}.
      *
      * <p>This will interrupt the default JDA event thread, due to the gateway connection being interrupted.
      */
@@ -1133,7 +1138,7 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      * @param  shardId
      *         The id of the shard that should be started
      *
-     * @throws java.util.concurrent.RejectedExecutionException
+     * @throws RejectedExecutionException
      *         If {@link #shutdown()} has already been invoked
      */
     void start(int shardId);
@@ -1145,4 +1150,56 @@ public interface ShardManager extends IGuildChannelContainer<Channel> {
      *         If the provided token is invalid.
      */
     void login();
+
+    /**
+     * The immutable {@link NettyConfig} used by this ShardManager instance.
+     * <br>This instance is constant for the lifetime of this {@link ShardManager} instance.
+     *
+     * @return The constant {@link NettyConfig}
+     */
+    @Nonnull
+    NettyConfig getNettyConfig();
+
+    /**
+     * The {@link HttpClient} used by this ShardManager across shards.
+     * <br>This instance is constant for the lifetime of this {@link ShardManager} instance.
+     *
+     * @return The constant {@link HttpClient}
+     */
+    @Nonnull
+    HttpClient getHttpClient();
+
+    /**
+     * The {@link EventLoopGroup} used by the HTTP client across shards.
+     * <br>This instance is constant for the lifetime of this {@link ShardManager} instance.
+     *
+     * @return The constant HTTP client {@link EventLoopGroup}
+     */
+    @Nonnull
+    EventLoopGroup getHttpClientEventLoopGroup();
+
+    /**
+     * The {@link EventLoopGroup} used for WebSocket connections across shards.
+     * <br>This instance is constant for the lifetime of this {@link ShardManager} instance.
+     *
+     * @return The constant WebSocket {@link EventLoopGroup}
+     */
+    @Nonnull
+    EventLoopGroup getWebsocketEventLoopGroup();
+
+    /**
+     * The {@link EventLoopGroup} used for Audio connections across shards.
+     * <br>If not explicitly configured, this shares the same group as {@link #getWebsocketEventLoopGroup()}.
+     * <br>This instance is constant for the lifetime of this {@link ShardManager} instance.
+     *
+     * <p><b>Music Bot Recommendation:</b>
+     * For bots with heavy audio usage (e.g. music bots serving many concurrent voice channels), it is recommended
+     * to either increase WebSocket event loop threads or configure dedicated audio threads / group in {@link NettyConfig}
+     * so that audio UDP packets (20ms frames) and Voice WebSocket events are processed on an isolated event loop group
+     * rather than competing with Discord Gateway events.
+     *
+     * @return The constant Audio {@link EventLoopGroup}
+     */
+    @Nonnull
+    EventLoopGroup getAudioEventLoopGroup();
 }

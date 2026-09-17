@@ -16,17 +16,22 @@
 
 package net.dv8tion.jda.api.entities.channel.attribute;
 
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageType;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.concrete.ForumChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
+import net.dv8tion.jda.api.entities.channel.unions.IThreadContainerUnion;
+import net.dv8tion.jda.api.exceptions.DetachedEntityException;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.restaction.ThreadChannelAction;
 import net.dv8tion.jda.api.requests.restaction.pagination.ThreadChannelPaginationAction;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
-import net.dv8tion.jda.internal.utils.Helpers;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
@@ -38,7 +43,7 @@ import javax.annotation.Nonnull;
  * Abstraction of all channel types, which can contain or manage {@link ThreadChannel ThreadChannels}.
  *
  * @see ThreadChannel#getParentChannel()
- * @see net.dv8tion.jda.api.entities.channel.unions.IThreadContainerUnion IThreadContainerUnion
+ * @see IThreadContainerUnion IThreadContainerUnion
  */
 public interface IThreadContainer extends GuildChannel, IPermissionContainer {
     /**
@@ -52,9 +57,9 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
     /**
      * Finds all {@link ThreadChannel ThreadChannels} whose parent is this channel.
      *
-     * <p>These threads can also represent posts in {@link net.dv8tion.jda.api.entities.channel.concrete.ForumChannel ForumChannels}.
+     * <p>These threads can also represent posts in {@link ForumChannel ForumChannels}.
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return Immutable list of all ThreadChannel children.
@@ -64,7 +69,7 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
     default List<ThreadChannel> getThreadChannels() {
         return getGuild().getThreadChannelCache().applyStream(stream -> stream.filter(
                         thread -> this.equals(thread.getParentChannel()))
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     /**
@@ -76,16 +81,16 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
      *     <li>{@link ChannelType#GUILD_NEWS_THREAD}</li>
      * </ul>
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>Possible {@link ErrorResponse ErrorResponses} caused by
+     * the returned {@link RestAction} include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The channel could not be created due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
+     *     <li>{@link ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
      *     <br>The maximum number of channels were exceeded</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_ACTIVE_THREADS}
+     *     <li>{@link ErrorResponse#MAX_ACTIVE_THREADS}
      *     <br>The maximum number of active threads has been reached, and no more may be created.</li>
      * </ul>
      *
@@ -96,13 +101,13 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
      *         If the provided name is null, blank, empty, or longer than {@value Channel#MAX_NAME_LENGTH} characters
      * @throws UnsupportedOperationException
      *         If this is a forum channel.
-     *         You must use {@link net.dv8tion.jda.api.entities.channel.concrete.ForumChannel#createForumPost(String, MessageCreateData) createForumPost(...)} instead.
+     *         You must use {@link ForumChannel#createForumPost(String, MessageCreateData) createForumPost(...)} instead.
      * @throws InsufficientPermissionException
      *         <ul>
-     *             <li>If the bot does not have {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>If the bot does not have {@link net.dv8tion.jda.api.Permission#CREATE_PUBLIC_THREADS Permission.CREATE_PUBLIC_THREADS}</li>
+     *             <li>If the bot does not have {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>If the bot does not have {@link Permission#CREATE_PUBLIC_THREADS Permission.CREATE_PUBLIC_THREADS}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A specific {@link ThreadChannelAction} that may be used to configure the new ThreadChannel before its creation.
@@ -123,19 +128,19 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
      *     <li>{@link ChannelType#GUILD_PRIVATE_THREAD}</li>
      * </ul>
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>Possible {@link ErrorResponse ErrorResponses} caused by
+     * the returned {@link RestAction} include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The channel could not be created due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
+     *     <li>{@link ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
      *     <br>The maximum number of channels were exceeded</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_ACTIVE_THREADS}
+     *     <li>{@link ErrorResponse#MAX_ACTIVE_THREADS}
      *     <br>The maximum number of active threads has been reached, and no more may be created.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS}
      *     <br>Due to missing private thread permissions.</li>
      * </ul>
      *
@@ -150,14 +155,14 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
      *         If the guild does have the feature flag {@code "PRIVATE_THREADS"} enabled.
      * @throws UnsupportedOperationException
      *         If this is a forum channel.
-     *         You must use {@link net.dv8tion.jda.api.entities.channel.concrete.ForumChannel#createForumPost(String, MessageCreateData) createForumPost(...)} instead.
+     *         You must use {@link ForumChannel#createForumPost(String, MessageCreateData) createForumPost(...)} instead.
      * @throws InsufficientPermissionException
      *         <ul>
-     *             <li>If the bot does not have {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>If the thread is {@code private}, and the bot does not have {@link net.dv8tion.jda.api.Permission#CREATE_PRIVATE_THREADS Permission.CREATE_PRIVATE_THREADS}</li>
-     *             <li>If the thread is not {@code private}, and the bot does not have {@link net.dv8tion.jda.api.Permission#CREATE_PUBLIC_THREADS Permission.CREATE_PUBLIC_THREADS}</li>
+     *             <li>If the bot does not have {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>If the thread is {@code private}, and the bot does not have {@link Permission#CREATE_PRIVATE_THREADS Permission.CREATE_PRIVATE_THREADS}</li>
+     *             <li>If the thread is not {@code private}, and the bot does not have {@link Permission#CREATE_PUBLIC_THREADS Permission.CREATE_PUBLIC_THREADS}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A specific {@link ThreadChannelAction} that may be used to configure the new ThreadChannel before its creation.
@@ -176,19 +181,19 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
      *     <li>{@link ChannelType#GUILD_NEWS_THREAD}</li>
      * </ul>
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>Possible {@link ErrorResponse ErrorResponses} caused by
+     * the returned {@link RestAction} include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The channel could not be created due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
+     *     <li>{@link ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
      *     <br>The maximum number of channels were exceeded</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#THREAD_WITH_THIS_MESSAGE_ALREADY_EXISTS}
+     *     <li>{@link ErrorResponse#THREAD_WITH_THIS_MESSAGE_ALREADY_EXISTS}
      *     <br>This message has already been used to create a thread</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_ACTIVE_THREADS}
+     *     <li>{@link ErrorResponse#MAX_ACTIVE_THREADS}
      *     <br>The maximum number of active threads has been reached, and no more may be created.</li>
      * </ul>
      *
@@ -201,10 +206,10 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
      *         If the provided name is null, blank, empty, or longer than {@value Channel#MAX_NAME_LENGTH} characters
      * @throws UnsupportedOperationException
      *         If this is a forum channel.
-     *         You must use {@link net.dv8tion.jda.api.entities.channel.concrete.ForumChannel#createForumPost(String, MessageCreateData) createForumPost(...)} instead.
+     *         You must use {@link ForumChannel#createForumPost(String, MessageCreateData) createForumPost(...)} instead.
      * @throws InsufficientPermissionException
-     *         If the bot does not have {@link net.dv8tion.jda.api.Permission#CREATE_PUBLIC_THREADS Permission.CREATE_PUBLIC_THREADS} in this channel
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         If the bot does not have {@link Permission#CREATE_PUBLIC_THREADS Permission.CREATE_PUBLIC_THREADS} in this channel
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A specific {@link ThreadChannelAction} that may be used to configure the new ThreadChannel before its creation.
@@ -223,19 +228,19 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
      *     <li>{@link ChannelType#GUILD_NEWS_THREAD}</li>
      * </ul>
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>Possible {@link ErrorResponse ErrorResponses} caused by
+     * the returned {@link RestAction} include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The channel could not be created due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
+     *     <li>{@link ErrorResponse#MAX_CHANNELS MAX_CHANNELS}
      *     <br>The maximum number of channels were exceeded</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#THREAD_WITH_THIS_MESSAGE_ALREADY_EXISTS}
+     *     <li>{@link ErrorResponse#THREAD_WITH_THIS_MESSAGE_ALREADY_EXISTS}
      *     <br>This message has already been used to create a thread</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MAX_ACTIVE_THREADS}
+     *     <li>{@link ErrorResponse#MAX_ACTIVE_THREADS}
      *     <br>The maximum number of active threads has been reached, and no more may be created.</li>
      * </ul>
      *
@@ -249,10 +254,10 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
      *         Or the message id is not a valid snowflake.
      * @throws UnsupportedOperationException
      *         If this is a forum channel.
-     *         You must use {@link net.dv8tion.jda.api.entities.channel.concrete.ForumChannel#createForumPost(String, MessageCreateData) createForumPost(...)} instead.
+     *         You must use {@link ForumChannel#createForumPost(String, MessageCreateData) createForumPost(...)} instead.
      * @throws InsufficientPermissionException
-     *         If the bot does not have {@link net.dv8tion.jda.api.Permission#CREATE_PUBLIC_THREADS Permission.CREATE_PUBLIC_THREADS} in this channel
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         If the bot does not have {@link Permission#CREATE_PUBLIC_THREADS Permission.CREATE_PUBLIC_THREADS} in this channel
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return A specific {@link ThreadChannelAction} that may be used to configure the new ThreadChannel before its creation.
@@ -269,11 +274,11 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
      *
      * <p>You can use {@link #retrieveArchivedPrivateThreadChannels()}, to get all <em>private</em> archived threads.
      *
-     * <p>These threads can also represent posts in {@link net.dv8tion.jda.api.entities.channel.concrete.ForumChannel ForumChannels}.
+     * <p>These threads can also represent posts in {@link ForumChannel ForumChannels}.
      *
      * @throws InsufficientPermissionException
-     *         If the bot does not have {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in this channel
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         If the bot does not have {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in this channel
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link ThreadChannelPaginationAction} to iterate over all public archived ThreadChannels
@@ -285,16 +290,16 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
     /**
      * Retrieves the archived private {@link ThreadChannel ThreadChannels} for this channel.
      * <br>This will iterate over all previously opened private threads, that have been archived.
-     * This is a moderator restricted method, since private threads are only visible to members with {@link net.dv8tion.jda.api.Permission#MANAGE_THREADS Permission.MANAGE_THREADS}.
+     * This is a moderator restricted method, since private threads are only visible to members with {@link Permission#MANAGE_THREADS Permission.MANAGE_THREADS}.
      *
      * <p>You can use {@link #retrieveArchivedPublicThreadChannels()}, to get all <em>public</em> archived threads.
      *
-     * <p>Note that {@link net.dv8tion.jda.api.entities.channel.concrete.ForumChannel ForumChannels} cannot have private threads.
+     * <p>Note that {@link ForumChannel ForumChannels} cannot have private threads.
      *
      * @throws InsufficientPermissionException
-     *         If the bot does not have {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
-     *         or {@link net.dv8tion.jda.api.Permission#MANAGE_THREADS Permission.MANAGE_THREADS} in this channel
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         If the bot does not have {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
+     *         or {@link Permission#MANAGE_THREADS Permission.MANAGE_THREADS} in this channel
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link ThreadChannelPaginationAction} to iterate over all private archived ThreadChannels
@@ -309,11 +314,11 @@ public interface IThreadContainer extends GuildChannel, IPermissionContainer {
      *
      * <p>You can use {@link #retrieveArchivedPrivateThreadChannels()}, to get all <em>private</em> archived threads.
      *
-     * <p>Note that {@link net.dv8tion.jda.api.entities.channel.concrete.ForumChannel ForumChannels} cannot have private threads.
+     * <p>Note that {@link ForumChannel ForumChannels} cannot have private threads.
      *
      * @throws InsufficientPermissionException
-     *         If the bot does not have {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in this channel
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         If the bot does not have {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in this channel
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link ThreadChannelPaginationAction} to iterate over all joined private archived ThreadChannels

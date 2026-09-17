@@ -21,6 +21,7 @@ import java.util.function.Function;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Specialized {@link CompletableFuture} used in combination with a scheduler.
@@ -32,9 +33,12 @@ import javax.annotation.Nonnull;
  * @see    Delayed
  */
 public class DelayedCompletableFuture<T> extends CompletableFuture<T> implements ScheduledFuture<T> {
+    private final ScheduledExecutorService executor;
     private ScheduledFuture<?> future;
 
-    private DelayedCompletableFuture() {}
+    private DelayedCompletableFuture(@Nullable ScheduledExecutorService executor) {
+        this.executor = executor;
+    }
 
     /**
      * Creates a new DelayedCompletableFuture scheduled on the supplied executor.
@@ -59,7 +63,7 @@ public class DelayedCompletableFuture<T> extends CompletableFuture<T> implements
             long delay,
             @Nonnull TimeUnit unit,
             @Nonnull Function<? super DelayedCompletableFuture<E>, ? extends Runnable> mapping) {
-        DelayedCompletableFuture<E> handle = new DelayedCompletableFuture<>();
+        DelayedCompletableFuture<E> handle = new DelayedCompletableFuture<>(executor);
         ScheduledFuture<?> future = executor.schedule(mapping.apply(handle), delay, unit);
         handle.initProxy(future);
         return handle;
@@ -101,5 +105,21 @@ public class DelayedCompletableFuture<T> extends CompletableFuture<T> implements
     @Override
     public int compareTo(@Nonnull Delayed o) {
         return future.compareTo(o);
+    }
+
+    @Nonnull
+    @Override
+    public Executor defaultExecutor() {
+        if (executor != null && !executor.isShutdown()) {
+            return executor;
+        }
+        return super.defaultExecutor();
+    }
+
+    @Nonnull
+    @CheckReturnValue
+    @Override
+    public <U> CompletableFuture<U> newIncompleteFuture() {
+        return new DelayedCompletableFuture<>(executor);
     }
 }

@@ -18,19 +18,26 @@ package net.dv8tion.jda.api.entities.channel.middleman;
 
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.components.Component;
 import net.dv8tion.jda.api.components.MessageTopLevelComponent;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.selections.SelectMenu;
 import net.dv8tion.jda.api.components.tree.ComponentTree;
+import net.dv8tion.jda.api.components.tree.MessageComponentTree;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.automod.AutoModRule;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.concrete.GroupChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.exceptions.DetachedEntityException;
+import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
@@ -38,12 +45,10 @@ import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import net.dv8tion.jda.api.requests.restaction.MessageEditAction;
 import net.dv8tion.jda.api.requests.restaction.pagination.*;
 import net.dv8tion.jda.api.utils.AttachedFile;
+import net.dv8tion.jda.api.utils.AttachmentUpdate;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.dv8tion.jda.api.utils.MiscUtil;
-import net.dv8tion.jda.api.utils.messages.MessageCreateData;
-import net.dv8tion.jda.api.utils.messages.MessageEditData;
-import net.dv8tion.jda.api.utils.messages.MessagePollData;
-import net.dv8tion.jda.api.utils.messages.MessageRequest;
+import net.dv8tion.jda.api.utils.messages.*;
 import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.requests.restaction.AuditableRestActionImpl;
@@ -58,20 +63,22 @@ import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.io.File;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 
 /**
- * Represents a Discord channel that can have {@link net.dv8tion.jda.api.entities.Message Messages} and files sent to it.
+ * Represents a Discord channel that can have {@link Message Messages} and files sent to it.
  *
  * <p><b>Formattable</b><br>
- * This interface extends {@link java.util.Formattable Formattable} and can be used with a {@link java.util.Formatter Formatter}
+ * This interface extends {@link Formattable} and can be used with a {@link Formatter}
  * such as used by {@link String#format(String, Object...) String.format(String, Object...)}
- * or {@link java.io.PrintStream#printf(String, Object...) PrintStream.printf(String, Object...)}.
+ * or {@link PrintStream#printf(String, Object...) PrintStream.printf(String, Object...)}.
  *
  * <p>This will use {@link #getName()} rather than {@link Object#toString()}!
  * <br>Supported Features:
@@ -90,8 +97,8 @@ import javax.annotation.Nonnull;
  *              (Example: {@code %.20s})</li>
  * </ul>
  *
- * <p>More information on formatting syntax can be found in the {@link java.util.Formatter format syntax documentation}!
- * <br><b>{@link GuildMessageChannel GuildMessageChannel} is a special case which uses {@link net.dv8tion.jda.api.entities.IMentionable#getAsMention() IMentionable.getAsMention()}
+ * <p>More information on formatting syntax can be found in the {@link Formatter format syntax documentation}!
+ * <br><b>{@link GuildMessageChannel GuildMessageChannel} is a special case which uses {@link IMentionable#getAsMention() IMentionable.getAsMention()}
  * by default and uses the <code>#{@link #getName()}</code> format as <u>alternative</u></b>
  *
  * @see TextChannel
@@ -102,9 +109,9 @@ public interface MessageChannel extends Channel, Formattable {
      * The id for the most recent message sent
      * in this current MessageChannel.
      *
-     * <p>This value is updated on each {@link net.dv8tion.jda.api.events.message.MessageReceivedEvent MessageReceivedEvent}
+     * <p>This value is updated on each {@link MessageReceivedEvent}
      * and <u><b>the value might point to an already deleted message since the ID is not cleared when the message is deleted,
-     * so calling {@link #retrieveMessageById(long)} with this id can result in an {@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE} error</b></u>
+     * so calling {@link #retrieveMessageById(long)} with this id can result in an {@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE} error</b></u>
      *
      * @return The most recent message's id or "0" if no messages are present
      */
@@ -117,9 +124,9 @@ public interface MessageChannel extends Channel, Formattable {
      * The id for the most recent message sent
      * in this current MessageChannel.
      *
-     * <p>This value is updated on each {@link net.dv8tion.jda.api.events.message.MessageReceivedEvent MessageReceivedEvent}
+     * <p>This value is updated on each {@link MessageReceivedEvent}
      * and <u><b>the value might point to an already deleted message since the value is not cleared when the message is deleted,
-     * so calling {@link #retrieveMessageById(long)} with this id can result in an {@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE} error</b></u>
+     * so calling {@link #retrieveMessageById(long)} with this id can result in an {@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE} error</b></u>
      *
      * @return The most recent message's id or 0 if no messages are present
      */
@@ -128,14 +135,14 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Whether the currently logged in user can send messages in this channel or not.
      * <br>For {@link GuildMessageChannel} this method checks for
-     * both {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     * and {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}.
-     * <br>For {@link ThreadChannel} this method checks for {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND_IN_THREADS} instead of {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND}.
+     * both {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     * and {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}.
+     * <br>For {@link ThreadChannel} this method checks for {@link Permission#MESSAGE_SEND_IN_THREADS} instead of {@link Permission#MESSAGE_SEND}.
      * <br>For {@link PrivateChannel} this method checks if the user that this PrivateChannel communicates with is not a bot,
      * but it does <b>not</b> check if the said user blocked the currently logged in user or have their DMs disabled.
      * <br>For {@link GroupChannel} this method returns false.
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return True, if we are able to read and send messages in this channel
@@ -145,7 +152,7 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Convenience method to delete messages in the most efficient way available.
      * <br>This combines both {@link GuildMessageChannel#deleteMessagesByIds(Collection)} as well as {@link #deleteMessageById(long)}
-     * to delete all messages provided. No checks will be done to prevent failures, use {@link java.util.concurrent.CompletionStage#exceptionally(Function)}
+     * to delete all messages provided. No checks will be done to prevent failures, use {@link CompletionStage#exceptionally(Function)}
      * to handle failures.
      *
      * <p>For possible ErrorResponses see {@link #purgeMessagesById(long...)}.
@@ -153,7 +160,7 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  messageIds
      *         The message ids to delete
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return List of futures representing all deletion tasks
@@ -163,7 +170,7 @@ public interface MessageChannel extends Channel, Formattable {
     @Nonnull
     default List<CompletableFuture<Void>> purgeMessagesById(@Nonnull List<String> messageIds) {
         if (messageIds == null || messageIds.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
         long[] ids = new long[messageIds.size()];
         for (int i = 0; i < ids.length; i++) {
@@ -175,7 +182,7 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Convenience method to delete messages in the most efficient way available.
      * <br>This combines both {@link GuildMessageChannel#deleteMessagesByIds(Collection)} as well as {@link #deleteMessageById(long)}
-     * to delete all messages provided. No checks will be done to prevent failures, use {@link java.util.concurrent.CompletionStage#exceptionally(Function)}
+     * to delete all messages provided. No checks will be done to prevent failures, use {@link CompletionStage#exceptionally(Function)}
      * to handle failures.
      *
      * <p>For possible ErrorResponses see {@link #purgeMessagesById(long...)}.
@@ -183,7 +190,7 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  messageIds
      *         The message ids to delete
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return List of futures representing all deletion tasks
@@ -193,15 +200,15 @@ public interface MessageChannel extends Channel, Formattable {
     @Nonnull
     default List<CompletableFuture<Void>> purgeMessagesById(@Nonnull String... messageIds) {
         if (messageIds == null || messageIds.length == 0) {
-            return Collections.emptyList();
+            return List.of();
         }
         return purgeMessagesById(Arrays.asList(messageIds));
     }
 
     /**
      * Convenience method to delete messages in the most efficient way available.
-     * <br>This combines both {@link GuildMessageChannel#deleteMessagesByIds(Collection)} as well as {@link net.dv8tion.jda.api.entities.Message#delete()}
-     * to delete all messages provided. No checks will be done to prevent failures, use {@link java.util.concurrent.CompletionStage#exceptionally(Function)}
+     * <br>This combines both {@link GuildMessageChannel#deleteMessagesByIds(Collection)} as well as {@link Message#delete()}
+     * to delete all messages provided. No checks will be done to prevent failures, use {@link CompletionStage#exceptionally(Function)}
      * to handle failures.
      *
      * <p>For possible ErrorResponses see {@link #purgeMessagesById(long...)}.
@@ -209,11 +216,11 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  messages
      *         The messages to delete
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If one of the provided messages is from another user and cannot be deleted due to permissions
      * @throws IllegalArgumentException
      *         If one of the provided messages is from another user and cannot be deleted because this is not in a guild
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return List of futures representing all deletion tasks
@@ -223,7 +230,7 @@ public interface MessageChannel extends Channel, Formattable {
     @Nonnull
     default List<CompletableFuture<Void>> purgeMessages(@Nonnull Message... messages) {
         if (messages == null || messages.length == 0) {
-            return Collections.emptyList();
+            return List.of();
         }
         return purgeMessages(Arrays.asList(messages));
     }
@@ -231,21 +238,21 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Convenience method to delete messages in the most efficient way available.
      * <br>This combines both {@link GuildMessageChannel#deleteMessagesByIds(Collection)} as well as {@link Message#delete()}
-     * to delete all messages provided. No checks will be done to prevent failures, use {@link java.util.concurrent.CompletionStage#exceptionally(Function)}
+     * to delete all messages provided. No checks will be done to prevent failures, use {@link CompletionStage#exceptionally(Function)}
      * to handle failures.
      *
-     * <p>Any messages that cannot be deleted, as suggested by {@link net.dv8tion.jda.api.entities.MessageType#canDelete()}, will be filtered out before making any requests.
+     * <p>Any messages that cannot be deleted, as suggested by {@link MessageType#canDelete()}, will be filtered out before making any requests.
      *
      * <p>For possible ErrorResponses see {@link #purgeMessagesById(long...)}.
      *
      * @param  messages
      *         The messages to delete
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If one of the provided messages is from another user and cannot be deleted due to permissions
      * @throws IllegalArgumentException
      *         If one of the provided messages is from another user and cannot be deleted because this is not in a guild
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return List of futures representing all deletion tasks
@@ -255,7 +262,7 @@ public interface MessageChannel extends Channel, Formattable {
     @Nonnull
     default List<CompletableFuture<Void>> purgeMessages(@Nonnull List<? extends Message> messages) {
         if (messages == null || messages.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
         return purgeMessagesById(messages.stream()
                 .filter(m -> m.getType().canDelete())
@@ -266,29 +273,29 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Convenience method to delete messages in the most efficient way available.
      * <br>This combines both {@link GuildMessageChannel#deleteMessagesByIds(Collection)} as well as {@link #deleteMessageById(long)}
-     * to delete all messages provided. No checks will be done to prevent failures, use {@link java.util.concurrent.CompletionStage#exceptionally(Function)}
+     * to delete all messages provided. No checks will be done to prevent failures, use {@link CompletionStage#exceptionally(Function)}
      * to handle failures.
      *
      * <p>Possible ErrorResponses include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>if any of the provided messages does not exist</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
      *     <br>if we were removed from the channel</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The send request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_MANAGE Permission.MESSAGE_MANAGE} in the channel.</li>
+     *         {@link Permission#MESSAGE_MANAGE Permission.MESSAGE_MANAGE} in the channel.</li>
      * </ul>
      *
      * @param  messageIds
      *         The message ids to delete
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return List of futures representing all deletion tasks
@@ -298,7 +305,7 @@ public interface MessageChannel extends Channel, Formattable {
     @Nonnull
     default List<CompletableFuture<Void>> purgeMessagesById(@Nonnull long... messageIds) {
         if (messageIds == null || messageIds.length == 0) {
-            return Collections.emptyList();
+            return List.of();
         }
         List<CompletableFuture<Void>> list = new ArrayList<>(messageIds.length);
         TreeSet<Long> sortedIds = new TreeSet<>(Comparator.reverseOrder());
@@ -314,23 +321,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Send a message to this channel.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      * </ul>
      *
@@ -341,10 +348,10 @@ public interface MessageChannel extends Channel, Formattable {
      *         If this is a {@link PrivateChannel} and the recipient is a bot
      * @throws IllegalArgumentException
      *         If the content is null or longer than {@value Message#MAX_CONTENT_LENGTH} characters
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageCreateAction}
@@ -359,23 +366,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Send a message to this channel.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      * </ul>
      *
@@ -386,15 +393,15 @@ public interface MessageChannel extends Channel, Formattable {
      *         If this is a {@link PrivateChannel} and the recipient is a bot
      * @throws IllegalArgumentException
      *         If null is provided
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageCreateAction}
      *
-     * @see    net.dv8tion.jda.api.utils.messages.MessageCreateBuilder MessageCreateBuilder
+     * @see    MessageCreateBuilder MessageCreateBuilder
      */
     @Nonnull
     @CheckReturnValue
@@ -406,23 +413,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Send a message to this channel.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      * </ul>
      *
@@ -435,17 +442,17 @@ public interface MessageChannel extends Channel, Formattable {
      *         If this is a {@link PrivateChannel} and the recipient is a bot
      * @throws IllegalArgumentException
      *         If the format string is null or the resulting content is longer than {@value Message#MAX_CONTENT_LENGTH} characters
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws java.util.IllegalFormatException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws IllegalFormatException
      *         If a format string contains an illegal syntax, a format
      *         specifier that is incompatible with the given arguments,
      *         insufficient arguments given the format string, or other
      *         illegal conditions.  For specification of all possible
      *         formatting errors, see the <a href="../util/Formatter.html#detail">Details</a> section of the
      *         formatter class specification.
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageCreateAction}
@@ -461,23 +468,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Send a message to this channel.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      * </ul>
      *
@@ -508,10 +515,10 @@ public interface MessageChannel extends Channel, Formattable {
      *         If this is a {@link PrivateChannel} and the recipient is a bot
      * @throws IllegalArgumentException
      *         If any of the embeds are null, more than {@value Message#MAX_EMBED_COUNT}, or longer than {@link MessageEmbed#EMBED_MAX_LENGTH_BOT}.
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageCreateAction}
@@ -530,23 +537,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Send a message to this channel.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
      *     <br>If this is a {@link PrivateChannel PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      * </ul>
      *
@@ -575,10 +582,10 @@ public interface MessageChannel extends Channel, Formattable {
      *         If this is a {@link PrivateChannel} and the recipient is a bot
      * @throws IllegalArgumentException
      *         If any of the embeds are null, more than {@value Message#MAX_EMBED_COUNT}, or longer than {@link MessageEmbed#EMBED_MAX_LENGTH_BOT}.
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageCreateAction}
@@ -592,23 +599,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Send a message to this channel.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
      *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      * </ul>
      *
@@ -625,10 +632,10 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If {@code null} is provided</li>
      *             <li>If any of the provided components are not {@linkplain Component.Type#isMessageCompatible() compatible with messages}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageCreateAction}
@@ -644,23 +651,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Send a message to this channel.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
      *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      * </ul>
      *
@@ -679,10 +686,10 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If {@code null} is provided</li>
      *             <li>If any of the provided components are not {@linkplain Component.Type#isMessageCompatible() compatible with messages}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageCreateAction}
@@ -699,23 +706,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Send a message to this channel.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
      *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      * </ul>
      *
@@ -732,15 +739,15 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If {@code null} is provided</li>
      *             <li>If any of the provided components are not {@linkplain Component.Type#isMessageCompatible() compatible with messages}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageCreateAction}
      *
-     * @see    net.dv8tion.jda.api.components.tree.MessageComponentTree MessageComponentTree
+     * @see    MessageComponentTree MessageComponentTree
      */
     @Nonnull
     @CheckReturnValue
@@ -752,29 +759,29 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Send a message to this channel.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
      *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#POLL_INVALID_CHANNEL_TYPE POLL_INVALID_CHANNEL_TYPE}
+     *     <li>{@link ErrorResponse#POLL_INVALID_CHANNEL_TYPE POLL_INVALID_CHANNEL_TYPE}
      *     <br>This channel does not allow polls</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#POLL_WITH_UNUSABLE_EMOJI POLL_WITH_UNUSABLE_EMOJI}
+     *     <li>{@link ErrorResponse#POLL_WITH_UNUSABLE_EMOJI POLL_WITH_UNUSABLE_EMOJI}
      *     <br>This poll uses an external emoji that the bot is not allowed to use</li>
      * </ul>
      *
@@ -785,9 +792,9 @@ public interface MessageChannel extends Channel, Formattable {
      *         If this is a {@link PrivateChannel} and the recipient is a bot
      * @throws IllegalArgumentException
      *         If the poll is null
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
      *
      * @return {@link MessageCreateAction}
      */
@@ -806,26 +813,26 @@ public interface MessageChannel extends Channel, Formattable {
      * For instance, if an exception occurs after using {@link FileUpload#fromData(File)}, before calling {@link RestAction#queue()}.
      * You can safely use a try-with-resources to handle this, since {@link FileUpload#close()} becomes ineffective once the request is handed off.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
+     *     <li>{@link ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
      *     <br>If the total sum of uploaded bytes exceeds the guild's {@link Guild#getMaxFileSize() upload limit}</li>
      * </ul>
      *
@@ -854,10 +861,10 @@ public interface MessageChannel extends Channel, Formattable {
      *         If this is a {@link PrivateChannel} and the recipient is a bot
      * @throws IllegalArgumentException
      *         If null is provided
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageCreateAction}
@@ -880,26 +887,26 @@ public interface MessageChannel extends Channel, Formattable {
      * For instance, if an exception occurs after using {@link FileUpload#fromData(File)}, before calling {@link RestAction#queue()}.
      * You can safely use a try-with-resources to handle this, since {@link FileUpload#close()} becomes ineffective once the request is handed off.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>if this channel was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
+     *     <li>{@link ErrorResponse#CANNOT_SEND_TO_USER CANNOT_SEND_TO_USER}
      *     <br>If this is a {@link PrivateChannel PrivateChannel} and the currently logged in account
      *         cannot message the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
-     *     <br>If this is a {@link net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel PrivateChannel} and the currently logged in account
+     *     <li>{@link ErrorResponse#NO_MUTUAL_GUILDS NO_MUTUAL_GUILDS}
+     *     <br>If this is a {@link PrivateChannel} and the currently logged in account
      *         does not share any Guilds with the recipient User</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
-     *     <br>If this message was blocked by an {@link net.dv8tion.jda.api.entities.automod.AutoModRule AutoModRule}</li>
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_AUTOMOD MESSAGE_BLOCKED_BY_AUTOMOD}
+     *     <br>If this message was blocked by an {@link AutoModRule}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
+     *     <li>{@link ErrorResponse#MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER MESSAGE_BLOCKED_BY_HARMFUL_LINK_FILTER}
      *     <br>If this message was blocked by the harmful link filter</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
+     *     <li>{@link ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
      *     <br>If the total sum of uploaded bytes exceeds the guild's {@link Guild#getMaxFileSize() upload limit}</li>
      * </ul>
      *
@@ -928,10 +935,10 @@ public interface MessageChannel extends Channel, Formattable {
      *         If this is a {@link PrivateChannel} and the recipient is a bot
      * @throws IllegalArgumentException
      *         If null is provided
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageCreateAction}
@@ -947,28 +954,28 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * Attempts to get a {@link net.dv8tion.jda.api.entities.Message Message} from the Discord's servers that has
+     * Attempts to get a {@link Message} from the Discord's servers that has
      * the same id as the id provided.
      * <br>Note: when retrieving a Message, you must retrieve it from the channel it was sent in!
      *
      * <p>The {@link Message#getMember() Message.getMember()} method will always return null for the resulting message.
      * To retrieve the member you can use {@code getGuild().retrieveMember(message.getAuthor())}.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The request was attempted after the account lost {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <br>The request was attempted after the account lost {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
      *         in the {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code id} does not refer to a message sent in this channel or the message has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -977,16 +984,16 @@ public interface MessageChannel extends Channel, Formattable {
      *
      * @throws IllegalArgumentException
      *         if the provided {@code messageId} is null or empty.
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction} - Type: Message
+     * @return {@link RestAction} - Type: Message
      *         <br>The Message defined by the provided id.
      */
     @Nonnull
@@ -1001,44 +1008,44 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * Attempts to get a {@link net.dv8tion.jda.api.entities.Message Message} from the Discord's servers that has
+     * Attempts to get a {@link Message} from the Discord's servers that has
      * the same id as the id provided.
      * <br>Note: when retrieving a Message, you must retrieve it from the channel it was sent in!
      *
      * <p>The {@link Message#getMember() Message.getMember()} method will always return null for the resulting message.
      * To retrieve the member you can use {@code getGuild().retrieveMember(message.getAuthor())}.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The request was attempted after the account lost {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <br>The request was attempted after the account lost {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
      *         in the {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code id} does not refer to a message sent in this channel or the message has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
      * @param  messageId
      *         The id of the sought after Message
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction} - Type: Message
+     * @return {@link RestAction} - Type: Message
      *         <br>The Message defined by the provided id.
      */
     @Nonnull
@@ -1048,28 +1055,28 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * Attempts to delete a {@link net.dv8tion.jda.api.entities.Message Message} from the Discord servers that has
+     * Attempts to delete a {@link Message} from the Discord servers that has
      * the same id as the id provided.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request attempted to delete a Message in a {@link GuildMessageChannel GuildMessageChannel}
      *         that was not sent by the currently logged in account.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_DM_ACTION INVALID_DM_ACTION}
+     *     <li>{@link ErrorResponse#INVALID_DM_ACTION INVALID_DM_ACTION}
      *     <br>Attempted to delete a Message in a {@link PrivateChannel PrivateChannel}
      *         that was not sent by the currently logged in account.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code id} does not refer to a message sent in this channel or the message has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1078,13 +1085,13 @@ public interface MessageChannel extends Channel, Formattable {
      *
      * @throws IllegalArgumentException
      *         if the provided messageId is null
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}.
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}.
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction} - Type: Void
+     * @return {@link RestAction} - Type: Void
      */
     @Nonnull
     @CheckReturnValue
@@ -1096,28 +1103,28 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * Attempts to delete a {@link net.dv8tion.jda.api.entities.Message Message} from the Discord servers that has
+     * Attempts to delete a {@link Message} from the Discord servers that has
      * the same id as the id provided.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request attempted to delete a Message in a {@link GuildMessageChannel GuildMessageChannel}
      *         that was not sent by the currently logged in account.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_DM_ACTION INVALID_DM_ACTION}
+     *     <li>{@link ErrorResponse#INVALID_DM_ACTION INVALID_DM_ACTION}
      *     <br>Attempted to delete a Message in a {@link PrivateChannel PrivateChannel}
      *         that was not sent by the currently logged in account.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code id} does not refer to a message sent in this channel or the message has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1126,13 +1133,13 @@ public interface MessageChannel extends Channel, Formattable {
      *
      * @throws IllegalArgumentException
      *         if the provided messageId is not positive
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}.
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}.
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction} - Type: Void
+     * @return {@link RestAction} - Type: Void
      */
     @Nonnull
     @CheckReturnValue
@@ -1145,15 +1152,15 @@ public interface MessageChannel extends Channel, Formattable {
      *
      * <p><b>A bot cannot expire the polls of other users.</b>
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>If the poll was sent by another user</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_EXPIRE_MISSING_POLL CANNOT_EXPIRE_MISSING_POLL}
+     *     <li>{@link ErrorResponse#CANNOT_EXPIRE_MISSING_POLL CANNOT_EXPIRE_MISSING_POLL}
      *     <br>The message did not have a poll attached</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The message no longer exists</li>
      * </ul>
      *
@@ -1182,15 +1189,15 @@ public interface MessageChannel extends Channel, Formattable {
      *
      * <p><b>A bot cannot expire the polls of other users.</b>
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>If the poll was sent by another user</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#CANNOT_EXPIRE_MISSING_POLL CANNOT_EXPIRE_MISSING_POLL}
+     *     <li>{@link ErrorResponse#CANNOT_EXPIRE_MISSING_POLL CANNOT_EXPIRE_MISSING_POLL}
      *     <br>The message did not have a poll attached</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The message no longer exists</li>
      * </ul>
      *
@@ -1241,16 +1248,16 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * Creates a new {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object for each call of this method.
+     * Creates a new {@link MessageHistory} object for each call of this method.
      * <br>MessageHistory is <b>NOT</b> an internal message cache, but rather it queries the Discord servers for previously sent messages.
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel}
-     *         and the currently logged in account does not have the permission {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY MESSAGE_HISTORY}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         and the currently logged in account does not have the permission {@link Permission#MESSAGE_HISTORY MESSAGE_HISTORY}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return A {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} related to this channel.
+     * @return A {@link MessageHistory} related to this channel.
      */
     @Nonnull
     default MessageHistory getHistory() {
@@ -1259,7 +1266,7 @@ public interface MessageChannel extends Channel, Formattable {
 
     /**
      * A {@link PaginationAction PaginationAction} implementation
-     * that allows to {@link Iterable iterate} over recent {@link net.dv8tion.jda.api.entities.Message Messages} of
+     * that allows to {@link Iterable iterate} over recent {@link Message Messages} of
      * this MessageChannel.
      * <br>This is <b>not</b> a cache for received messages and it can only view messages that were sent
      * before. This iterates chronologically backwards (from present to past).
@@ -1280,10 +1287,10 @@ public interface MessageChannel extends Channel, Formattable {
      * }
      * }
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel}
-     *         and the currently logged in account does not have the permission {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY MESSAGE_HISTORY}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         and the currently logged in account does not have the permission {@link Permission#MESSAGE_HISTORY MESSAGE_HISTORY}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessagePaginationAction MessagePaginationAction}
@@ -1311,23 +1318,23 @@ public interface MessageChannel extends Channel, Formattable {
      * <br>{@code getHistoryAround(messageId, 10)} - This will retrieve 10 messages from history, 8 before the marker
      * and 2 after the marker.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
+     *         {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted, thus could not be used as a marker.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1336,24 +1343,24 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  limit
      *         The amount of messages to be retrieved. Minimum: 1, Max: 100.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>Provided {@code messageId} is {@code null} or empty.</li>
      *             <li>Provided {@code limit} is less than {@code 1} or greater than {@code 100}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction MessageHistory.MessageRetrieveAction}
-     *         <br>Provides a {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object with messages around the provided message loaded into it.
+     * @return {@link MessageHistory.MessageRetrieveAction}
+     *         <br>Provides a {@link MessageHistory} object with messages around the provided message loaded into it.
      *
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#getHistoryAround(MessageChannel, String) MessageHistory.getHistoryAround(MessageChannel, String)
+     * @see    MessageHistory#getHistoryAround(MessageChannel, String) MessageHistory.getHistoryAround(MessageChannel, String)
      */
     @Nonnull
     @CheckReturnValue
@@ -1378,23 +1385,23 @@ public interface MessageChannel extends Channel, Formattable {
      * <br>{@code getHistoryAround(messageId, 10)} - This will retrieve 10 messages from history, 8 before the marker
      * and 2 after the marker.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
+     *         {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted, thus could not be used as a marker.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1403,24 +1410,24 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  limit
      *         The amount of messages to be retrieved. Minimum: 1, Max: 100.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>Provided {@code messageId} is not positive.</li>
      *             <li>Provided {@code limit} is less than {@code 1} or greater than {@code 100}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction MessageHistory.MessageRetrieveAction}
-     *         <br>Provides a {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object with messages around the provided message loaded into it.
+     * @return {@link MessageHistory.MessageRetrieveAction}
+     *         <br>Provides a {@link MessageHistory} object with messages around the provided message loaded into it.
      *
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#getHistoryAround(MessageChannel, String) MessageHistory.getHistoryAround(MessageChannel, String)
+     * @see    MessageHistory#getHistoryAround(MessageChannel, String) MessageHistory.getHistoryAround(MessageChannel, String)
      */
     @Nonnull
     @CheckReturnValue
@@ -1429,7 +1436,7 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * Uses the provided {@link net.dv8tion.jda.api.entities.Message Message} as a marker and retrieves messages around
+     * Uses the provided {@link Message} as a marker and retrieves messages around
      * the marker. The {@code limit} determines the amount of messages retrieved near the marker. Discord will
      * attempt to evenly split the limit between before and after the marker, however in the case that the marker is set
      * near the beginning or near the end of the channel's history the amount of messages on each side of the marker may
@@ -1445,49 +1452,49 @@ public interface MessageChannel extends Channel, Formattable {
      * <br>{@code getHistoryAround(message, 10)} - This will retrieve 10 messages from history, 8 before the marker
      * and 2 after the marker.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
+     *         {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code message} has already been deleted, thus could not be used as a marker.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
      * @param  message
-     *         The {@link net.dv8tion.jda.api.entities.Message Message} that will act as a marker. The provided Message
+     *         The {@link Message} that will act as a marker. The provided Message
      *         must be from this MessageChannel.
      * @param  limit
      *         The amount of messages to be retrieved. Minimum: 1, Max: 100.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>Provided {@code message} is {@code null}.</li>
      *             <li>Provided {@code limit} is less than {@code 1} or greater than {@code 100}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction MessageHistory.MessageRetrieveAction}
-     *         <br>Provides a {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object with messages around the provided message loaded into it.
+     * @return {@link MessageHistory.MessageRetrieveAction}
+     *         <br>Provides a {@link MessageHistory} object with messages around the provided message loaded into it.
      *
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#getHistoryAround(MessageChannel, String) MessageHistory.getHistoryAround(MessageChannel, String)
+     * @see    MessageHistory#getHistoryAround(MessageChannel, String) MessageHistory.getHistoryAround(MessageChannel, String)
      */
     @Nonnull
     @CheckReturnValue
@@ -1505,23 +1512,23 @@ public interface MessageChannel extends Channel, Formattable {
      * from the edge of history.
      * <br>{@code getHistoryAfter(messageId, 100)} - This will retrieve 100 messages from history sent after the marker.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
+     *         {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted, thus could not be used as a marker.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1530,24 +1537,24 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  limit
      *         The amount of messages to be retrieved. Minimum: 1, Max: 100.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>Provided {@code messageId} is {@code null} or empty.</li>
      *             <li>Provided {@code limit} is less than {@code 1} or greater than {@code 100}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction MessageHistory.MessageRetrieveAction}
-     *         <br>Provides a {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object with messages after the provided message loaded into it.
+     * @return {@link MessageHistory.MessageRetrieveAction}
+     *         <br>Provides a {@link MessageHistory} object with messages after the provided message loaded into it.
      *
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#getHistoryAfter(MessageChannel, String) MessageHistory.getHistoryAfter(MessageChannel, String)
+     * @see    MessageHistory#getHistoryAfter(MessageChannel, String) MessageHistory.getHistoryAfter(MessageChannel, String)
      */
     @Nonnull
     @CheckReturnValue
@@ -1564,23 +1571,23 @@ public interface MessageChannel extends Channel, Formattable {
      * from the edge of history.
      * <br>{@code getHistoryAfter(messageId, 100)} - This will retrieve 100 messages from history sent after the marker.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
+     *         {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted, thus could not be used as a marker.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1589,21 +1596,21 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  limit
      *         The amount of messages to be retrieved. Minimum: 1, Max: 100.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         Provided {@code limit} is less than {@code 1} or greater than {@code 100}.
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction MessageHistory.MessageRetrieveAction}
-     *         <br>Provides a {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object with messages after the provided message loaded into it.
+     * @return {@link MessageHistory.MessageRetrieveAction}
+     *         <br>Provides a {@link MessageHistory} object with messages after the provided message loaded into it.
      *
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#getHistoryAfter(MessageChannel, String) MessageHistory.getHistoryAfter(MessageChannel, String)
+     * @see    MessageHistory#getHistoryAfter(MessageChannel, String) MessageHistory.getHistoryAfter(MessageChannel, String)
      */
     @Nonnull
     @CheckReturnValue
@@ -1620,23 +1627,23 @@ public interface MessageChannel extends Channel, Formattable {
      * from the edge of history.
      * <br>{@code getHistoryAfter(message, 100)} - This will retrieve 100 messages from history sent after the marker.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
+     *         {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code message} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted, thus could not be used as a marker.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1645,24 +1652,24 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  limit
      *         The amount of messages to be retrieved. Minimum: 1, Max: 100.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>Provided {@code message} is {@code null}.</li>
      *             <li>Provided {@code limit} is less than {@code 1} or greater than {@code 100}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction MessageHistory.MessageRetrieveAction}
-     *         <br>Provides a {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object with messages after the provided message loaded into it.
+     * @return {@link MessageHistory.MessageRetrieveAction}
+     *         <br>Provides a {@link MessageHistory} object with messages after the provided message loaded into it.
      *
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#getHistoryAfter(MessageChannel, String) MessageHistory.getHistoryAfter(MessageChannel, String)
+     * @see    MessageHistory#getHistoryAfter(MessageChannel, String) MessageHistory.getHistoryAfter(MessageChannel, String)
      */
     @Nonnull
     @CheckReturnValue
@@ -1680,23 +1687,23 @@ public interface MessageChannel extends Channel, Formattable {
      * from the edge of history.
      * <br>{@code getHistoryBefore(messageId, 100)} - This will retrieve 100 messages from history sent before the marker.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
+     *         {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted, thus could not be used as a marker.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1705,24 +1712,24 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  limit
      *         The amount of messages to be retrieved. Minimum: 1, Max: 100.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>Provided {@code messageId} is {@code null} or empty.</li>
      *             <li>Provided {@code limit} is less than {@code 1} or greater than {@code 100}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction MessageHistory.MessageRetrieveAction}
-     *         <br>Provides a {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object with messages before the provided message loaded into it.
+     * @return {@link MessageHistory.MessageRetrieveAction}
+     *         <br>Provides a {@link MessageHistory} object with messages before the provided message loaded into it.
      *
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#getHistoryBefore(MessageChannel, String) MessageHistory.getHistoryBefore(MessageChannel, String)
+     * @see    MessageHistory#getHistoryBefore(MessageChannel, String) MessageHistory.getHistoryBefore(MessageChannel, String)
      */
     @Nonnull
     @CheckReturnValue
@@ -1739,23 +1746,23 @@ public interface MessageChannel extends Channel, Formattable {
      * from the edge of history.
      * <br>{@code getHistoryBefore(messageId, 100)} - This will retrieve 100 messages from history sent before the marker.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
+     *         {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted, thus could not be used as a marker.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1764,24 +1771,24 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  limit
      *         The amount of messages to be retrieved. Minimum: 1, Max: 100.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>Provided {@code messageId} is {@code null} or empty.</li>
      *             <li>Provided {@code limit} is less than {@code 1} or greater than {@code 100}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction MessageHistory.MessageRetrieveAction}
-     *         <br>Provides a {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object with messages before the provided message loaded into it.
+     * @return {@link MessageHistory.MessageRetrieveAction}
+     *         <br>Provides a {@link MessageHistory} object with messages before the provided message loaded into it.
      *
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#getHistoryBefore(MessageChannel, String) MessageHistory.getHistoryBefore(MessageChannel, String)
+     * @see    MessageHistory#getHistoryBefore(MessageChannel, String) MessageHistory.getHistoryBefore(MessageChannel, String)
      */
     @Nonnull
     @CheckReturnValue
@@ -1798,23 +1805,23 @@ public interface MessageChannel extends Channel, Formattable {
      * from the edge of history.
      * <br>{@code getHistoryBefore(message, 100)} - This will retrieve 100 messages from history sent before the marker.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
+     *         {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code message} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted, thus could not be used as a marker.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1823,24 +1830,24 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  limit
      *         The amount of messages to be retrieved. Minimum: 1, Max: 100.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>Provided {@code message} is {@code null}.</li>
      *             <li>Provided {@code limit} is less than {@code 1} or greater than {@code 100}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction MessageHistory.MessageRetrieveAction}
-     *         <br>Provides a {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object with messages before the provided message loaded into it.
+     * @return {@link MessageHistory.MessageRetrieveAction}
+     *         <br>Provides a {@link MessageHistory} object with messages before the provided message loaded into it.
      *
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#getHistoryBefore(MessageChannel, String) MessageHistory.getHistoryBefore(MessageChannel, String)
+     * @see    MessageHistory#getHistoryBefore(MessageChannel, String) MessageHistory.getHistoryBefore(MessageChannel, String)
      */
     @Nonnull
     @CheckReturnValue
@@ -1870,42 +1877,42 @@ public interface MessageChannel extends Channel, Formattable {
      * }
      * }
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
+     *         {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
      * @param  limit
      *         The amount of messages to be retrieved. Minimum: 1, Max: 100.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         Provided {@code limit} is less than {@code 1} or greater than {@code 100}.
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.MessageHistory.MessageRetrieveAction MessageHistory.MessageRetrieveAction}
-     *         <br>Provides a {@link net.dv8tion.jda.api.entities.MessageHistory MessageHistory} object with the first messages of this channel loaded into it.
+     * @return {@link MessageHistory.MessageRetrieveAction}
+     *         <br>Provides a {@link MessageHistory} object with the first messages of this channel loaded into it.
      *         <br><b>Note: The messages are ordered from the most recent to oldest!</b>
      *
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#retrieveFuture(int)                     MessageHistory.retrieveFuture(int)
-     * @see    net.dv8tion.jda.api.entities.MessageHistory#getHistoryAfter(MessageChannel, String) MessageHistory.getHistoryAfter(MessageChannel, String)
+     * @see    MessageHistory#retrieveFuture(int)                     MessageHistory.retrieveFuture(int)
+     * @see    MessageHistory#getHistoryAfter(MessageChannel, String) MessageHistory.getHistoryAfter(MessageChannel, String)
      */
     @Nonnull
     @CheckReturnValue
@@ -1920,28 +1927,28 @@ public interface MessageChannel extends Channel, Formattable {
      *
      * <p>The official discord client sends this every 5 seconds even though the typing status lasts 10.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction} - Type: Void
+     * @return {@link RestAction} - Type: Void
      */
     @Nonnull
     @CheckReturnValue
@@ -1954,28 +1961,28 @@ public interface MessageChannel extends Channel, Formattable {
      * Attempts to react to a message represented by the specified {@code messageId}
      * in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}
-     *     <br>Also can happen if the account lost the {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *     <br>Also can happen if the account lost the {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION} in the
+     *         {@link Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
+     *     <li>{@link ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
      *     <br>The provided emoji was deleted, doesn't exist, or is not available to the currently logged-in account in this channel.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -1984,22 +1991,22 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  emoji
      *         The not-null {@link Emoji} to react with
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is {@code null} or empty.</li>
      *             <li>If provided {@code emoji} is {@code null}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If the MessageChannel this message was sent in was a {@link GuildMessageChannel GuildMessageChannel}
      *         and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction}
+     * @return {@link RestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -2016,28 +2023,28 @@ public interface MessageChannel extends Channel, Formattable {
      * Attempts to react to a message represented by the specified {@code messageId}
      * in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}
-     *     <br>Also can happen if the account lost the {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *     <br>Also can happen if the account lost the {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION} in the
+     *         {@link Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
+     *     <li>{@link ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
      *     <br>The provided emoji was deleted, doesn't exist, or is not available to the currently logged-in account in this channel.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -2046,22 +2053,22 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  emoji
      *         The {@link Emoji} to react with
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is not a valid snowflake.</li>
      *             <li>If provided {@code emoji} is {@code null}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If the MessageChannel this message was sent in was a {@link GuildMessageChannel GuildMessageChannel}
      *         and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *             <li>{@link Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION}</li>
+     *             <li>{@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction}
+     * @return {@link RestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -2073,28 +2080,28 @@ public interface MessageChannel extends Channel, Formattable {
      * Attempts to remove the reaction from a message represented by the specified {@code messageId}
      * in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}
-     *     <br>Also can happen if the account lost the {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *     <br>Also can happen if the account lost the {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION} in the
+     *         {@link Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
+     *     <li>{@link ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
      *     <br>The provided emoji was deleted, doesn't exist, or is not available to the currently logged-in account in this channel.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -2103,15 +2110,15 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  emoji
      *         The emoji to remove
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is {@code null} or not a valid snowflake.</li>
      *             <li>If provided {@code emoji} is {@code null}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction}
+     * @return {@link RestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -2128,28 +2135,28 @@ public interface MessageChannel extends Channel, Formattable {
      * Attempts to remove the reaction from a message represented by the specified {@code messageId}
      * in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}
-     *     <br>Also can happen if the account lost the {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *     <br>Also can happen if the account lost the {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION} in the
+     *         {@link Permission#MESSAGE_ADD_REACTION Permission.MESSAGE_ADD_REACTION} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
+     *     <li>{@link ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
      *     <br>The provided emoji was deleted, doesn't exist, or is not available to the currently logged-in account in this channel.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -2158,15 +2165,15 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  emoji
      *         The emoji to remove
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is not a valid snowflake.</li>
      *             <li>If provided {@code emoji} is {@code null}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction}
+     * @return {@link RestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -2175,7 +2182,7 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * This obtains the {@link net.dv8tion.jda.api.entities.User users} who reacted to a message using the given {@link Emoji}.
+     * This obtains the {@link User users} who reacted to a message using the given {@link Emoji}.
      *
      * <br>By default, this only includes users that reacted with {@link MessageReaction.ReactionType#NORMAL}.
      * Use {@link #retrieveReactionUsersById(String, Emoji, MessageReaction.ReactionType) retrieveReactionUsersById(messageId, emoji, ReactionType.SUPER)}
@@ -2186,17 +2193,17 @@ public interface MessageChannel extends Channel, Formattable {
      * <p>Using this data, we can obtain a {@link ReactionPaginationAction ReactionPaginationAction}
      * of the users who've reacted to the given message.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
      *     <br>The retrieve request was attempted after the account lost access to the {@link GuildMessageChannel GuildMessageChannel}
-     *         due to {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} being revoked
-     *     <br>Also can happen if the account lost the {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *         due to {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} being revoked
+     *     <br>Also can happen if the account lost the {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
+     *     <li>{@link ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
      *     <br>The provided emoji was deleted, doesn't exist, or is not available to the currently logged-in account in this channel.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      * </ul>
@@ -2206,15 +2213,15 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  emoji
      *         The {@link Emoji} to retrieve users for.
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the
-     *         logged in account does not have {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}.
-     * @throws java.lang.IllegalArgumentException
+     *         logged in account does not have {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}.
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is {@code null} or not a valid snowflake.</li>
      *             <li>If provided {@code emoji} is {@code null}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return The {@link ReactionPaginationAction} of the emoji's users.
@@ -2226,7 +2233,7 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * This obtains the {@link net.dv8tion.jda.api.entities.User users} who reacted to a message using the given {@link Emoji}.
+     * This obtains the {@link User users} who reacted to a message using the given {@link Emoji}.
      *
      * <br>By default, this only includes users that reacted with {@link MessageReaction.ReactionType#NORMAL}.
      * Use {@link #retrieveReactionUsersById(long, Emoji, MessageReaction.ReactionType) retrieveReactionUsersById(messageId, emoji, ReactionType.SUPER)}
@@ -2237,17 +2244,17 @@ public interface MessageChannel extends Channel, Formattable {
      * <p>Using this data, we can obtain a {@link ReactionPaginationAction ReactionPaginationAction}
      * of the users who've reacted to the given message.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
      *     <br>The retrieve request was attempted after the account lost access to the {@link GuildMessageChannel GuildMessageChannel}
-     *         due to {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} being revoked
-     *     <br>Also can happen if the account lost the {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *         due to {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} being revoked
+     *     <br>Also can happen if the account lost the {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
+     *     <li>{@link ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
      *     <br>The provided emoji was deleted, doesn't exist, or is not available to the currently logged-in account in this channel.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      * </ul>
@@ -2257,17 +2264,17 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  emoji
      *         The {@link Emoji} to retrieve users for.
      *
-     * @throws java.lang.UnsupportedOperationException
-     *         If this is not a Received Message from {@link net.dv8tion.jda.api.entities.MessageType#DEFAULT MessageType.DEFAULT}
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws UnsupportedOperationException
+     *         If this is not a Received Message from {@link MessageType#DEFAULT MessageType.DEFAULT}
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the
-     *         logged in account does not have {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}.
-     * @throws java.lang.IllegalArgumentException
+     *         logged in account does not have {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}.
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is not a valid snowflake.</li>
      *             <li>If provided {@code emoji} is {@code null}.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return The {@link ReactionPaginationAction ReactionPaginationAction} of the emoji's users.
@@ -2279,24 +2286,24 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * This obtains the {@link net.dv8tion.jda.api.entities.User users} who reacted to a message using the given {@link Emoji}.
+     * This obtains the {@link User users} who reacted to a message using the given {@link Emoji}.
      *
      * <p>Messages maintain a list of reactions, alongside a list of users who added them.
      *
      * <p>Using this data, we can obtain a {@link ReactionPaginationAction ReactionPaginationAction}
      * of the users who've reacted to the given message.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
      *     <br>The retrieve request was attempted after the account lost access to the {@link GuildMessageChannel GuildMessageChannel}
-     *         due to {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} being revoked
-     *     <br>Also can happen if the account lost the {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *         due to {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} being revoked
+     *     <br>Also can happen if the account lost the {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
+     *     <li>{@link ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
      *     <br>The provided emoji was deleted, doesn't exist, or is not available to the currently logged-in account in this channel.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      * </ul>
@@ -2308,10 +2315,10 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  type
      *         The specific type of reaction
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the
-     *         logged in account does not have {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}.
-     * @throws java.lang.IllegalArgumentException
+     *         logged in account does not have {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}.
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is {@code null} or not a valid snowflake.</li>
      *             <li>If provided {@code emoji} is {@code null}.</li>
@@ -2332,24 +2339,24 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * This obtains the {@link net.dv8tion.jda.api.entities.User users} who reacted to a message using the given {@link Emoji}.
+     * This obtains the {@link User users} who reacted to a message using the given {@link Emoji}.
      *
      * <p>Messages maintain a list of reactions, alongside a list of users who added them.
      *
      * <p>Using this data, we can obtain a {@link ReactionPaginationAction ReactionPaginationAction}
      * of the users who've reacted to the given message.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
      *     <br>The retrieve request was attempted after the account lost access to the {@link GuildMessageChannel GuildMessageChannel}
-     *         due to {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} being revoked
-     *     <br>Also can happen if the account lost the {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
+     *         due to {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} being revoked
+     *     <br>Also can happen if the account lost the {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
+     *     <li>{@link ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
      *     <br>The provided emoji was deleted, doesn't exist, or is not available to the currently logged-in account in this channel.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      * </ul>
@@ -2361,12 +2368,12 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  type
      *         The specific type of reaction
      *
-     * @throws java.lang.UnsupportedOperationException
-     *         If this is not a Received Message from {@link net.dv8tion.jda.api.entities.MessageType#DEFAULT MessageType.DEFAULT}
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws UnsupportedOperationException
+     *         If this is not a Received Message from {@link MessageType#DEFAULT MessageType.DEFAULT}
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the
-     *         logged in account does not have {@link net.dv8tion.jda.api.Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}.
-     * @throws java.lang.IllegalArgumentException
+     *         logged in account does not have {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}.
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is not a valid snowflake.</li>
      *             <li>If provided {@code emoji} is {@code null}.</li>
@@ -2385,23 +2392,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Used to pin a message. Pinned messages are retrievable via {@link #retrievePinnedMessages()}.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#PIN_MESSAGES Permission.PIN_MESSAGES} in the
+     *         {@link Permission#PIN_MESSAGES Permission.PIN_MESSAGES} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -2410,16 +2417,16 @@ public interface MessageChannel extends Channel, Formattable {
      *
      * @throws IllegalArgumentException
      *         if the provided messageId is {@code null} or empty.
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#PIN_MESSAGES Permission.PIN_MESSAGES}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#PIN_MESSAGES Permission.PIN_MESSAGES}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -2433,23 +2440,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Used to pin a message. Pinned messages are retrievable via {@link #retrievePinnedMessages()}.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#PIN_MESSAGES Permission.PIN_MESSAGES} in the
+     *         {@link Permission#PIN_MESSAGES Permission.PIN_MESSAGES} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -2458,16 +2465,16 @@ public interface MessageChannel extends Channel, Formattable {
      *
      * @throws IllegalArgumentException
      *         if the provided {@code messageId} is not a valid snowflake.
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#PIN_MESSAGES Permission.PIN_MESSAGES}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#PIN_MESSAGES Permission.PIN_MESSAGES}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -2478,23 +2485,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Used to unpin a message. Pinned messages are retrievable via {@link #retrievePinnedMessages()}.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#PIN_MESSAGES Permission.PIN_MESSAGES} in the
+     *         {@link Permission#PIN_MESSAGES Permission.PIN_MESSAGES} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -2503,16 +2510,16 @@ public interface MessageChannel extends Channel, Formattable {
      *
      * @throws IllegalArgumentException
      *         if the provided messageId is {@code null} or empty.
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#PIN_MESSAGES Permission.PIN_MESSAGES}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#PIN_MESSAGES Permission.PIN_MESSAGES}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -2526,23 +2533,23 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Used to unpin a message. Pinned messages are retrievable via {@link #retrievePinnedMessages()}.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
+     *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
      *     <br>The request was attempted after the account lost
-     *         {@link net.dv8tion.jda.api.Permission#PIN_MESSAGES Permission.PIN_MESSAGES} in the
+     *         {@link Permission#PIN_MESSAGES Permission.PIN_MESSAGES} in the
      *         {@link GuildMessageChannel GuildMessageChannel}.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
@@ -2551,16 +2558,16 @@ public interface MessageChannel extends Channel, Formattable {
      *
      * @throws IllegalArgumentException
      *         if the provided messageId is not positive.
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and the logged in account does not have
      *         <ul>
-     *             <li>{@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
-     *             <li>{@link net.dv8tion.jda.api.Permission#PIN_MESSAGES Permission.PIN_MESSAGES}</li>
+     *             <li>{@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}</li>
+     *             <li>{@link Permission#PIN_MESSAGES Permission.PIN_MESSAGES}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -2569,24 +2576,24 @@ public interface MessageChannel extends Channel, Formattable {
     }
 
     /**
-     * Retrieves a List of {@link net.dv8tion.jda.api.entities.Message Messages} that have been pinned in this channel.
+     * Retrieves a List of {@link Message Messages} that have been pinned in this channel.
      * <br>If no messages have been pinned, this retrieves an empty List.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      * </ul>
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link PinnedMessagePaginationAction}
@@ -2600,25 +2607,25 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this channel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -2633,10 +2640,10 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If provided {@code newContent} is {@code null} or empty.</li>
      *             <li>If provided {@code newContent} length is greater than {@value Message#MAX_CONTENT_LENGTH} characters.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -2656,25 +2663,25 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this channel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -2688,10 +2695,10 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If provided {@code newContent} is {@code null} or empty.</li>
      *             <li>If provided {@code newContent} length is greater than {@value Message#MAX_CONTENT_LENGTH} characters.</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -2705,25 +2712,25 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -2736,14 +2743,14 @@ public interface MessageChannel extends Channel, Formattable {
      *         <ul>
      *             <li>If provided {@code messageId} is {@code null} or empty.</li>
      *             <li>If provided {@code newContent} is {@code null}.</li>
-     *             <li>If provided {@link net.dv8tion.jda.api.entities.Message Message}
-     *                 contains a {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbed} which
-     *                 is not {@link net.dv8tion.jda.api.entities.MessageEmbed#isSendable() sendable}</li>
+     *             <li>If provided {@link Message}
+     *                 contains a {@link MessageEmbed} which
+     *                 is not {@link MessageEmbed#isSendable() sendable}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -2759,25 +2766,25 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -2789,14 +2796,14 @@ public interface MessageChannel extends Channel, Formattable {
      * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code newContent} is {@code null}.</li>
-     *             <li>If provided {@link net.dv8tion.jda.api.entities.Message Message}
-     *                 contains a {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbed} which
-     *                 is not {@link net.dv8tion.jda.api.entities.MessageEmbed#isSendable() sendable}</li>
+     *             <li>If provided {@link Message}
+     *                 contains a {@link MessageEmbed} which
+     *                 is not {@link MessageEmbed#isSendable() sendable}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -2810,25 +2817,25 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -2846,17 +2853,17 @@ public interface MessageChannel extends Channel, Formattable {
      *         </ul>
      * @throws IllegalStateException
      *         If the resulting message is either empty or too long to be sent
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     * @throws java.util.IllegalFormatException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     * @throws IllegalFormatException
      *         If a format string contains an illegal syntax,
      *         a format specifier that is incompatible with the given arguments,
      *         insufficient arguments given the format string, or other illegal conditions.
      *         For specification of all possible formatting errors,
      *         see the <a href="../util/Formatter.html#detail">Details</a>
      *         section of the formatter class specification.
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -2873,25 +2880,25 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -2906,17 +2913,17 @@ public interface MessageChannel extends Channel, Formattable {
      *         If provided {@code format} is {@code null} or blank.
      * @throws IllegalStateException
      *         If the resulting message is either empty or too long to be sent
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     * @throws java.util.IllegalFormatException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     * @throws IllegalFormatException
      *         If a format string contains an illegal syntax,
      *         a format specifier that is incompatible with the given arguments,
      *         insufficient arguments given the format string, or other illegal conditions.
      *         For specification of all possible formatting errors,
      *         see the <a href="../util/Formatter.html#detail">Details</a>
      *         section of the formatter class specification.
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -2933,44 +2940,44 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
      * @param  messageId
      *         The id referencing the Message that should be edited
      * @param  newEmbeds
-     *         Up to {@value Message#MAX_EMBED_COUNT} new {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbeds} for the edited message
+     *         Up to {@value Message#MAX_EMBED_COUNT} new {@link MessageEmbed MessageEmbeds} for the edited message
      *
      * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is {@code null} or empty.</li>
-     *             <li>If provided {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbed}
-     *                 is not {@link net.dv8tion.jda.api.entities.MessageEmbed#isSendable() sendable}</li>
+     *             <li>If provided {@link MessageEmbed}
+     *                 is not {@link MessageEmbed#isSendable() sendable}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -2985,44 +2992,44 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
      * @param  messageId
      *         The id referencing the Message that should be edited
      * @param  newEmbeds
-     *         Up to {@value Message#MAX_EMBED_COUNT} new {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbeds} for the edited message
+     *         Up to {@value Message#MAX_EMBED_COUNT} new {@link MessageEmbed MessageEmbeds} for the edited message
      *
      * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is {@code null} or empty.</li>
-     *             <li>If provided {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbed}
-     *                 is not {@link net.dv8tion.jda.api.entities.MessageEmbed#isSendable() sendable}</li>
+     *             <li>If provided {@link MessageEmbed}
+     *                 is not {@link MessageEmbed#isSendable() sendable}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -3036,44 +3043,44 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
      * @param  messageId
      *         The id referencing the Message that should be edited
      * @param  newEmbeds
-     *         Up to {@value Message#MAX_EMBED_COUNT} new {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbeds} for the edited message
+     *         Up to {@value Message#MAX_EMBED_COUNT} new {@link MessageEmbed MessageEmbeds} for the edited message
      *
      * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is {@code null} or empty.</li>
-     *             <li>If provided {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbed}
-     *                 is not {@link net.dv8tion.jda.api.entities.MessageEmbed#isSendable() sendable}</li>
+     *             <li>If provided {@link MessageEmbed}
+     *                 is not {@link MessageEmbed#isSendable() sendable}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -3089,44 +3096,44 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
      * @param  messageId
      *         The id referencing the Message that should be edited
      * @param  newEmbeds
-     *         Up to {@value Message#MAX_EMBED_COUNT} new {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbeds} for the edited message
+     *         Up to {@value Message#MAX_EMBED_COUNT} new {@link MessageEmbed MessageEmbeds} for the edited message
      *
      * @throws IllegalArgumentException
      *         <ul>
      *             <li>If provided {@code messageId} is {@code null} or empty.</li>
-     *             <li>If provided {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbed}
-     *                 is not {@link net.dv8tion.jda.api.entities.MessageEmbed#isSendable() sendable}</li>
+     *             <li>If provided {@link MessageEmbed}
+     *                 is not {@link MessageEmbed#isSendable() sendable}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -3153,25 +3160,25 @@ public interface MessageChannel extends Channel, Formattable {
      * channel.editMessageComponentsById(messageId, rows).queue();
      * }
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted. This might also be triggered for ephemeral messages.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -3190,11 +3197,11 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If {@code null} is provided</li>
      *             <li>If any of the provided components are not {@linkplain Component.Type#isMessageCompatible() compatible with messages}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -3223,25 +3230,25 @@ public interface MessageChannel extends Channel, Formattable {
      * channel.editMessageComponentsById(messageId, rows).queue();
      * }
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted. This might also be triggered for ephemeral messages.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -3260,11 +3267,11 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If {@code null} is provided</li>
      *             <li>If any of the provided components are not {@linkplain Component.Type#isMessageCompatible() compatible with messages}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -3290,25 +3297,25 @@ public interface MessageChannel extends Channel, Formattable {
      * ).queue();
      * }
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted. This might also be triggered for ephemeral messages.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -3327,11 +3334,11 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If {@code null} is provided</li>
      *             <li>If any of the provided components are not {@linkplain Component.Type#isMessageCompatible() compatible with messages}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -3358,25 +3365,25 @@ public interface MessageChannel extends Channel, Formattable {
      * ).queue();
      * }
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted. This might also be triggered for ephemeral messages.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -3395,11 +3402,11 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If {@code null} is provided</li>
      *             <li>If any of the provided components are not {@linkplain Component.Type#isMessageCompatible() compatible with messages}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
@@ -3428,25 +3435,25 @@ public interface MessageChannel extends Channel, Formattable {
      * ).queue();
      * }
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted. This might also be triggered for ephemeral messages.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -3465,16 +3472,16 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If {@code null} is provided</li>
      *             <li>If any of the provided components are not {@linkplain Component.Type#isMessageCompatible() compatible with messages}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
      *
-     * @see    net.dv8tion.jda.api.components.tree.MessageComponentTree MessageComponentTree
+     * @see    MessageComponentTree MessageComponentTree
      */
     @Nonnull
     @CheckReturnValue
@@ -3500,25 +3507,25 @@ public interface MessageChannel extends Channel, Formattable {
      * ).queue();
      * }
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted. This might also be triggered for ephemeral messages.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -3537,16 +3544,16 @@ public interface MessageChannel extends Channel, Formattable {
      *             <li>If {@code null} is provided</li>
      *             <li>If any of the provided components are not {@linkplain Component.Type#isMessageCompatible() compatible with messages}</li>
      *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel} and this account does not have
-     *         {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
-     *         or {@link net.dv8tion.jda.api.Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     *         {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *         or {@link Permission#MESSAGE_SEND Permission.MESSAGE_SEND}
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction}
      *
-     * @see    net.dv8tion.jda.api.components.tree.MessageComponentTree MessageComponentTree
+     * @see    MessageComponentTree MessageComponentTree
      */
     @Nonnull
     @CheckReturnValue
@@ -3559,28 +3566,28 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
+     *     <li>{@link ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
      *     <br>If any of the provided files is bigger than {@link Guild#getMaxFileSize()}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted. This might also be triggered for ephemeral messages.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -3592,11 +3599,11 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  messageId
      *         The message id. For interactions this supports {@code "@original"} to edit the source message of the interaction.
      * @param  attachments
-     *         The new attachments of the message (Can be {@link FileUpload FileUploads} or {@link net.dv8tion.jda.api.utils.AttachmentUpdate AttachmentUpdates})
+     *         The new attachments of the message (Can be {@link FileUpload FileUploads} or {@link AttachmentUpdate AttachmentUpdates})
      *
      * @throws IllegalArgumentException
      *         If null is provided
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction} that can be used to further update the message
@@ -3615,28 +3622,28 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
+     *     <li>{@link ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
      *     <br>If any of the provided files is bigger than {@link Guild#getMaxFileSize()}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted. This might also be triggered for ephemeral messages.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -3648,11 +3655,11 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  messageId
      *         The message id. For interactions this supports {@code "@original"} to edit the source message of the interaction.
      * @param  attachments
-     *         The new attachments of the message (Can be {@link FileUpload FileUploads} or {@link net.dv8tion.jda.api.utils.AttachmentUpdate AttachmentUpdates})
+     *         The new attachments of the message (Can be {@link FileUpload FileUploads} or {@link AttachmentUpdate AttachmentUpdates})
      *
      * @throws IllegalArgumentException
      *         If null is provided
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction} that can be used to further update the message
@@ -3671,28 +3678,28 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
+     *     <li>{@link ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
      *     <br>If any of the provided files is bigger than {@link Guild#getMaxFileSize()}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted. This might also be triggered for ephemeral messages.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -3704,11 +3711,11 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  messageId
      *         The message id. For interactions this supports {@code "@original"} to edit the source message of the interaction.
      * @param  attachments
-     *         The new attachments of the message (Can be {@link FileUpload FileUploads} or {@link net.dv8tion.jda.api.utils.AttachmentUpdate AttachmentUpdates})
+     *         The new attachments of the message (Can be {@link FileUpload FileUploads} or {@link AttachmentUpdate AttachmentUpdates})
      *
      * @throws IllegalArgumentException
      *         If null is provided
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction} that can be used to further update the message
@@ -3726,28 +3733,28 @@ public interface MessageChannel extends Channel, Formattable {
     /**
      * Attempts to edit a message by its id in this MessageChannel.
      *
-     * <p>The following {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} are possible:
+     * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
+     *     <li>{@link ErrorResponse#REQUEST_ENTITY_TOO_LARGE REQUEST_ENTITY_TOO_LARGE}
      *     <br>If any of the provided files is bigger than {@link Guild#getMaxFileSize()}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
+     *     <li>{@link ErrorResponse#INVALID_AUTHOR_EDIT INVALID_AUTHOR_EDIT}
      *     <br>Attempted to edit a message that was not sent by the currently logged in account.
      *         Discord does not allow editing of other users' Messages!</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
-     *     <br>The request was attempted after the account lost access to the {@link net.dv8tion.jda.api.entities.Guild Guild}
-     *         typically due to being kicked or removed, or after {@link net.dv8tion.jda.api.Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <br>The request was attempted after the account lost access to the {@link Guild}
+     *         typically due to being kicked or removed, or after {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL}
      *         was revoked in the {@link GuildMessageChannel}</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
+     *     <li>{@link ErrorResponse#UNKNOWN_MESSAGE UNKNOWN_MESSAGE}
      *     <br>The provided {@code messageId} is unknown in this MessageChannel, either due to the id being invalid, or
      *         the message it referred to has already been deleted. This might also be triggered for ephemeral messages.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>The request was attempted after the channel was deleted.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
+     *     <li>{@link ErrorResponse#INVALID_FORM_BODY INVALID_FORM_BODY}
      *     <br>{@linkplain MessageRequest#useComponentsV2(boolean) Components V2} is used by the to-be-edited message, and this request has non-empty content or embeds.</li>
      * </ul>
      *
@@ -3759,11 +3766,11 @@ public interface MessageChannel extends Channel, Formattable {
      * @param  messageId
      *         The message id. For interactions this supports {@code "@original"} to edit the source message of the interaction.
      * @param  attachments
-     *         The new attachments of the message (Can be {@link FileUpload FileUploads} or {@link net.dv8tion.jda.api.utils.AttachmentUpdate AttachmentUpdates})
+     *         The new attachments of the message (Can be {@link FileUpload FileUploads} or {@link AttachmentUpdate AttachmentUpdates})
      *
      * @throws IllegalArgumentException
      *         If null is provided
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
+     * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
      *
      * @return {@link MessageEditAction} that can be used to further update the message

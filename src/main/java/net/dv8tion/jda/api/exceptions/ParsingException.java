@@ -16,13 +16,20 @@
 
 package net.dv8tion.jda.api.exceptions;
 
+import net.dv8tion.jda.api.utils.data.DataArray;
+import net.dv8tion.jda.api.utils.data.DataObject;
+
+import java.io.Serial;
+
 /**
  * Indicates a failure in parsing or deserializing data.
  *
- * @see net.dv8tion.jda.api.utils.data.DataObject
- * @see net.dv8tion.jda.api.utils.data.DataArray
+ * @see DataObject
+ * @see DataArray
  */
 public class ParsingException extends IllegalStateException {
+    private static final @Serial long serialVersionUID = 1L;
+
     public ParsingException(String message, Exception cause) {
         super(message, cause);
     }

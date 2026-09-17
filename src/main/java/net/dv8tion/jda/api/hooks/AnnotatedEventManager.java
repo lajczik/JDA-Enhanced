@@ -27,19 +27,22 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.annotation.Nonnull;
 
 /**
- * Implementation for {@link net.dv8tion.jda.api.hooks.IEventManager IEventManager}
- * which checks for {@link net.dv8tion.jda.api.hooks.SubscribeEvent SubscribeEvent} annotations on both
+ * Implementation for {@link IEventManager
+ * IEventManager}
+ * which checks for {@link SubscribeEvent
+ * SubscribeEvent} annotations on both
  * <b>static</b> and <b>member</b> methods.
  *
- * <p>Listeners for this manager do <u>not</u> need to implement {@link net.dv8tion.jda.api.hooks.EventListener EventListener}
- * <br>Example
- * {@snippet lang="java":
+ * <p>
+ * Listeners for this manager do <u>not</u> need to implement
+ * {@link EventListener}
+ * <br>
+ * Example
+ * {@snippet lang = "java":
  * public class Foo {
  *     @SubscribeEvent
  *     public void onMsg(MessageReceivedEvent event) {
@@ -48,14 +51,15 @@ import javax.annotation.Nonnull;
  * }
  * }
  *
- * @see net.dv8tion.jda.api.hooks.InterfacedEventManager
- * @see net.dv8tion.jda.api.hooks.IEventManager
- * @see net.dv8tion.jda.api.hooks.SubscribeEvent
+ * @see InterfacedEventManager
+ * @see IEventManager
+ * @see SubscribeEvent
  */
 public class AnnotatedEventManager implements IEventManager {
     private static final Logger LOGGER = JDALogger.getLog(AnnotatedEventManager.class);
-    private final Set<Object> listeners = ConcurrentHashMap.newKeySet();
-    private final Map<Class<?>, Map<Object, List<Method>>> methods = new ConcurrentHashMap<>();
+    private final Object mutex = new Object();
+    private final Set<Object> listeners = new HashSet<>();
+    private volatile Map<Class<?>, Map<Object, List<Method>>> methods = Map.of();
 
     @Override
     public void register(@Nonnull Object listener) {
@@ -66,8 +70,10 @@ public class AnnotatedEventManager implements IEventManager {
             return;
         }
 
-        if (listeners.add(listener)) {
-            registerListenerMethods(listener);
+        synchronized (mutex) {
+            if (listeners.add(listener)) {
+                updateMethods();
+            }
         }
     }
 
@@ -80,8 +86,10 @@ public class AnnotatedEventManager implements IEventManager {
             return;
         }
 
-        if (listeners.remove(listener)) {
-            updateMethods();
+        synchronized (mutex) {
+            if (listeners.remove(listener)) {
+                updateMethods();
+            }
         }
     }
 
@@ -89,13 +97,16 @@ public class AnnotatedEventManager implements IEventManager {
     @Override
     @Unmodifiable
     public List<Object> getRegisteredListeners() {
-        return Collections.unmodifiableList(new ArrayList<>(listeners));
+        synchronized (mutex) {
+            return List.copyOf(listeners);
+        }
     }
 
     @Override
     public void handle(@Nonnull GenericEvent event) {
+        Map<Class<?>, Map<Object, List<Method>>> methodsSnapshot = this.methods;
         for (Class<?> eventClass : ClassWalker.walk(event.getClass())) {
-            Map<Object, List<Method>> listeners = methods.get(eventClass);
+            Map<Object, List<Method>> listeners = methodsSnapshot.get(eventClass);
             if (listeners != null) {
                 listeners.forEach((key, value) -> value.forEach(method -> {
                     try {
@@ -115,13 +126,14 @@ public class AnnotatedEventManager implements IEventManager {
     }
 
     private void updateMethods() {
-        methods.clear();
+        Map<Class<?>, Map<Object, List<Method>>> newMethods = new HashMap<>();
         for (Object listener : listeners) {
-            registerListenerMethods(listener);
+            registerListenerMethods(newMethods, listener);
         }
+        this.methods = Collections.unmodifiableMap(newMethods);
     }
 
-    private void registerListenerMethods(Object listener) {
+    private void registerListenerMethods(Map<Class<?>, Map<Object, List<Method>>> targetMethods, Object listener) {
         boolean isClass = listener instanceof Class;
         Class<?> c = isClass ? (Class<?>) listener : listener.getClass();
         Method[] allMethods = c.getDeclaredMethods();
@@ -144,8 +156,9 @@ public class AnnotatedEventManager implements IEventManager {
             }
 
             Class<?> eventClass = parameterTypes[0];
-            methods.computeIfAbsent(eventClass, k -> new ConcurrentHashMap<>())
-                    .computeIfAbsent(listener, k -> new CopyOnWriteArrayList<>())
+            targetMethods
+                    .computeIfAbsent(eventClass, k -> new HashMap<>())
+                    .computeIfAbsent(listener, k -> new ArrayList<>())
                     .add(m);
         }
     }

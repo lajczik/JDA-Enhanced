@@ -24,12 +24,20 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.channel.unions.DefaultGuildChannelUnion;
 import net.dv8tion.jda.api.entities.detached.IDetachableEntity;
 import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
+import net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildDeafenEvent;
+import net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildMuteEvent;
+import net.dv8tion.jda.api.exceptions.DetachedEntityException;
+import net.dv8tion.jda.api.exceptions.HierarchyException;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
 import net.dv8tion.jda.api.utils.DiscordAssets;
 import net.dv8tion.jda.api.utils.ImageFormat;
 import net.dv8tion.jda.api.utils.ImageProxy;
+import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.requests.restaction.AuditableRestActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
@@ -43,7 +51,6 @@ import java.time.temporal.TemporalAccessor;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.CheckReturnValue;
@@ -53,24 +60,27 @@ import javax.annotation.Nullable;
 /**
  * Represents a Guild-specific User.
  *
- * <p>Contains all guild-specific information about a User. (Roles, Nickname, VoiceStatus etc.)
+ * <p>
+ * Contains all guild-specific information about a User. (Roles, Nickname,
+ * VoiceStatus etc.)
  *
- * @see   Guild#getMember(UserSnowflake)
- * @see   Guild#getMemberCache()
- * @see   Guild#getMemberById(long)
- * @see   Guild#getMemberByTag(String)
- * @see   Guild#getMemberByTag(String, String)
- * @see   Guild#getMembersByEffectiveName(String, boolean)
- * @see   Guild#getMembersByName(String, boolean)
- * @see   Guild#getMembersByNickname(String, boolean)
- * @see   Guild#getMembersWithRoles(Role...)
- * @see   Guild#getMembers()
+ * @see Guild#getMember(UserSnowflake)
+ * @see Guild#getMemberCache()
+ * @see Guild#getMemberById(long)
+ * @see Guild#getMemberByTag(String)
+ * @see Guild#getMemberByTag(String, String)
+ * @see Guild#getMembersByEffectiveName(String, boolean)
+ * @see Guild#getMembersByName(String, boolean)
+ * @see Guild#getMembersByNickname(String, boolean)
+ * @see Guild#getMembersWithRoles(Role...)
+ * @see Guild#getMembers()
  */
 public interface Member extends IMentionable, IPermissionHolder, IDetachableEntity, UserSnowflake {
     /**
      * Template for {@link #getAvatarUrl()}.
      *
-     * @deprecated Replaced by {@link DiscordAssets#memberAvatar(ImageFormat, String, String, String)}
+     * @deprecated Replaced by
+     *             {@link DiscordAssets#memberAvatar(ImageFormat, String, String, String)}
      */
     @Deprecated
     String AVATAR_URL = "https://cdn.discordapp.com/guilds/%s/users/%s/avatars/%s.%s";
@@ -82,7 +92,7 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     /**
      * The user wrapped by this Entity.
      *
-     * @return {@link net.dv8tion.jda.api.entities.User User}
+     * @return {@link User}
      */
     @Nonnull
     User getUser();
@@ -90,7 +100,7 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     /**
      * The Guild in which this Member is represented.
      *
-     * @return {@link net.dv8tion.jda.api.entities.Guild Guild}
+     * @return {@link Guild}
      */
     @Override
     @Nonnull
@@ -105,12 +115,17 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     JDA getJDA();
 
     /**
-     * The {@link java.time.OffsetDateTime Time} this Member joined the Guild.
-     * <br>If the member was loaded through a presence update (lazy loading) this will be identical
-     * to the creation time of the guild. You can use {@link #hasTimeJoined()} to test whether this time
+     * The {@link OffsetDateTime Time} this Member joined the Guild.
+     * <br>
+     * If the member was loaded through a presence update (lazy loading) this will
+     * be identical
+     * to the creation time of the guild. You can use {@link #hasTimeJoined()} to
+     * test whether this time
      * can be relied on.
      *
-     * <p>You can use {@link Guild#retrieveMemberById(String) guild.retrieveMemberById(member.getId())}
+     * <p>
+     * You can use {@link Guild#retrieveMemberById(String)
+     * guild.retrieveMemberById(member.getId())}
      * to load the join time.
      *
      * @return The time at which this user has joined the guild.
@@ -120,10 +135,14 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
 
     /**
      * Whether this member has accurate {@link #getTimeJoined()} information.
-     * <br>Discord doesn't always provide this information when we load members so we have to fallback
+     * <br>
+     * Discord doesn't always provide this information when we load members so we
+     * have to fallback
      * to the {@link Guild} creation time.
      *
-     * <p>You can use {@link Guild#retrieveMemberById(String) guild.retrieveMemberById(member.getId())}
+     * <p>
+     * You can use {@link Guild#retrieveMemberById(String)
+     * guild.retrieveMemberById(member.getId())}
      * to load the join time.
      *
      * @return True, if {@link #getTimeJoined()} is accurate
@@ -132,7 +151,8 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
 
     /**
      * The time when this member boosted the guild.
-     * <br>Null indicates this member is not currently boosting the guild.
+     * <br>
+     * Null indicates this member is not currently boosting the guild.
      *
      * @return The boosting time, or null if the member is not boosting
      */
@@ -148,17 +168,22 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
 
     /**
      * The time this Member will be released from time out.
-     * <br>If this Member is not in time out, this returns {@code null}.
-     * This may also return dates in the past, in which case the time out has expired.
+     * <br>
+     * If this Member is not in time out, this returns {@code null}.
+     * This may also return dates in the past, in which case the time out has
+     * expired.
      *
-     * @return The time this Member will be released from time out or {@code null} if not in time out
+     * @return The time this Member will be released from time out or {@code null}
+     *         if not in time out
      */
     @Nullable
     OffsetDateTime getTimeOutEnd();
 
     /**
      * Whether this Member is in time out.
-     * <br>While a Member is in time out, all permissions except {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} and
+     * <br>
+     * While a Member is in time out, all permissions except
+     * {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} and
      * {@link Permission#MESSAGE_HISTORY MESSAGE_HISTORY} are removed from them.
      *
      * @return True, if this Member is in time out
@@ -168,30 +193,47 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     }
 
     /**
-     * The {@link net.dv8tion.jda.api.entities.GuildVoiceState VoiceState} of this Member.
-     * <br><b>This will be null when the {@link net.dv8tion.jda.api.utils.cache.CacheFlag#VOICE_STATE} is disabled manually</b>
+     * The {@link GuildVoiceState VoiceState} of this
+     * Member.
+     * <br>
+     * <b>This will be null when the
+     * {@link CacheFlag#VOICE_STATE} is disabled
+     * manually</b>
      *
-     * <p>This can be used to get the Member's VoiceChannel using {@link GuildVoiceState#getChannel()}.
+     * <p>
+     * This can be used to get the Member's VoiceChannel using
+     * {@link GuildVoiceState#getChannel()}.
      *
-     * <p>Voice states are only cached while the member is connected to a channel.
-     * When the member is disconnected, this either returns null or an empty voice state.
+     * <p>
+     * Voice states are only cached while the member is connected to a channel.
+     * When the member is disconnected, this either returns null or an empty voice
+     * state.
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
-     * @return {@link net.dv8tion.jda.api.entities.GuildVoiceState GuildVoiceState}
+     * @return {@link GuildVoiceState}
      */
     @Nullable
     GuildVoiceState getVoiceState();
 
     /**
      * The activities of the user.
-     * <br>If the user does not currently have any activity, this returns an empty list.
+     * <br>
+     * If the user does not currently have any activity, this returns an empty list.
      *
-     * <p>This requires {@link net.dv8tion.jda.api.utils.cache.CacheFlag#ACTIVITY CacheFlag.ACTIVITY} to be enabled!
+     * <p>
+     * This requires {@link CacheFlag#ACTIVITY
+     * CacheFlag.ACTIVITY} to be enabled!
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
      * @return Immutable list of {@link Activity Activities} for the user
      */
@@ -200,36 +242,58 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     List<Activity> getActivities();
 
     /**
-     * Returns the {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} of the User.
-     * <br>If the {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} is unrecognized, will return {@link net.dv8tion.jda.api.OnlineStatus#UNKNOWN UNKNOWN}.
+     * Returns the {@link OnlineStatus} of the
+     * User.
+     * <br>
+     * If the {@link OnlineStatus} is unrecognized,
+     * will return {@link OnlineStatus#UNKNOWN UNKNOWN}.
      *
-     * <p>This will always return {@link OnlineStatus#OFFLINE} if {@link net.dv8tion.jda.api.utils.cache.CacheFlag#ONLINE_STATUS CacheFlag.ONLINE_STATUS} is disabled.
+     * <p>
+     * This will always return {@link OnlineStatus#OFFLINE} if
+     * {@link CacheFlag#ONLINE_STATUS
+     * CacheFlag.ONLINE_STATUS} is disabled.
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
-     * @return The current {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} of the {@link net.dv8tion.jda.api.entities.User User}.
+     * @return The current {@link OnlineStatus} of
+     *         the {@link User}.
      */
     @Nonnull
     OnlineStatus getOnlineStatus();
 
     /**
-     * The platform dependent {@link net.dv8tion.jda.api.OnlineStatus} of this member.
-     * <br>Since a user can be connected from multiple different devices such as web and mobile,
-     * discord specifies a status for each {@link net.dv8tion.jda.api.entities.ClientType}.
+     * The platform dependent {@link OnlineStatus} of this
+     * member.
+     * <br>
+     * Since a user can be connected from multiple different devices such as web and
+     * mobile,
+     * discord specifies a status for each
+     * {@link ClientType}.
      *
-     * <p>If a user is not online on the specified type,
-     * {@link net.dv8tion.jda.api.OnlineStatus#OFFLINE OFFLINE} is returned.
+     * <p>
+     * If a user is not online on the specified type,
+     * {@link OnlineStatus#OFFLINE OFFLINE} is returned.
      *
-     * <p>This requires {@link net.dv8tion.jda.api.utils.cache.CacheFlag#CLIENT_STATUS CacheFlag.CLIENT_STATUS} to be enabled!
+     * <p>
+     * This requires {@link CacheFlag#CLIENT_STATUS
+     * CacheFlag.CLIENT_STATUS} to be enabled!
      *
-     * @param  type
-     *         The type of client
+     * @param type
+     *             The type of client
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If the provided type is null
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws IllegalArgumentException
+     *                                                                If the
+     *                                                                provided type
+     *                                                                is null
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
      * @return The status for that specific client or OFFLINE
      */
@@ -237,21 +301,36 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     OnlineStatus getOnlineStatus(@Nonnull ClientType type);
 
     /**
-     * A Set of all active {@link net.dv8tion.jda.api.entities.ClientType ClientTypes} of this Member.
-     * Every {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} other than {@code OFFLINE} and {@code UNKNOWN}
+     * A Set of all active {@link ClientType
+     * ClientTypes} of this Member.
+     * Every {@link OnlineStatus} other than
+     * {@code OFFLINE} and {@code UNKNOWN}
      * is interpreted as active.
-     * Since {@code INVISIBLE} is only possible for the SelfUser, other Members will never have ClientTypes show as
-     * active when actually being {@code INVISIBLE}, since they will show as {@code OFFLINE}.
-     * <br>If the Member is currently not active with any Client, this returns an empty Set.
-     * <br>When {@link net.dv8tion.jda.api.utils.cache.CacheFlag#CLIENT_STATUS CacheFlag.CLIENT_STATUS} is disabled,
+     * Since {@code INVISIBLE} is only possible for the SelfUser, other Members will
+     * never have ClientTypes show as
+     * active when actually being {@code INVISIBLE}, since they will show as
+     * {@code OFFLINE}.
+     * <br>
+     * If the Member is currently not active with any Client, this returns an empty
+     * Set.
+     * <br>
+     * When {@link CacheFlag#CLIENT_STATUS
+     * CacheFlag.CLIENT_STATUS} is disabled,
      * active clients will not be tracked and this will always return an empty Set.
-     * <br>Since a user can be connected from multiple different devices such as web and mobile,
-     * discord specifies a status for each {@link net.dv8tion.jda.api.entities.ClientType}.
+     * <br>
+     * Since a user can be connected from multiple different devices such as web and
+     * mobile,
+     * discord specifies a status for each
+     * {@link ClientType}.
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
-     * @return EnumSet of all active {@link net.dv8tion.jda.api.entities.ClientType ClientTypes}
+     * @return EnumSet of all active {@link ClientType
+     *         ClientTypes}
      */
     @Nonnull
     EnumSet<ClientType> getActiveClients();
@@ -259,8 +338,10 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     /**
      * Returns the current nickname of this Member for the parent Guild.
      *
-     * <p>This can be changed using
-     * {@link net.dv8tion.jda.api.entities.Guild#modifyNickname(Member, String) modifyNickname(Member, String)}.
+     * <p>
+     * This can be changed using
+     * {@link Guild#modifyNickname(Member, String)
+     * modifyNickname(Member, String)}.
      *
      * @return The nickname or null, if no nickname is set.
      */
@@ -270,7 +351,9 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     /**
      * Retrieves the Name displayed in the official Discord Client.
      *
-     * @return The guild nickname of this Member or the {@link User#getEffectiveName() effective user name} if no guild nickname is present.
+     * @return The guild nickname of this Member or the
+     *         {@link User#getEffectiveName() effective user name} if no guild
+     *         nickname is present.
      */
     @Nonnull
     String getEffectiveName();
@@ -279,7 +362,8 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * The Discord Id for this member's per guild avatar image.
      * If the member has not set a per guild avatar, this will return null.
      *
-     * @return Possibly-null String containing the {@link net.dv8tion.jda.api.entities.Member} per guild avatar id.
+     * @return Possibly-null String containing the
+     *         {@link Member} per guild avatar id.
      */
     @Nullable
     String getAvatarId();
@@ -288,7 +372,8 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * The URL for the member's per guild avatar image.
      * If the member has not set a per guild avatar, this will return null.
      *
-     * @return Possibly-null String containing the {@link net.dv8tion.jda.api.entities.Member} per guild avatar url.
+     * @return Possibly-null String containing the
+     *         {@link Member} per guild avatar url.
      */
     @Nullable
     default String getAvatarUrl() {
@@ -302,15 +387,16 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * The URL for the member's per guild avatar image.
      * If the member has not set a per guild avatar, this will return null.
      *
-     * @param  format
-     *         The format in which the image should be
+     * @param format
+     *               The format in which the image should be
      *
      * @throws IllegalArgumentException
-     *         If the format is {@code null}
+     *                                  If the format is {@code null}
      *
-     * @return Possibly-null String containing the {@link net.dv8tion.jda.api.entities.Member} per guild avatar url.
+     * @return Possibly-null String containing the
+     *         {@link Member} per guild avatar url.
      *
-     * @see    DiscordAssets#memberAvatar(ImageFormat, String, String, String)
+     * @see DiscordAssets#memberAvatar(ImageFormat, String, String, String)
      */
     @Nullable
     default String getAvatarUrl(@Nonnull ImageFormat format) {
@@ -323,7 +409,7 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      *
      * @return Possibly-null {@link ImageProxy} of this member's avatar
      *
-     * @see    #getAvatarUrl()
+     * @see #getAvatarUrl()
      */
     @Nullable
     default ImageProxy getAvatar() {
@@ -334,16 +420,16 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     /**
      * Returns an {@link ImageProxy} for this member's avatar.
      *
-     * @param  format
-     *         The format in which the image should be
+     * @param format
+     *               The format in which the image should be
      *
      * @throws IllegalArgumentException
-     *         If the format is {@code null}
+     *                                  If the format is {@code null}
      *
      * @return Possibly-null {@link ImageProxy} of this member's avatar
      *
-     * @see    #getAvatarUrl(ImageFormat)
-     * @see    DiscordAssets#memberAvatar(ImageFormat, String, String, String)
+     * @see #getAvatarUrl(ImageFormat)
+     * @see DiscordAssets#memberAvatar(ImageFormat, String, String, String)
      */
     @Nullable
     default ImageProxy getAvatar(@Nonnull ImageFormat format) {
@@ -355,7 +441,8 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * If they do not have a per guild avatar set, this will return the URL of
      * their effective {@link User} avatar.
      *
-     * @return Never-null String containing the {@link net.dv8tion.jda.api.entities.Member} avatar url.
+     * @return Never-null String containing the
+     *         {@link Member} avatar url.
      */
     @Nonnull
     default String getEffectiveAvatarUrl() {
@@ -368,16 +455,18 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * If they do not have a per guild avatar set, this will return the URL of
      * their effective {@link User} avatar.
      *
-     * <p>The return image's format may be forced to {@link ImageFormat#PNG PNG}
+     * <p>
+     * The return image's format may be forced to {@link ImageFormat#PNG PNG}
      * if the user does not have an avatar.
      *
-     * @param  preferredFormat
-     *         The format in which the image should be
+     * @param preferredFormat
+     *                        The format in which the image should be
      *
      * @throws IllegalArgumentException
-     *         If the format is {@code null}
+     *                                  If the format is {@code null}
      *
-     * @return Never-null String containing the {@link net.dv8tion.jda.api.entities.Member} avatar url.
+     * @return Never-null String containing the
+     *         {@link Member} avatar url.
      */
     @Nonnull
     default String getEffectiveAvatarUrl(@Nonnull ImageFormat preferredFormat) {
@@ -390,7 +479,7 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      *
      * @return Never-null {@link ImageProxy} of this member's effective avatar image
      *
-     * @see    #getEffectiveAvatarUrl()
+     * @see #getEffectiveAvatarUrl()
      */
     @Nonnull
     default ImageProxy getEffectiveAvatar() {
@@ -401,18 +490,19 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     /**
      * Returns an {@link ImageProxy} for this member's effective avatar image.
      *
-     * <p>The return image's format may be forced to {@link ImageFormat#PNG PNG}
+     * <p>
+     * The return image's format may be forced to {@link ImageFormat#PNG PNG}
      * if the user does not have an avatar.
      *
-     * @param  preferredFormat
-     *         The format in which the image should be
+     * @param preferredFormat
+     *                        The format in which the image should be
      *
      * @throws IllegalArgumentException
-     *         If the format is {@code null}
+     *                                  If the format is {@code null}
      *
      * @return Never-null {@link ImageProxy} of this member's effective avatar image
      *
-     * @see    #getEffectiveAvatarUrl(ImageFormat)
+     * @see #getEffectiveAvatarUrl(ImageFormat)
      */
     @Nonnull
     default ImageProxy getEffectiveAvatar(@Nonnull ImageFormat preferredFormat) {
@@ -422,23 +512,38 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
 
     /**
      * The roles applied to this Member.
-     * <br>The roles are ordered based on their position. The highest role being at index 0
-     * and the lowest at the last index. Prefer {@link #getUnsortedRoles()} if the order is not relevant.
+     * <br>
+     * The roles are ordered based on their position. The highest role being at
+     * index 0
+     * and the lowest at the last index. Prefer {@link #getUnsortedRoles()} if the
+     * order is not relevant.
      *
-     * <p>A Member's roles can be changed using the {@link Guild#addRoleToMember(UserSnowflake, Role)}, {@link Guild#removeRoleFromMember(UserSnowflake, Role)}, and {@link Guild#modifyMemberRoles(Member, Collection, Collection)}
-     * methods in {@link net.dv8tion.jda.api.entities.Guild Guild}.
+     * <p>
+     * A Member's roles can be changed using the
+     * {@link Guild#addRoleToMember(UserSnowflake, Role)},
+     * {@link Guild#removeRoleFromMember(UserSnowflake, Role)}, and
+     * {@link Guild#modifyMemberRoles(Member, Collection, Collection)}
+     * methods in {@link Guild}.
      *
-     * <p><b>The Public Role ({@code @everyone}) is not included in the returned immutable list of roles
-     * <br>It is implicit that every member holds the Public Role in a Guild thus it is not listed here!</b>
+     * <p>
+     * <b>The Public Role ({@code @everyone}) is not included in the returned
+     * immutable list of roles
+     * <br>
+     * It is implicit that every member holds the Public Role in a Guild thus it is
+     * not listed here!</b>
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
-     * @return An immutable List of {@link net.dv8tion.jda.api.entities.Role Roles} for this Member.
+     * @return An immutable List of {@link Role Roles}
+     *         for this Member.
      *
-     * @see    Guild#addRoleToMember(UserSnowflake, Role)
-     * @see    Guild#removeRoleFromMember(UserSnowflake, Role)
-     * @see    Guild#modifyMemberRoles(Member, Collection, Collection)
+     * @see Guild#addRoleToMember(UserSnowflake, Role)
+     * @see Guild#removeRoleFromMember(UserSnowflake, Role)
+     * @see Guild#modifyMemberRoles(Member, Collection, Collection)
      */
     @Nonnull
     @Unmodifiable
@@ -446,33 +551,198 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
 
     /**
      * The roles applied to this Member.
-     * <br>This is an unmodifiable reference to the role set of this member.
-     * This set has no defined order, use {@link #getRoles()} to get an ordered list.
+     * <br>
+     * This is an unmodifiable reference to the role set of this member.
+     * This set has no defined order, use {@link #getRoles()} to get an ordered
+     * list.
      *
-     * <p>A Member's roles can be changed using the {@link Guild#addRoleToMember(UserSnowflake, Role)}, {@link Guild#removeRoleFromMember(UserSnowflake, Role)}, and {@link Guild#modifyMemberRoles(Member, Collection, Collection)}
-     * methods in {@link net.dv8tion.jda.api.entities.Guild Guild}.
+     * <p>
+     * A Member's roles can be changed using the
+     * {@link Guild#addRoleToMember(UserSnowflake, Role)},
+     * {@link Guild#removeRoleFromMember(UserSnowflake, Role)}, and
+     * {@link Guild#modifyMemberRoles(Member, Collection, Collection)}
+     * methods in {@link Guild}.
      *
-     * <p><b>The Public Role ({@code @everyone}) is not included in the returned immutable set of roles
-     * <br>It is implicit that every member holds the Public Role in a Guild thus it is not listed here!</b>
+     * <p>
+     * <b>The Public Role ({@code @everyone}) is not included in the returned
+     * immutable set of roles
+     * <br>
+     * It is implicit that every member holds the Public Role in a Guild thus it is
+     * not listed here!</b>
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
-     * @return An unmodifiable reference to the Set of {@link net.dv8tion.jda.api.entities.Role Roles} for this Member.
+     * @return An unmodifiable reference to the Set of
+     *         {@link Role Roles} for this Member.
      *
-     * @see    #getRoles()
-     * @see    Guild#addRoleToMember(UserSnowflake, Role)
-     * @see    Guild#removeRoleFromMember(UserSnowflake, Role)
-     * @see    Guild#modifyMemberRoles(Member, Collection, Collection)
+     * @see #getRoles()
+     * @see Guild#addRoleToMember(UserSnowflake, Role)
+     * @see Guild#removeRoleFromMember(UserSnowflake, Role)
+     * @see Guild#modifyMemberRoles(Member, Collection, Collection)
      */
     @Nonnull
     @Unmodifiable
-    Set<Role> getUnsortedRoles();
+    Collection<Role> getUnsortedRoles();
+
+    /**
+     * Checks if this member has the specified {@link Role}.
+     *
+     * @param role
+     *             The role to check
+     *
+     * @throws IllegalArgumentException
+     *                                  If the provided role is null
+     *
+     * @return True, if this member has the specified role
+     */
+    boolean hasRole(@Nonnull Role role);
+
+    /**
+     * Checks if this member has the role with the specified ID.
+     *
+     * @param roleId
+     *               The ID of the role to check
+     *
+     * @return True, if this member has the role with the specified ID
+     */
+    boolean hasRole(long roleId);
+
+    /**
+     * Checks if this member has the role with the specified ID.
+     *
+     * @param roleId
+     *               The ID of the role to check
+     *
+     * @throws IllegalArgumentException
+     *                                  If the provided roleId is not a valid
+     *                                  snowflake
+     *
+     * @return True, if this member has the role with the specified ID
+     */
+    boolean hasRole(@Nonnull String roleId);
+
+    /**
+     * Retrieves the {@link Role} with the specified ID assigned to this member, or
+     * {@code null} if not assigned.
+     *
+     * @param roleId
+     *               The ID of the role to retrieve
+     *
+     * @return The {@link Role} with the specified ID, or {@code null} if the member
+     *         does not have this role
+     */
+    @Nullable
+    Role getRole(long roleId);
+
+    /**
+     * Retrieves the {@link Role} with the specified ID assigned to this member, or
+     * {@code null} if not assigned.
+     *
+     * @param roleId
+     *               The ID of the role to retrieve
+     *
+     * @throws IllegalArgumentException
+     *                                  If the provided roleId is not a valid
+     *                                  snowflake
+     *
+     * @return The {@link Role} with the specified ID, or {@code null} if the member
+     *         does not have this role
+     */
+    @Nullable
+    Role getRole(@Nonnull String roleId);
+
+    /**
+     * Checks if this member has any of the specified roles.
+     *
+     * @param roles
+     *              The roles to check
+     *
+     * @throws IllegalArgumentException
+     *                                  If the provided roles array or any of its
+     *                                  elements is null
+     *
+     * @return True, if this member has at least one of the specified roles
+     */
+    boolean hasAnyRole(@Nonnull Role... roles);
+
+    /**
+     * Checks if this member has any of the roles with the specified IDs.
+     *
+     * @param roleIds
+     *                The role IDs to check
+     *
+     * @throws IllegalArgumentException
+     *                                  If the provided roleIds array is null
+     *
+     * @return True, if this member has at least one of the specified roles
+     */
+    boolean hasAnyRole(@Nonnull long... roleIds);
+
+    /**
+     * Checks if this member has any of the specified roles.
+     *
+     * @param roles
+     *              The collection of roles to check
+     *
+     * @throws IllegalArgumentException
+     *                                  If the provided collection or any of its
+     *                                  elements is null
+     *
+     * @return True, if this member has at least one of the specified roles
+     */
+    boolean hasAnyRole(@Nonnull Collection<Role> roles);
+
+    /**
+     * Checks if this member has all of the specified roles.
+     *
+     * @param roles
+     *              The roles to check
+     *
+     * @throws IllegalArgumentException
+     *                                  If the provided roles array or any of its
+     *                                  elements is null
+     *
+     * @return True, if this member has all of the specified roles
+     */
+    boolean hasAllRoles(@Nonnull Role... roles);
+
+    /**
+     * Checks if this member has all of the roles with the specified IDs.
+     *
+     * @param roleIds
+     *                The role IDs to check
+     *
+     * @throws IllegalArgumentException
+     *                                  If the provided roleIds array is null
+     *
+     * @return True, if this member has all of the specified roles
+     */
+    boolean hasAllRoles(@Nonnull long... roleIds);
+
+    /**
+     * Checks if this member has all of the specified roles.
+     *
+     * @param roles
+     *              The collection of roles to check
+     *
+     * @throws IllegalArgumentException
+     *                                  If the provided collection or any of its
+     *                                  elements is null
+     *
+     * @return True, if this member has all of the specified roles
+     */
+    boolean hasAllRoles(@Nonnull Collection<Role> roles);
 
     /**
      * The {@link RoleColors} of this Member's name in a Guild.
      *
-     * <p>This is determined by the colors of the highest role assigned to them that does not have the default colors.
+     * <p>
+     * This is determined by the colors of the highest role assigned to them that
+     * does not have the default colors.
      *
      * @return The display colors for this Member.
      */
@@ -480,16 +750,19 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     RoleColors getColors();
 
     /**
-     * The {@link java.awt.Color Color} of this Member's name in a Guild.
+     * The {@link Color} of this Member's name in a Guild.
      *
-     * <p>This is determined by the color of the highest role assigned to them that does not have the default color.
-     * <br>If all roles have default color, this returns null.
+     * <p>
+     * This is determined by the color of the highest role assigned to them that
+     * does not have the default color.
+     * <br>
+     * If all roles have default color, this returns null.
      *
      * @return The display Color for this Member.
      *
      * @deprecated Replaced by {@code getColors().getPrimary()}
      *
-     * @see    #getColorRaw()
+     * @see #getColorRaw()
      */
     @Nullable
     @Deprecated
@@ -500,8 +773,11 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
 
     /**
      * The raw RGB value for the color of this member.
-     * <br>Defaulting to {@link net.dv8tion.jda.api.entities.Role#DEFAULT_COLOR_RAW Role.DEFAULT_COLOR_RAW}
-     * if this member uses the default color (special property, it changes depending on theme used in the client)
+     * <br>
+     * Defaulting to {@link Role#DEFAULT_COLOR_RAW
+     * Role.DEFAULT_COLOR_RAW}
+     * if this member uses the default color (special property, it changes depending
+     * on theme used in the client)
      *
      * @return The raw RGB value or the role default
      *
@@ -522,7 +798,9 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
 
     /**
      * The {@link MemberFlag flags} for this member as an {@link EnumSet}.
-     * <br>Modifying this set will not update the member, it is a copy of existing flags.
+     * <br>
+     * Modifying this set will not update the member, it is a copy of existing
+     * flags.
      *
      * @return The flags
      */
@@ -535,35 +813,54 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * Whether this Member can interact with the provided Member
      * (kick/ban/etc.)
      *
-     * @param  member
-     *         The target Member to check
+     * @param member
+     *               The target Member to check
      *
      * @throws NullPointerException
-     *         if the specified Member is null
+     *                                                                if the
+     *                                                                specified
+     *                                                                Member is null
      * @throws IllegalArgumentException
-     *         if the specified Member is not from the same guild
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     *                                                                if the
+     *                                                                specified
+     *                                                                Member is not
+     *                                                                from the same
+     *                                                                guild
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
      * @return True, if this Member is able to interact with the specified Member
      */
     boolean canInteract(@Nonnull Member member);
 
     /**
-     * Whether this Member can interact with the provided {@link net.dv8tion.jda.api.entities.Role Role}
+     * Whether this Member can interact with the provided
+     * {@link Role}
      * (kick/ban/move/modify/delete/etc.)
      *
-     * <p>If this returns true this member can assign the role to other members.
+     * <p>
+     * If this returns true this member can assign the role to other members.
      *
-     * @param  role
-     *         The target Role to check
+     * @param role
+     *             The target Role to check
      *
      * @throws NullPointerException
-     *         if the specified Role is null
+     *                                                                if the
+     *                                                                specified Role
+     *                                                                is null
      * @throws IllegalArgumentException
-     *         if the specified Role is not from the same guild
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     *                                                                if the
+     *                                                                specified Role
+     *                                                                is not from
+     *                                                                the same guild
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
      * @return True, if this member is able to interact with the specified Role
      */
@@ -573,38 +870,56 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * Whether this Member can interact with the provided {@link RichCustomEmoji}
      * (use in a message)
      *
-     * @param  emoji
-     *         The target emoji to check
+     * @param emoji
+     *              The target emoji to check
      *
      * @throws NullPointerException
-     *         if the specified emoji is null
+     *                                                                if the
+     *                                                                specified
+     *                                                                emoji is null
      * @throws IllegalArgumentException
-     *         if the specified emoji is not from the same guild
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     *                                                                if the
+     *                                                                specified
+     *                                                                emoji is not
+     *                                                                from the same
+     *                                                                guild
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
      * @return True, if this Member is able to interact with the specified emoji
      */
     boolean canInteract(@Nonnull RichCustomEmoji emoji);
 
     /**
-     * Checks whether this member is the owner of its related {@link net.dv8tion.jda.api.entities.Guild Guild}.
+     * Checks whether this member is the owner of its related
+     * {@link Guild}.
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
      * @return True, if this member is the owner of the attached Guild.
      */
     boolean isOwner();
 
     /**
-     * Checks whether this member has passed the {@link net.dv8tion.jda.api.entities.Guild Guild's}
+     * Checks whether this member has passed the
+     * {@link Guild Guild's}
      * Membership Screening requirements.
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
-     * @return True, if this member hasn't passed the guild's Membership Screening requirements
+     * @return True, if this member hasn't passed the guild's Membership Screening
+     *         requirements
      *
      * @incubating Discord is still trying to figure this out
      */
@@ -612,66 +927,140 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     boolean isPending();
 
     /**
-     * The {@link DefaultGuildChannelUnion default channel} for a {@link net.dv8tion.jda.api.entities.Member Member}.
-     * <br>This is the channel that the Discord client will default to opening when a Guild is opened for the first time
+     * The {@link DefaultGuildChannelUnion default channel} for a
+     * {@link Member}.
+     * <br>
+     * This is the channel that the Discord client will default to opening when a
+     * Guild is opened for the first time
      * after joining the guild.
-     * <br>The default channel is the channel with the highest position in which the member has
-     * {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} permissions. If this requirement doesn't apply for
+     * <br>
+     * The default channel is the channel with the highest position in which the
+     * member has
+     * {@link Permission#VIEW_CHANNEL Permission.VIEW_CHANNEL} permissions. If this
+     * requirement doesn't apply for
      * any channel in the guild, this method returns {@code null}.
      *
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws DetachedEntityException
+     *                                                                If this entity
+     *                                                                is
+     *                                                                {@link #isDetached()
+     *                                                                detached}
      *
-     * @return The {@link DefaultGuildChannelUnion channel} representing the default channel for this member
+     * @return The {@link DefaultGuildChannelUnion channel} representing the default
+     *         channel for this member
      *         or null if no such channel exists.
      */
     @Nullable
     DefaultGuildChannelUnion getDefaultChannel();
 
     /**
-     * Bans this Member and deletes messages sent by the user based on the amount of delDays.
-     * <br>If you wish to ban a user without deleting any messages, provide {@code deletionTimeframe} with a value of 0.
+     * Bans this Member and deletes messages sent by the user based on the amount of
+     * delDays.
+     * <br>
+     * If you wish to ban a user without deleting any messages, provide
+     * {@code deletionTimeframe} with a value of 0.
      * To set a ban reason, use {@link AuditableRestAction#reason(String)}.
      *
-     * <p>You can unban a user with {@link net.dv8tion.jda.api.entities.Guild#unban(UserSnowflake) Guild.unban(UserSnowflake)}.
+     * <p>
+     * You can unban a user with
+     * {@link Guild#unban(UserSnowflake)
+     * Guild.unban(UserSnowflake)}.
      *
-     * <p><b>Note:</b> {@link net.dv8tion.jda.api.entities.Guild#getMembers()} will still contain the
-     * {@link net.dv8tion.jda.api.entities.Member Member} until Discord sends the
-     * {@link net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent GuildMemberRemoveEvent}.
+     * <p>
+     * <b>Note:</b> {@link Guild#getMembers()} will
+     * still contain the
+     * {@link Member} until Discord sends the
+     * {@link GuildMemberRemoveEvent
+     * GuildMemberRemoveEvent}.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>
+     * Possible {@link ErrorResponse ErrorResponses}
+     * caused by
+     * the returned {@link RestAction}
+     * include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The target Member cannot be banned due to a permission discrepancy</li>
+     * <li>{@link ErrorResponse#MISSING_PERMISSIONS
+     * MISSING_PERMISSIONS}
+     * <br>
+     * The target Member cannot be banned due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_USER UNKNOWN_USER}
-     *     <br>The user no longer exists</li>
+     * <li>{@link ErrorResponse#UNKNOWN_USER
+     * UNKNOWN_USER}
+     * <br>
+     * The user no longer exists</li>
      * </ul>
      *
-     * @param  deletionTimeframe
-     *         The timeframe for the history of messages that will be deleted. (seconds precision)
-     * @param  unit
-     *         Timeframe unit as a {@link TimeUnit} (for example {@code member.ban(7, TimeUnit.DAYS)}).
+     * @param deletionTimeframe
+     *                          The timeframe for the history of messages that will
+     *                          be deleted. (seconds precision)
+     * @param unit
+     *                          Timeframe unit as a {@link TimeUnit} (for example
+     *                          {@code member.ban(7, TimeUnit.DAYS)}).
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link Permission#BAN_MEMBERS} permission.
-     * @throws net.dv8tion.jda.api.exceptions.HierarchyException
-     *         If the logged in account cannot ban the other user due to permission hierarchy position.
-     *         <br>See {@link Member#canInteract(Member)}
-     * @throws java.lang.IllegalArgumentException
-     *         <ul>
-     *             <li>If the provided deletionTimeframe is negative.</li>
-     *             <li>If the provided deletionTimeframe is longer than 7 days.</li>
-     *             <li>If the provided time unit is {@code null}</li>
-     *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws InsufficientPermissionException
+     *                                                                        If the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        does
+     *                                                                        not
+     *                                                                        have
+     *                                                                        the
+     *                                                                        {@link Permission#BAN_MEMBERS}
+     *                                                                        permission.
+     * @throws HierarchyException
+     *                                                                        If the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        cannot
+     *                                                                        ban
+     *                                                                        the
+     *                                                                        other
+     *                                                                        user
+     *                                                                        due to
+     *                                                                        permission
+     *                                                                        hierarchy
+     *                                                                        position.
+     *                                                                        <br>
+     *                                                                        See
+     *                                                                        {@link Member#canInteract(Member)}
+     * @throws IllegalArgumentException
+     *                                                                        <ul>
+     *                                                                        <li>If
+     *                                                                        the
+     *                                                                        provided
+     *                                                                        deletionTimeframe
+     *                                                                        is
+     *                                                                        negative.</li>
+     *                                                                        <li>If
+     *                                                                        the
+     *                                                                        provided
+     *                                                                        deletionTimeframe
+     *                                                                        is
+     *                                                                        longer
+     *                                                                        than 7
+     *                                                                        days.</li>
+     *                                                                        <li>If
+     *                                                                        the
+     *                                                                        provided
+     *                                                                        time
+     *                                                                        unit
+     *                                                                        is
+     *                                                                        {@code null}</li>
+     *                                                                        </ul>
+     * @throws DetachedEntityException
+     *                                                                        If
+     *                                                                        this
+     *                                                                        entity
+     *                                                                        is
+     *                                                                        {@link #isDetached()
+     *                                                                        detached}
      *
      * @return {@link AuditableRestAction}
      *
-     * @see    Guild#ban(UserSnowflake, int, TimeUnit)
-     * @see    AuditableRestAction#reason(String)
+     * @see Guild#ban(UserSnowflake, int, TimeUnit)
+     * @see AuditableRestAction#reason(String)
      */
     @Nonnull
     @CheckReturnValue
@@ -680,30 +1069,71 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     }
 
     /**
-     * Kicks this Member from the {@link net.dv8tion.jda.api.entities.Guild Guild}.
+     * Kicks this Member from the {@link Guild}.
      *
-     * <p><b>Note:</b> {@link net.dv8tion.jda.api.entities.Guild#getMembers()} will still contain the {@link net.dv8tion.jda.api.entities.User User}
-     * until Discord sends the {@link net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent GuildMemberRemoveEvent}.
+     * <p>
+     * <b>Note:</b> {@link Guild#getMembers()} will
+     * still contain the {@link User}
+     * until Discord sends the
+     * {@link GuildMemberRemoveEvent
+     * GuildMemberRemoveEvent}.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>
+     * Possible {@link ErrorResponse ErrorResponses}
+     * caused by
+     * the returned {@link RestAction}
+     * include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The target Member cannot be kicked due to a permission discrepancy</li>
+     * <li>{@link ErrorResponse#MISSING_PERMISSIONS
+     * MISSING_PERMISSIONS}
+     * <br>
+     * The target Member cannot be kicked due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MEMBER UNKNOWN_MEMBER}
-     *     <br>The specified Member was removed from the Guild before finishing the task</li>
+     * <li>{@link ErrorResponse#UNKNOWN_MEMBER
+     * UNKNOWN_MEMBER}
+     * <br>
+     * The specified Member was removed from the Guild before finishing the
+     * task</li>
      * </ul>
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link Permission#KICK_MEMBERS} permission.
-     * @throws net.dv8tion.jda.api.exceptions.HierarchyException
-     *         If the logged in account cannot kick the other member due to permission hierarchy position.
-     *         <br>See {@link Member#canInteract(Member)}
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws InsufficientPermissionException
+     *                                                                        If the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        does
+     *                                                                        not
+     *                                                                        have
+     *                                                                        the
+     *                                                                        {@link Permission#KICK_MEMBERS}
+     *                                                                        permission.
+     * @throws HierarchyException
+     *                                                                        If the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        cannot
+     *                                                                        kick
+     *                                                                        the
+     *                                                                        other
+     *                                                                        member
+     *                                                                        due to
+     *                                                                        permission
+     *                                                                        hierarchy
+     *                                                                        position.
+     *                                                                        <br>
+     *                                                                        See
+     *                                                                        {@link Member#canInteract(Member)}
+     * @throws DetachedEntityException
+     *                                                                        If
+     *                                                                        this
+     *                                                                        entity
+     *                                                                        is
+     *                                                                        {@link #isDetached()
+     *                                                                        detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction
+     *         AuditableRestAction}
      *         Kicks the provided Member from the current Guild
      */
     @Nonnull
@@ -713,38 +1143,101 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     }
 
     /**
-     * Puts this Member in time out in this {@link net.dv8tion.jda.api.entities.Guild Guild} for a specific amount of time.
-     * <br>While a Member is in time out, all permissions except {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} and
+     * Puts this Member in time out in this
+     * {@link Guild} for a specific amount of
+     * time.
+     * <br>
+     * While a Member is in time out, all permissions except
+     * {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} and
      * {@link Permission#MESSAGE_HISTORY MESSAGE_HISTORY} are removed from them.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>
+     * Possible {@link ErrorResponse ErrorResponses}
+     * caused by
+     * the returned {@link RestAction}
+     * include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The target Member cannot be put into time out due to a permission discrepancy</li>
+     * <li>{@link ErrorResponse#MISSING_PERMISSIONS
+     * MISSING_PERMISSIONS}
+     * <br>
+     * The target Member cannot be put into time out due to a permission
+     * discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MEMBER UNKNOWN_MEMBER}
-     *     <br>The specified Member was removed from the Guild before finishing the task</li>
+     * <li>{@link ErrorResponse#UNKNOWN_MEMBER
+     * UNKNOWN_MEMBER}
+     * <br>
+     * The specified Member was removed from the Guild before finishing the
+     * task</li>
      * </ul>
      *
-     * @param  amount
-     *         The amount of the provided {@link TimeUnit unit} to put this Member in time out for
-     * @param  unit
-     *         The {@link TimeUnit Unit} type of {@code amount}
+     * @param amount
+     *               The amount of the provided {@link TimeUnit unit} to put this
+     *               Member in time out for
+     * @param unit
+     *               The {@link TimeUnit Unit} type of {@code amount}
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link Permission#MODERATE_MEMBERS} permission.
+     * @throws InsufficientPermissionException
+     *                                                                        If the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        does
+     *                                                                        not
+     *                                                                        have
+     *                                                                        the
+     *                                                                        {@link Permission#MODERATE_MEMBERS}
+     *                                                                        permission.
      * @throws IllegalArgumentException
-     *         If any of the following checks are true
-     *         <ul>
-     *             <li>The provided {@code amount} is lower than or equal to {@code 0}</li>
-     *             <li>The provided {@code unit} is null</li>
-     *             <li>The provided {@code amount} with the {@code unit} results in a date that is more than {@value MAX_TIME_OUT_LENGTH} days in the future</li>
-     *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     *                                                                        If any
+     *                                                                        of the
+     *                                                                        following
+     *                                                                        checks
+     *                                                                        are
+     *                                                                        true
+     *                                                                        <ul>
+     *                                                                        <li>The
+     *                                                                        provided
+     *                                                                        {@code amount}
+     *                                                                        is
+     *                                                                        lower
+     *                                                                        than
+     *                                                                        or
+     *                                                                        equal
+     *                                                                        to
+     *                                                                        {@code 0}</li>
+     *                                                                        <li>The
+     *                                                                        provided
+     *                                                                        {@code unit}
+     *                                                                        is
+     *                                                                        null</li>
+     *                                                                        <li>The
+     *                                                                        provided
+     *                                                                        {@code amount}
+     *                                                                        with
+     *                                                                        the
+     *                                                                        {@code unit}
+     *                                                                        results
+     *                                                                        in a
+     *                                                                        date
+     *                                                                        that
+     *                                                                        is
+     *                                                                        more
+     *                                                                        than
+     *                                                                        {@value MAX_TIME_OUT_LENGTH}
+     *                                                                        days
+     *                                                                        in the
+     *                                                                        future</li>
+     *                                                                        </ul>
+     * @throws DetachedEntityException
+     *                                                                        If
+     *                                                                        this
+     *                                                                        entity
+     *                                                                        is
+     *                                                                        {@link #isDetached()
+     *                                                                        detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction
+     *         AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -753,36 +1246,90 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     }
 
     /**
-     * Puts this Member in time out in this {@link net.dv8tion.jda.api.entities.Guild Guild} for a specific amount of time.
-     * <br>While a Member is in time out, all permissions except {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} and
+     * Puts this Member in time out in this
+     * {@link Guild} for a specific amount of
+     * time.
+     * <br>
+     * While a Member is in time out, all permissions except
+     * {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} and
      * {@link Permission#MESSAGE_HISTORY MESSAGE_HISTORY} are removed from them.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>
+     * Possible {@link ErrorResponse ErrorResponses}
+     * caused by
+     * the returned {@link RestAction}
+     * include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The target Member cannot be put into time out due to a permission discrepancy</li>
+     * <li>{@link ErrorResponse#MISSING_PERMISSIONS
+     * MISSING_PERMISSIONS}
+     * <br>
+     * The target Member cannot be put into time out due to a permission
+     * discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MEMBER UNKNOWN_MEMBER}
-     *     <br>The specified Member was removed from the Guild before finishing the task</li>
+     * <li>{@link ErrorResponse#UNKNOWN_MEMBER
+     * UNKNOWN_MEMBER}
+     * <br>
+     * The specified Member was removed from the Guild before finishing the
+     * task</li>
      * </ul>
      *
-     * @param  duration
-     *         The duration to put this Member in time out for
+     * @param duration
+     *                 The duration to put this Member in time out for
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link Permission#MODERATE_MEMBERS} permission.
+     * @throws InsufficientPermissionException
+     *                                                                        If the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        does
+     *                                                                        not
+     *                                                                        have
+     *                                                                        the
+     *                                                                        {@link Permission#MODERATE_MEMBERS}
+     *                                                                        permission.
      * @throws IllegalArgumentException
-     *         If any of the following checks are true
-     *         <ul>
-     *             <li>The provided {@code duration} is null</li>
-     *             <li>The provided {@code duration} is not positive</li>
-     *             <li>The provided {@code duration} results in a date that is more than {@value MAX_TIME_OUT_LENGTH} days in the future</li>
-     *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     *                                                                        If any
+     *                                                                        of the
+     *                                                                        following
+     *                                                                        checks
+     *                                                                        are
+     *                                                                        true
+     *                                                                        <ul>
+     *                                                                        <li>The
+     *                                                                        provided
+     *                                                                        {@code duration}
+     *                                                                        is
+     *                                                                        null</li>
+     *                                                                        <li>The
+     *                                                                        provided
+     *                                                                        {@code duration}
+     *                                                                        is not
+     *                                                                        positive</li>
+     *                                                                        <li>The
+     *                                                                        provided
+     *                                                                        {@code duration}
+     *                                                                        results
+     *                                                                        in a
+     *                                                                        date
+     *                                                                        that
+     *                                                                        is
+     *                                                                        more
+     *                                                                        than
+     *                                                                        {@value MAX_TIME_OUT_LENGTH}
+     *                                                                        days
+     *                                                                        in the
+     *                                                                        future</li>
+     *                                                                        </ul>
+     * @throws DetachedEntityException
+     *                                                                        If
+     *                                                                        this
+     *                                                                        entity
+     *                                                                        is
+     *                                                                        {@link #isDetached()
+     *                                                                        detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction
+     *         AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -791,36 +1338,86 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     }
 
     /**
-     * Puts this Member in time out in this {@link net.dv8tion.jda.api.entities.Guild Guild} until the specified date.
-     * <br>While a Member is in time out, all permissions except {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} and
+     * Puts this Member in time out in this
+     * {@link Guild} until the specified date.
+     * <br>
+     * While a Member is in time out, all permissions except
+     * {@link Permission#VIEW_CHANNEL VIEW_CHANNEL} and
      * {@link Permission#MESSAGE_HISTORY MESSAGE_HISTORY} are removed from them.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>
+     * Possible {@link ErrorResponse ErrorResponses}
+     * caused by
+     * the returned {@link RestAction}
+     * include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The target Member cannot be put into time out due to a permission discrepancy</li>
+     * <li>{@link ErrorResponse#MISSING_PERMISSIONS
+     * MISSING_PERMISSIONS}
+     * <br>
+     * The target Member cannot be put into time out due to a permission
+     * discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MEMBER UNKNOWN_MEMBER}
-     *     <br>The specified Member was removed from the Guild before finishing the task</li>
+     * <li>{@link ErrorResponse#UNKNOWN_MEMBER
+     * UNKNOWN_MEMBER}
+     * <br>
+     * The specified Member was removed from the Guild before finishing the
+     * task</li>
      * </ul>
      *
-     * @param  temporal
-     *         The time this Member will be released from time out
+     * @param temporal
+     *                 The time this Member will be released from time out
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link Permission#MODERATE_MEMBERS} permission.
+     * @throws InsufficientPermissionException
+     *                                                                        If the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        does
+     *                                                                        not
+     *                                                                        have
+     *                                                                        the
+     *                                                                        {@link Permission#MODERATE_MEMBERS}
+     *                                                                        permission.
      * @throws IllegalArgumentException
-     *         If any of the following checks are true
-     *         <ul>
-     *             <li>The provided {@code temporal} is null</li>
-     *             <li>The provided {@code temporal} is in the past</li>
-     *             <li>The provided {@code temporal} is more than {@value MAX_TIME_OUT_LENGTH} days in the future</li>
-     *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     *                                                                        If any
+     *                                                                        of the
+     *                                                                        following
+     *                                                                        checks
+     *                                                                        are
+     *                                                                        true
+     *                                                                        <ul>
+     *                                                                        <li>The
+     *                                                                        provided
+     *                                                                        {@code temporal}
+     *                                                                        is
+     *                                                                        null</li>
+     *                                                                        <li>The
+     *                                                                        provided
+     *                                                                        {@code temporal}
+     *                                                                        is in
+     *                                                                        the
+     *                                                                        past</li>
+     *                                                                        <li>The
+     *                                                                        provided
+     *                                                                        {@code temporal}
+     *                                                                        is
+     *                                                                        more
+     *                                                                        than
+     *                                                                        {@value MAX_TIME_OUT_LENGTH}
+     *                                                                        days
+     *                                                                        in the
+     *                                                                        future</li>
+     *                                                                        </ul>
+     * @throws DetachedEntityException
+     *                                                                        If
+     *                                                                        this
+     *                                                                        entity
+     *                                                                        is
+     *                                                                        {@link #isDetached()
+     *                                                                        detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction
+     *         AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -829,24 +1426,48 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     }
 
     /**
-     * Removes a time out from this Member in this {@link net.dv8tion.jda.api.entities.Guild Guild}.
+     * Removes a time out from this Member in this
+     * {@link Guild}.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>
+     * Possible {@link ErrorResponse ErrorResponses}
+     * caused by
+     * the returned {@link RestAction}
+     * include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The time out cannot be removed due to a permission discrepancy</li>
+     * <li>{@link ErrorResponse#MISSING_PERMISSIONS
+     * MISSING_PERMISSIONS}
+     * <br>
+     * The time out cannot be removed due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MEMBER UNKNOWN_MEMBER}
-     *     <br>The specified Member was removed from the Guild before finishing the task</li>
+     * <li>{@link ErrorResponse#UNKNOWN_MEMBER
+     * UNKNOWN_MEMBER}
+     * <br>
+     * The specified Member was removed from the Guild before finishing the
+     * task</li>
      * </ul>
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link Permission#MODERATE_MEMBERS} permission.
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws InsufficientPermissionException
+     *                                                                        If the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        does
+     *                                                                        not
+     *                                                                        have
+     *                                                                        the
+     *                                                                        {@link Permission#MODERATE_MEMBERS}
+     *                                                                        permission.
+     * @throws DetachedEntityException
+     *                                                                        If
+     *                                                                        this
+     *                                                                        entity
+     *                                                                        is
+     *                                                                        {@link #isDetached()
+     *                                                                        detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction
+     *         AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -858,33 +1479,71 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * Sets the Guild Muted state state of this Member based on the provided
      * boolean.
      *
-     * <p><b>Note:</b> The Member's {@link net.dv8tion.jda.api.entities.GuildVoiceState#isGuildMuted() GuildVoiceState.isGuildMuted()} value won't change
-     * until JDA receives the {@link net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildMuteEvent GuildVoiceGuildMuteEvent} event related to this change.
+     * <p>
+     * <b>Note:</b> The Member's
+     * {@link GuildVoiceState#isGuildMuted()
+     * GuildVoiceState.isGuildMuted()} value won't change
+     * until JDA receives the
+     * {@link GuildVoiceGuildMuteEvent
+     * GuildVoiceGuildMuteEvent} event related to this change.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>
+     * Possible {@link ErrorResponse ErrorResponses}
+     * caused by
+     * the returned {@link RestAction}
+     * include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The target Member cannot be muted due to a permission discrepancy</li>
+     * <li>{@link ErrorResponse#MISSING_PERMISSIONS
+     * MISSING_PERMISSIONS}
+     * <br>
+     * The target Member cannot be muted due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MEMBER UNKNOWN_MEMBER}
-     *     <br>The specified Member was removed from the Guild before finishing the task</li>
+     * <li>{@link ErrorResponse#UNKNOWN_MEMBER
+     * UNKNOWN_MEMBER}
+     * <br>
+     * The specified Member was removed from the Guild before finishing the
+     * task</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#USER_NOT_CONNECTED USER_NOT_CONNECTED}
-     *     <br>The specified Member is not connected to a voice channel</li>
+     * <li>{@link ErrorResponse#USER_NOT_CONNECTED
+     * USER_NOT_CONNECTED}
+     * <br>
+     * The specified Member is not connected to a voice channel</li>
      * </ul>
      *
-     * @param  mute
-     *         Whether this {@link net.dv8tion.jda.api.entities.Member Member} should be muted or unmuted.
+     * @param mute
+     *             Whether this {@link Member}
+     *             should be muted or unmuted.
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link Permission#VOICE_DEAF_OTHERS} permission.
-     * @throws java.lang.IllegalStateException
-     *         If the member is not currently connected to a voice channel.
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws InsufficientPermissionException
+     *                                                                        If the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        does
+     *                                                                        not
+     *                                                                        have
+     *                                                                        the
+     *                                                                        {@link Permission#VOICE_DEAF_OTHERS}
+     *                                                                        permission.
+     * @throws IllegalStateException
+     *                                                                        If the
+     *                                                                        member
+     *                                                                        is not
+     *                                                                        currently
+     *                                                                        connected
+     *                                                                        to a
+     *                                                                        voice
+     *                                                                        channel.
+     * @throws DetachedEntityException
+     *                                                                        If
+     *                                                                        this
+     *                                                                        entity
+     *                                                                        is
+     *                                                                        {@link #isDetached()
+     *                                                                        detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction
+     *         AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -893,35 +1552,74 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
     }
 
     /**
-     * Sets the Guild Deafened state state of this Member based on the provided boolean.
+     * Sets the Guild Deafened state state of this Member based on the provided
+     * boolean.
      *
-     * <p><b>Note:</b> The Member's {@link net.dv8tion.jda.api.entities.GuildVoiceState#isGuildDeafened() GuildVoiceState.isGuildDeafened()} value won't change
-     * until JDA receives the {@link net.dv8tion.jda.api.events.guild.voice.GuildVoiceGuildDeafenEvent GuildVoiceGuildDeafenEvent} event related to this change.
+     * <p>
+     * <b>Note:</b> The Member's
+     * {@link GuildVoiceState#isGuildDeafened()
+     * GuildVoiceState.isGuildDeafened()} value won't change
+     * until JDA receives the
+     * {@link GuildVoiceGuildDeafenEvent
+     * GuildVoiceGuildDeafenEvent} event related to this change.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>
+     * Possible {@link ErrorResponse ErrorResponses}
+     * caused by
+     * the returned {@link RestAction}
+     * include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The target Member cannot be deafened due to a permission discrepancy</li>
+     * <li>{@link ErrorResponse#MISSING_PERMISSIONS
+     * MISSING_PERMISSIONS}
+     * <br>
+     * The target Member cannot be deafened due to a permission discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MEMBER UNKNOWN_MEMBER}
-     *     <br>The specified Member was removed from the Guild before finishing the task</li>
+     * <li>{@link ErrorResponse#UNKNOWN_MEMBER
+     * UNKNOWN_MEMBER}
+     * <br>
+     * The specified Member was removed from the Guild before finishing the
+     * task</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#USER_NOT_CONNECTED USER_NOT_CONNECTED}
-     *     <br>The specified Member is not connected to a voice channel</li>
+     * <li>{@link ErrorResponse#USER_NOT_CONNECTED
+     * USER_NOT_CONNECTED}
+     * <br>
+     * The specified Member is not connected to a voice channel</li>
      * </ul>
      *
-     * @param  deafen
-     *         Whether this {@link net.dv8tion.jda.api.entities.Member Member} should be deafened or undeafened.
+     * @param deafen
+     *               Whether this {@link Member}
+     *               should be deafened or undeafened.
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the logged in account does not have the {@link Permission#VOICE_DEAF_OTHERS} permission.
-     * @throws java.lang.IllegalStateException
-     *         If the member is not currently connected to a voice channel.
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws InsufficientPermissionException
+     *                                                                        If the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        does
+     *                                                                        not
+     *                                                                        have
+     *                                                                        the
+     *                                                                        {@link Permission#VOICE_DEAF_OTHERS}
+     *                                                                        permission.
+     * @throws IllegalStateException
+     *                                                                        If the
+     *                                                                        member
+     *                                                                        is not
+     *                                                                        currently
+     *                                                                        connected
+     *                                                                        to a
+     *                                                                        voice
+     *                                                                        channel.
+     * @throws DetachedEntityException
+     *                                                                        If
+     *                                                                        this
+     *                                                                        entity
+     *                                                                        is
+     *                                                                        {@link #isDetached()
+     *                                                                        detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction
+     *         AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -933,38 +1631,112 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * Changes this Member's nickname in this guild.
      * The nickname is visible to all members of this guild.
      *
-     * <p>To change the nickname for the currently logged in account
-     * only the Permission {@link Permission#NICKNAME_CHANGE NICKNAME_CHANGE} is required.
-     * <br>To change the nickname of <b>any</b> {@link net.dv8tion.jda.api.entities.Member Member} for this {@link net.dv8tion.jda.api.entities.Guild Guild}
-     * the Permission {@link Permission#NICKNAME_MANAGE NICKNAME_MANAGE} is required.
+     * <p>
+     * To change the nickname for the currently logged in account
+     * only the Permission {@link Permission#NICKNAME_CHANGE NICKNAME_CHANGE} is
+     * required.
+     * <br>
+     * To change the nickname of <b>any</b>
+     * {@link Member} for this
+     * {@link Guild}
+     * the Permission {@link Permission#NICKNAME_MANAGE NICKNAME_MANAGE} is
+     * required.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} caused by
-     * the returned {@link net.dv8tion.jda.api.requests.RestAction RestAction} include the following:
+     * <p>
+     * Possible {@link ErrorResponse ErrorResponses}
+     * caused by
+     * the returned {@link RestAction}
+     * include the following:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The nickname of the target Member is not modifiable due to a permission discrepancy</li>
+     * <li>{@link ErrorResponse#MISSING_PERMISSIONS
+     * MISSING_PERMISSIONS}
+     * <br>
+     * The nickname of the target Member is not modifiable due to a permission
+     * discrepancy</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_MEMBER UNKNOWN_MEMBER}
-     *     <br>The specified Member was removed from the Guild before finishing the task</li>
+     * <li>{@link ErrorResponse#UNKNOWN_MEMBER
+     * UNKNOWN_MEMBER}
+     * <br>
+     * The specified Member was removed from the Guild before finishing the
+     * task</li>
      * </ul>
      *
-     * @param  nickname
-     *         The new nickname of the {@link net.dv8tion.jda.api.entities.Member Member}, provide {@code null} or an
-     *         empty String to reset the nickname
+     * @param nickname
+     *                 The new nickname of the
+     *                 {@link Member}, provide
+     *                 {@code null} or an
+     *                 empty String to reset the nickname
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         <ul>
-     *             <li>If attempting to set nickname for self and the logged in account has neither {@link Permission#NICKNAME_CHANGE}
-     *                 or {@link Permission#NICKNAME_MANAGE}</li>
-     *             <li>If attempting to set nickname for another member and the logged in account does not have {@link Permission#NICKNAME_MANAGE}</li>
-     *         </ul>
-     * @throws net.dv8tion.jda.api.exceptions.HierarchyException
-     *         If attempting to set nickname for another member and the logged in account cannot manipulate the other user due to permission hierarchy position.
-     *         <br>See {@link #canInteract(Member)}.
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     * @throws InsufficientPermissionException
+     *                                                                        <ul>
+     *                                                                        <li>If
+     *                                                                        attempting
+     *                                                                        to set
+     *                                                                        nickname
+     *                                                                        for
+     *                                                                        self
+     *                                                                        and
+     *                                                                        the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        has
+     *                                                                        neither
+     *                                                                        {@link Permission#NICKNAME_CHANGE}
+     *                                                                        or
+     *                                                                        {@link Permission#NICKNAME_MANAGE}</li>
+     *                                                                        <li>If
+     *                                                                        attempting
+     *                                                                        to set
+     *                                                                        nickname
+     *                                                                        for
+     *                                                                        another
+     *                                                                        member
+     *                                                                        and
+     *                                                                        the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        does
+     *                                                                        not
+     *                                                                        have
+     *                                                                        {@link Permission#NICKNAME_MANAGE}</li>
+     *                                                                        </ul>
+     * @throws HierarchyException
+     *                                                                        If
+     *                                                                        attempting
+     *                                                                        to set
+     *                                                                        nickname
+     *                                                                        for
+     *                                                                        another
+     *                                                                        member
+     *                                                                        and
+     *                                                                        the
+     *                                                                        logged
+     *                                                                        in
+     *                                                                        account
+     *                                                                        cannot
+     *                                                                        manipulate
+     *                                                                        the
+     *                                                                        other
+     *                                                                        user
+     *                                                                        due to
+     *                                                                        permission
+     *                                                                        hierarchy
+     *                                                                        position.
+     *                                                                        <br>
+     *                                                                        See
+     *                                                                        {@link #canInteract(Member)}.
+     * @throws DetachedEntityException
+     *                                                                        If
+     *                                                                        this
+     *                                                                        entity
+     *                                                                        is
+     *                                                                        {@link #isDetached()
+     *                                                                        detached}
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction
+     *         AuditableRestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -974,19 +1746,38 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
 
     /**
      * Updates the flags to the new flag set.
-     * <br>If any of the flags is not {@link MemberFlag#isModifiable() modifiable}, it is not updated.
+     * <br>
+     * If any of the flags is not {@link MemberFlag#isModifiable() modifiable}, it
+     * is not updated.
      *
-     * <p>Any flags not provided by the set will be disabled, all contained flags will be enabled.
+     * <p>
+     * Any flags not provided by the set will be disabled, all contained flags will
+     * be enabled.
      *
-     * @param  newFlags
-     *         The new flags for the member.
+     * @param newFlags
+     *                 The new flags for the member.
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the bot does not have {@link Permission#MODERATE_MEMBERS} in the guild
+     * @throws InsufficientPermissionException
+     *                                                                        If the
+     *                                                                        bot
+     *                                                                        does
+     *                                                                        not
+     *                                                                        have
+     *                                                                        {@link Permission#MODERATE_MEMBERS}
+     *                                                                        in the
+     *                                                                        guild
      * @throws IllegalArgumentException
-     *         If {@code null} is provided
-     * @throws net.dv8tion.jda.api.exceptions.DetachedEntityException
-     *         If this entity is {@link #isDetached() detached}
+     *                                                                        If
+     *                                                                        {@code null}
+     *                                                                        is
+     *                                                                        provided
+     * @throws DetachedEntityException
+     *                                                                        If
+     *                                                                        this
+     *                                                                        entity
+     *                                                                        is
+     *                                                                        {@link #isDetached()
+     *                                                                        detached}
      *
      * @return {@link AuditableRestAction}
      */
@@ -1065,10 +1856,12 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
 
         /**
          * The {@link MemberFlag Flags} represented by the provided raw value.
-         * <br>If the provided raw value is {@code 0} this will return an empty {@link java.util.EnumSet EnumSet}.
+         * <br>
+         * If the provided raw value is {@code 0} this will return an empty
+         * {@link EnumSet}.
          *
-         * @param  raw
-         *         The raw value
+         * @param raw
+         *            The raw value
          *
          * @return EnumSet containing the flags represented by the provided raw value
          */
@@ -1085,10 +1878,11 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
 
         /**
          * The raw value of the provided {@link MemberFlag Flags}.
-         * <br>If the provided set is empty this will return {@code 0}.
+         * <br>
+         * If the provided set is empty this will return {@code 0}.
          *
-         * @param  flags
-         *         The flags
+         * @param flags
+         *              The flags
          *
          * @return The raw value of the provided flags
          */

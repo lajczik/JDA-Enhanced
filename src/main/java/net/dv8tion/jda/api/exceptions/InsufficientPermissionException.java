@@ -19,6 +19,7 @@ package net.dv8tion.jda.api.exceptions;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.internal.utils.Checks;
@@ -29,8 +30,8 @@ import javax.annotation.Nullable;
 /**
  * Indicates that the user is missing a {@link Permission} for some action.
  *
- * @see   net.dv8tion.jda.api.entities.IPermissionHolder#hasPermission(Permission...) IPermissionHolder.hasPermission(Permission...)
- * @see   net.dv8tion.jda.api.entities.IPermissionHolder#hasPermission(GuildChannel, Permission...) IPermissionHolder.hasPermission(GuildChannel, Permission...)
+ * @see   IPermissionHolder#hasPermission(Permission...) IPermissionHolder.hasPermission(Permission...)
+ * @see   IPermissionHolder#hasPermission(GuildChannel, Permission...) IPermissionHolder.hasPermission(GuildChannel, Permission...)
  */
 public class InsufficientPermissionException extends PermissionException {
     private final long guildId;
@@ -57,9 +58,7 @@ public class InsufficientPermissionException extends PermissionException {
 
     private InsufficientPermissionException(
             @Nonnull Guild guild, @Nullable GuildChannel channel, @Nonnull Permission permission) {
-        super(
-                permission,
-                "Cannot perform action due to a lack of Permission. Missing permission: " + permission.toString());
+        super(permission, "Cannot perform action due to a lack of Permission. Missing permission: " + permission);
         this.guildId = guild.getIdLong();
         this.channelId = channel == null ? 0 : channel.getIdLong();
         this.channelType = channel == null ? ChannelType.UNKNOWN : channel.getType();
@@ -77,11 +76,11 @@ public class InsufficientPermissionException extends PermissionException {
     }
 
     /**
-     * The id for the responsible {@link net.dv8tion.jda.api.entities.Guild} instance.
+     * The id for the responsible {@link Guild} instance.
      *
      * @return The ID as a long
      *
-     * @see    net.dv8tion.jda.api.JDA#getGuildById(long)
+     * @see    JDA#getGuildById(long)
      */
     public long getGuildId() {
         return guildId;
@@ -109,12 +108,12 @@ public class InsufficientPermissionException extends PermissionException {
     }
 
     /**
-     * The {@link net.dv8tion.jda.api.entities.Guild} instance for the {@link #getGuildId() guild id}.
+     * The {@link Guild} instance for the {@link #getGuildId() guild id}.
      *
      * @param  api
      *         The shard to perform the lookup in
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided JDA instance is null
      *
      * @return The Guild instance or null
@@ -131,7 +130,7 @@ public class InsufficientPermissionException extends PermissionException {
      * @param  api
      *         The shard to perform the lookup in
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided JDA instance is null
      *
      * @return The GuildChannel instance or null

@@ -16,11 +16,14 @@
 
 package net.dv8tion.jda.api.entities;
 
+import io.netty.buffer.ByteBuf;
 import net.dv8tion.jda.api.managers.AccountManager;
+import net.dv8tion.jda.api.utils.NettyConfig;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.IOUtil;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -60,7 +63,7 @@ public class Icon {
     }
 
     /**
-     * Creates an {@link Icon Icon} with the specified {@link java.io.File File}.
+     * Creates an {@link Icon Icon} with the specified {@link File}.
      * <br>We here read the specified File and forward the retrieved byte data to {@link #from(byte[], IconType)}.
      *
      * @param  file
@@ -87,9 +90,9 @@ public class Icon {
     }
 
     /**
-     * Creates an {@link Icon Icon} with the specified {@link java.io.InputStream InputStream}.
+     * Creates an {@link Icon Icon} with the specified {@link InputStream}.
      * <br>We here read the specified InputStream and forward the retrieved byte data to {@link #from(byte[], IconType)}.
-     * This will use {@link net.dv8tion.jda.api.entities.Icon.IconType#JPEG} but discord is capable for
+     * This will use {@link Icon.IconType#JPEG} but discord is capable for
      * interpreting other types correctly either way.
      *
      * @param  stream
@@ -110,7 +113,7 @@ public class Icon {
 
     /**
      * Creates an {@link Icon Icon} with the specified image data.
-     * This will use {@link net.dv8tion.jda.api.entities.Icon.IconType#JPEG} but discord is capable for
+     * This will use {@link Icon.IconType#JPEG} but discord is capable for
      * interpreting other types correctly either way.
      *
      * @param  data
@@ -127,7 +130,7 @@ public class Icon {
     }
 
     /**
-     * Creates an {@link Icon Icon} with the specified {@link java.io.File File}.
+     * Creates an {@link Icon Icon} with the specified {@link File}.
      * <br>We here read the specified File and forward the retrieved byte data to {@link #from(byte[], IconType)}.
      *
      * @param  file
@@ -148,11 +151,12 @@ public class Icon {
         Checks.notNull(type, "IconType");
         Checks.check(file.exists(), "Provided file does not exist!");
 
-        return from(IOUtil.readFully(file), type);
+        ByteBuf buf = IOUtil.readIntoByteBuf(new FileInputStream(file), NettyConfig.getGlobalAllocator());
+        return from(buf, type);
     }
 
     /**
-     * Creates an {@link Icon Icon} with the specified {@link java.io.InputStream InputStream}.
+     * Creates an {@link Icon Icon} with the specified {@link InputStream}.
      * <br>We here read the specified InputStream and forward the retrieved byte data to {@link #from(byte[], IconType)}.
      *
      * @param  stream
@@ -173,7 +177,8 @@ public class Icon {
         Checks.notNull(stream, "InputStream");
         Checks.notNull(type, "IconType");
 
-        return from(IOUtil.readFully(stream), type);
+        ByteBuf buf = IOUtil.readIntoByteBuf(stream, NettyConfig.getGlobalAllocator());
+        return from(buf, type);
     }
 
     /**
@@ -194,7 +199,59 @@ public class Icon {
         Checks.notNull(data, "Provided byte[]");
         Checks.notNull(type, "IconType");
 
-        return new Icon(type, new String(Base64.getEncoder().encode(data), StandardCharsets.UTF_8));
+        return new Icon(type, Base64.getEncoder().encodeToString(data));
+    }
+
+    /**
+     * Creates an {@link Icon Icon} from the specified Netty {@link ByteBuf}.
+     * This will use {@link Icon.IconType#JPEG} but discord is capable of
+     * interpreting other types correctly either way.
+     *
+     * <p><b>Note:</b> The provided {@link ByteBuf} is automatically released by this method.
+     *
+     * @param  buffer
+     *         not-null image buffer.
+     *
+     * @throws IllegalArgumentException
+     *         if the provided buffer is null
+     *
+     * @return An Icon instance representing the specified image buffer
+     */
+    @Nonnull
+    public static Icon from(@Nonnull ByteBuf buffer) {
+        return from(buffer, IconType.JPEG);
+    }
+
+    /**
+     * Creates an {@link Icon Icon} from the specified Netty {@link ByteBuf}.
+     *
+     * <p><b>Note:</b> The provided {@link ByteBuf} is automatically released by this method.
+     *
+     * @param  buffer
+     *         not-null image buffer.
+     * @param  type
+     *         The type of image
+     *
+     * @throws IllegalArgumentException
+     *         if the provided buffer is null
+     *
+     * @return An Icon instance representing the specified image buffer
+     */
+    @Nonnull
+    public static Icon from(@Nonnull ByteBuf buffer, @Nonnull IconType type) {
+        Checks.notNull(buffer, "ByteBuf");
+        Checks.notNull(type, "IconType");
+        try {
+            ByteBuf encoded = io.netty.handler.codec.base64.Base64.encode(buffer);
+            try {
+                String base64 = encoded.toString(StandardCharsets.US_ASCII);
+                return new Icon(type, base64);
+            } finally {
+                encoded.release();
+            }
+        } finally {
+            buffer.release();
+        }
     }
 
     /**
@@ -275,22 +332,13 @@ public class Icon {
         @Nonnull
         public static IconType fromExtension(@Nonnull String extension) {
             Checks.notNull(extension, "Extension Type");
-            switch (extension.toLowerCase(Locale.ROOT)) {
-                case "jpe":
-                case "jif":
-                case "jfif":
-                case "jfi":
-                case "jpg":
-                case "jpeg":
-                    return JPEG;
-                case "png":
-                    return PNG;
-                case "webp":
-                    return WEBP;
-                case "gif":
-                    return GIF;
-            }
-            return UNKNOWN;
+            return switch (extension.toLowerCase(Locale.ROOT)) {
+                case "jpe", "jif", "jfif", "jfi", "jpg", "jpeg" -> JPEG;
+                case "png" -> PNG;
+                case "webp" -> WEBP;
+                case "gif" -> GIF;
+                default -> UNKNOWN;
+            };
         }
     }
 }

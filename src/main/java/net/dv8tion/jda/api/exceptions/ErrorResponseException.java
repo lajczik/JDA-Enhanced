@@ -32,10 +32,10 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
 /**
- * Indicates an unhandled error that is returned by Discord API Request using {@link net.dv8tion.jda.api.requests.RestAction RestAction}
- * <br>It holds an {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponse}
+ * Indicates an unhandled error that is returned by Discord API Request using {@link RestAction}
+ * <br>It holds an {@link ErrorResponse}
  *
- * @see net.dv8tion.jda.api.exceptions.ErrorHandler
+ * @see ErrorHandler
  */
 public class ErrorResponseException extends RuntimeException {
     private final ErrorResponse errorResponse;
@@ -48,7 +48,7 @@ public class ErrorResponseException extends RuntimeException {
      * Creates a new ErrorResponseException instance
      *
      * @param errorResponse
-     *        The {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponse} corresponding
+     *        The {@link ErrorResponse} corresponding
      *        for the received error response from Discord
      * @param response
      *        The Discord Response causing the ErrorResponse
@@ -87,7 +87,7 @@ public class ErrorResponseException extends RuntimeException {
      * Whether this is an internal server error from discord (status 500)
      *
      * @return True, if this is an internal server error
-     *         {@link net.dv8tion.jda.api.requests.ErrorResponse#SERVER_ERROR ErrorResponse.SERVER_ERROR}
+     *         {@link ErrorResponse#SERVER_ERROR ErrorResponse.SERVER_ERROR}
      */
     public boolean isServerError() {
         return errorResponse == ErrorResponse.SERVER_ERROR;
@@ -116,10 +116,10 @@ public class ErrorResponseException extends RuntimeException {
     }
 
     /**
-     * The {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponse} corresponding
+     * The {@link ErrorResponse} corresponding
      * for the received error response from Discord
      *
-     * @return {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponse}
+     * @return {@link ErrorResponse}
      */
     @Nonnull
     public ErrorResponse getErrorResponse() {
@@ -129,7 +129,7 @@ public class ErrorResponseException extends RuntimeException {
     /**
      * The Discord Response causing the ErrorResponse
      *
-     * @return {@link net.dv8tion.jda.api.requests.Response Response}
+     * @return {@link Response}
      */
     @Nonnull
     public Response getResponse() {
@@ -228,7 +228,7 @@ public class ErrorResponseException extends RuntimeException {
     private static SchemaError parseSchemaError(String location, DataObject obj) {
         List<ErrorCode> codes = obj.getArray("_errors").stream(DataArray::getObject)
                 .map(json -> new ErrorCode(json.getString("code"), json.getString("message")))
-                .collect(Collectors.toList());
+                .toList();
         return new SchemaError(location, codes);
     }
 

@@ -21,7 +21,7 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.EntityString;
-import okhttp3.MultipartBody;
+import net.dv8tion.jda.internal.utils.requestbody.MultipartBody;
 import org.jetbrains.annotations.Contract;
 
 import java.util.Objects;

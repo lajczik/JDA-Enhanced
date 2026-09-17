@@ -17,8 +17,6 @@
 package net.dv8tion.jda.api.utils;
 
 import net.dv8tion.jda.api.utils.cache.CacheView;
-import net.dv8tion.jda.internal.utils.JDALogger;
-import org.slf4j.Logger;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -49,7 +47,6 @@ import javax.annotation.Nonnull;
  *        The element type for this iterator
  */
 public class LockIterator<T> implements ClosableIterator<T> {
-    private static final Logger log = JDALogger.getLog(ClosableIterator.class);
     private final Iterator<? extends T> it;
     private Lock lock;
 
@@ -85,14 +82,5 @@ public class LockIterator<T> implements ClosableIterator<T> {
             throw new NoSuchElementException();
         }
         return it.next();
-    }
-
-    @Override
-    @Deprecated // Deprecated in Java 9 because the finalization system is being changed/removed
-    protected void finalize() {
-        if (lock != null) {
-            log.error("Finalizing without closing, performing force close on lock");
-            close();
-        }
     }
 }

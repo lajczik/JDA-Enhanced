@@ -16,15 +16,18 @@
 
 package net.dv8tion.jda.api.utils.messages;
 
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.components.Component;
 import net.dv8tion.jda.api.components.MessageTopLevelComponent;
 import net.dv8tion.jda.api.components.tree.ComponentTree;
+import net.dv8tion.jda.api.components.tree.MessageComponentTree;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import net.dv8tion.jda.api.utils.FileUpload;
+import net.dv8tion.jda.api.utils.MediaType;
 import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.MediaType;
 
 import java.io.File;
 import java.util.Arrays;
@@ -42,7 +45,7 @@ import javax.annotation.Nullable;
  *
  * @see   MessageCreateBuilder
  * @see   MessageCreateData
- * @see   net.dv8tion.jda.api.requests.restaction.MessageCreateAction MessageCreateAction
+ * @see   MessageCreateAction
  */
 public interface MessageCreateRequest<R extends MessageCreateRequest<R>> extends MessageRequest<R> {
     /**
@@ -118,7 +121,7 @@ public interface MessageCreateRequest<R extends MessageCreateRequest<R>> extends
      * Sending a message with multiple action rows:
      * {@snippet lang="java":
      * final List<MessageTopLevelComponent> list = new ArrayList<>();
-     * list.add(ActionRow.of(selectMenu); // first row
+     * list.add(ActionRow.of(selectMenu)); // first row
      * list.add(ActionRow.of(button1, button2)); // second row (shows below the first)
      *
      * channel.sendMessage("Content here")
@@ -192,7 +195,7 @@ public interface MessageCreateRequest<R extends MessageCreateRequest<R>> extends
      *
      * @return The same instance for chaining
      *
-     * @see    net.dv8tion.jda.api.components.tree.MessageComponentTree MessageComponentTree
+     * @see    MessageComponentTree MessageComponentTree
      */
     @Nonnull
     default R addComponents(@Nonnull ComponentTree<? extends MessageTopLevelComponent> tree) {
@@ -281,7 +284,7 @@ public interface MessageCreateRequest<R extends MessageCreateRequest<R>> extends
     /**
      * Whether the message should use <em>Text-to-Speech</em> (TTS).
      *
-     * <p>Requires {@link net.dv8tion.jda.api.Permission#MESSAGE_TTS Permission.MESSAGE_TTS} to be enabled.
+     * <p>Requires {@link Permission#MESSAGE_TTS Permission.MESSAGE_TTS} to be enabled.
      *
      * @param  tts
      *         True, if the message should use TTS

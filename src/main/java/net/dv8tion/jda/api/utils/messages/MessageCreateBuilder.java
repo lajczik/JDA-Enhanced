@@ -22,6 +22,8 @@ import net.dv8tion.jda.api.components.MessageTopLevelComponentUnion;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.interactions.InteractionHook;
+import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.dv8tion.jda.internal.components.utils.ComponentsUtil;
 import net.dv8tion.jda.internal.utils.Checks;
@@ -56,8 +58,8 @@ import javax.annotation.Nullable;
  * }
  *
  * @see MessageChannel#sendMessage(MessageCreateData)
- * @see net.dv8tion.jda.api.interactions.callbacks.IReplyCallback#reply(MessageCreateData) IReplyCallback.reply(data)
- * @see net.dv8tion.jda.api.interactions.InteractionHook#sendMessage(MessageCreateData) InteractionHook.sendMessage(data)
+ * @see IReplyCallback#reply(MessageCreateData) IReplyCallback.reply(data)
+ * @see InteractionHook#sendMessage(MessageCreateData) InteractionHook.sendMessage(data)
  * @see MessageEditBuilder
  */
 public class MessageCreateBuilder extends AbstractMessageBuilder<MessageCreateData, MessageCreateBuilder>
@@ -264,7 +266,7 @@ public class MessageCreateBuilder extends AbstractMessageBuilder<MessageCreateDa
     }
 
     private boolean isV2Valid() {
-        return content.length() == 0
+        return content.isEmpty()
                 && embeds.isEmpty()
                 && poll == null
                 && !components.isEmpty()
@@ -329,7 +331,7 @@ public class MessageCreateBuilder extends AbstractMessageBuilder<MessageCreateDa
         List<MessageTopLevelComponentUnion> components = new ArrayList<>(this.components);
         AllowedMentionsData mentions = this.mentions.copy();
 
-        if (content.length() > 0 || !embeds.isEmpty() || poll != null) {
+        if (!content.isEmpty() || !embeds.isEmpty() || poll != null) {
             throw new IllegalStateException(
                     "Cannot build a message with components V2 enabled while having content, embeds, or poll");
         }
@@ -350,7 +352,7 @@ public class MessageCreateBuilder extends AbstractMessageBuilder<MessageCreateDa
                     + " total characters, provided " + componentTreeLength);
         }
 
-        return new MessageCreateData("", Collections.emptyList(), files, components, mentions, poll, tts, messageFlags);
+        return new MessageCreateData("", List.of(), files, components, mentions, poll, tts, messageFlags);
     }
 
     @Override

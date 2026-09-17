@@ -18,9 +18,11 @@ package net.dv8tion.jda.api.entities.templates;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.managers.TemplateManager;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.internal.JDAImpl;
@@ -40,7 +42,7 @@ import javax.annotation.Nullable;
  * <br>This class is immutable.
  *
  * @see    #resolve(JDA, String)
- * @see    net.dv8tion.jda.api.entities.Guild#retrieveTemplates() Guild.retrieveTemplates()
+ * @see    Guild#retrieveTemplates() Guild.retrieveTemplates()
  */
 public class Template {
     private final JDAImpl api;
@@ -78,11 +80,11 @@ public class Template {
     }
 
     /**
-     * Retrieves a new {@link net.dv8tion.jda.api.entities.templates.Template Template} instance for the given template code.
+     * Retrieves a new {@link Template} instance for the given template code.
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_GUILD_TEMPLATE Unknown Guild Template}
+     *     <li>{@link ErrorResponse#UNKNOWN_GUILD_TEMPLATE Unknown Guild Template}
      *     <br>The template doesn't exist.</li>
      * </ul>
      *
@@ -91,14 +93,14 @@ public class Template {
      * @param  code
      *         A valid template code
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If the provided code is null or empty</li>
      *             <li>If the provided code contains a whitespace</li>
      *             <li>If the provided JDA object is null</li>
      *         </ul>
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction} - Type: {@link net.dv8tion.jda.api.entities.templates.Template Template}
+     * @return {@link RestAction} - Type: {@link Template}
      *         <br>The Template object
      */
     @Nonnull
@@ -117,15 +119,15 @@ public class Template {
 
     /**
      * Syncs this template.
-     * <br>Requires {@link net.dv8tion.jda.api.Permission#MANAGE_SERVER MANAGE_SERVER} in the template's guild.
-     * Will throw an {@link net.dv8tion.jda.api.exceptions.InsufficientPermissionException InsufficientPermissionException} otherwise.
+     * <br>Requires {@link Permission#MANAGE_SERVER MANAGE_SERVER} in the template's guild.
+     * Will throw an {@link InsufficientPermissionException} otherwise.
      *
      * @throws IllegalStateException
      *         If the account is not in the template's guild
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the account does not have {@link net.dv8tion.jda.api.Permission#MANAGE_SERVER MANAGE_SERVER} in the template's guild
+     * @throws InsufficientPermissionException
+     *         If the account does not have {@link Permission#MANAGE_SERVER MANAGE_SERVER} in the template's guild
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction} - Type: {@link net.dv8tion.jda.api.entities.templates.Template Template}
+     * @return {@link RestAction} - Type: {@link Template}
      *         <br>The synced Template object
      */
     @Nonnull
@@ -139,15 +141,15 @@ public class Template {
 
     /**
      * Deletes this template.
-     * <br>Requires {@link net.dv8tion.jda.api.Permission#MANAGE_SERVER MANAGE_SERVER} in the template's guild.
-     * Will throw an {@link net.dv8tion.jda.api.exceptions.InsufficientPermissionException InsufficientPermissionException} otherwise.
+     * <br>Requires {@link Permission#MANAGE_SERVER MANAGE_SERVER} in the template's guild.
+     * Will throw an {@link InsufficientPermissionException} otherwise.
      *
      * @throws IllegalStateException
      *         If the account is not in the template's guild
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the account does not have {@link net.dv8tion.jda.api.Permission#MANAGE_SERVER MANAGE_SERVER} in the template's guild
+     * @throws InsufficientPermissionException
+     *         If the account does not have {@link Permission#MANAGE_SERVER MANAGE_SERVER} in the template's guild
      *
-     * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction}
+     * @return {@link RestAction}
      */
     @Nonnull
     @CheckReturnValue
@@ -252,14 +254,14 @@ public class Template {
     }
 
     /**
-     * Returns the {@link net.dv8tion.jda.api.managers.TemplateManager TemplateManager} for this Template.
+     * Returns the {@link TemplateManager} for this Template.
      * <br>In the TemplateManager, you can modify the name or description of the template.
-     * You modify multiple fields in one request by chaining setters before calling {@link net.dv8tion.jda.api.requests.RestAction#queue() RestAction.queue()}.
+     * You modify multiple fields in one request by chaining setters before calling {@link RestAction#queue() RestAction.queue()}.
      *
      * @throws IllegalStateException
      *         If the account is not in the template's guild
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the currently logged in account does not have {@link net.dv8tion.jda.api.Permission#MANAGE_SERVER MANAGE_SERVER}
+     * @throws InsufficientPermissionException
+     *         If the currently logged in account does not have {@link Permission#MANAGE_SERVER MANAGE_SERVER}
      *
      * @return The TemplateManager of this Template
      */
@@ -271,7 +273,7 @@ public class Template {
     }
 
     private void checkInteraction() {
-        net.dv8tion.jda.api.entities.Guild guild = this.api.getGuildById(this.guild.getIdLong());
+        Guild guild = this.api.getGuildById(this.guild.getIdLong());
 
         if (guild == null) {
             throw new IllegalStateException("Cannot interact with a template without shared guild");
@@ -282,7 +284,7 @@ public class Template {
     }
 
     /**
-     * The {@link net.dv8tion.jda.api.JDA JDA} instance used to create this Template instance.
+     * The {@link JDA} instance used to create this Template instance.
      *
      * @return The corresponding JDA instance
      */

@@ -21,8 +21,8 @@ import net.dv8tion.jda.api.entities.channel.ChannelField;
 import net.dv8tion.jda.api.entities.channel.concrete.ForumChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
 import net.dv8tion.jda.api.entities.channel.forums.ForumTag;
+import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.dv8tion.jda.api.utils.cache.SortedSnowflakeCacheView;
-import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +54,7 @@ public class ChannelUpdateAppliedTagsEvent extends GenericChannelUpdateEvent<Lis
     /**
      * The newly added tags.
      *
-     * <p>This requires {@link net.dv8tion.jda.api.utils.cache.CacheFlag#FORUM_TAGS CacheFlag.FORUM_TAGS} to be enabled.
+     * <p>This requires {@link CacheFlag#FORUM_TAGS CacheFlag.FORUM_TAGS} to be enabled.
      *
      * @return The tags that were added to the post
      */
@@ -68,7 +68,7 @@ public class ChannelUpdateAppliedTagsEvent extends GenericChannelUpdateEvent<Lis
     /**
      * The removed tags.
      *
-     * <p>This requires {@link net.dv8tion.jda.api.utils.cache.CacheFlag#FORUM_TAGS CacheFlag.FORUM_TAGS} to be enabled.
+     * <p>This requires {@link CacheFlag#FORUM_TAGS CacheFlag.FORUM_TAGS} to be enabled.
      *
      * @return The tags that were removed from the post
      */
@@ -82,7 +82,7 @@ public class ChannelUpdateAppliedTagsEvent extends GenericChannelUpdateEvent<Lis
     /**
      * The new list of applied tags.
      *
-     * <p>This requires {@link net.dv8tion.jda.api.utils.cache.CacheFlag#FORUM_TAGS CacheFlag.FORUM_TAGS} to be enabled.
+     * <p>This requires {@link CacheFlag#FORUM_TAGS CacheFlag.FORUM_TAGS} to be enabled.
      *
      * @return The updated list of applied tags
      */
@@ -97,13 +97,13 @@ public class ChannelUpdateAppliedTagsEvent extends GenericChannelUpdateEvent<Lis
                 .map(cache::getElementById)
                 .filter(Objects::nonNull)
                 .sorted()
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     /**
      * The old list of applied tags.
      *
-     * <p>This requires {@link net.dv8tion.jda.api.utils.cache.CacheFlag#FORUM_TAGS CacheFlag.FORUM_TAGS} to be enabled.
+     * <p>This requires {@link CacheFlag#FORUM_TAGS CacheFlag.FORUM_TAGS} to be enabled.
      *
      * @return The previous list of applied tags
      */
@@ -118,7 +118,7 @@ public class ChannelUpdateAppliedTagsEvent extends GenericChannelUpdateEvent<Lis
                 .map(cache::getElementById)
                 .filter(Objects::nonNull)
                 .sorted()
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull

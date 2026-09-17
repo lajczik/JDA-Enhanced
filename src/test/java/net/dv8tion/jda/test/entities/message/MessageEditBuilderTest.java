@@ -30,7 +30,7 @@ import net.dv8tion.jda.test.util.TestResourceUtil;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import static net.dv8tion.jda.test.util.MockitoVerifyUtils.*;
@@ -66,10 +66,10 @@ public class MessageEditBuilderTest extends AbstractSnapshotTest {
                 .setEmbeds(new EmbedBuilder().setDescription("Test embed").build())
                 .setComponents(ComponentTestData.getMinimalComponent(ActionRow.class, Component.Type.ACTION_ROW))
                 .useComponentsV2(false)
-                .setAttachments(Collections.emptyList())
+                .setAttachments(List.of())
                 .setReplace(true)
                 .setSuppressEmbeds(false)
-                .setAllowedMentions(Collections.emptyList())
+                .setAllowedMentions(List.of())
                 .setFiles(TestResourceUtil.getFileUpload(Resources.LOGO_PNG));
 
         assertInteractionsContainMethods(builder, getMessageEditBuilderSetters());

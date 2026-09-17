@@ -18,6 +18,7 @@ package net.dv8tion.jda.api.entities.templates;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.ISnowflake;
+import net.dv8tion.jda.api.entities.Role;
 
 import java.awt.*;
 import java.time.OffsetDateTime;
@@ -61,7 +62,7 @@ public class TemplateRole implements ISnowflake {
     /**
      * As the ids of roles are their position, the date of creation cannot be calculated.
      *
-     * @throws java.lang.UnsupportedOperationException
+     * @throws UnsupportedOperationException
      *         The date of creation cannot be calculated.
      */
     @Nonnull
@@ -89,12 +90,12 @@ public class TemplateRole implements ISnowflake {
      */
     @Nullable
     public Color getColor() {
-        return this.color == net.dv8tion.jda.api.entities.Role.DEFAULT_COLOR_RAW ? null : new Color(this.color);
+        return this.color == Role.DEFAULT_COLOR_RAW ? null : new Color(this.color);
     }
 
     /**
      * The raw color RGB value used for this role
-     * <br>Defaults to {@link net.dv8tion.jda.api.entities.Role#DEFAULT_COLOR_RAW} if this role has no set color
+     * <br>Defaults to {@link Role#DEFAULT_COLOR_RAW} if this role has no set color
      *
      * @return The raw RGB color value or default
      */

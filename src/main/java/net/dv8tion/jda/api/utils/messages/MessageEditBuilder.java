@@ -281,13 +281,9 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
         if (isSet(EMBEDS) && embeds.size() > Message.MAX_EMBED_COUNT) {
             return false;
         }
-        if (isSet(COMPONENTS)
-                && (components.size() > Message.MAX_COMPONENT_COUNT
-                        || ComponentsUtil.hasIllegalV1Components(components))) {
-            return false;
-        }
-
-        return true;
+        return !isSet(COMPONENTS)
+                || (components.size() <= Message.MAX_COMPONENT_COUNT
+                        && !ComponentsUtil.hasIllegalV1Components(components));
     }
 
     private boolean isV2Valid() {
@@ -303,14 +299,10 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
                 return false;
             }
         }
-        if (isSet(CONTENT) && content.length() > 0) {
+        if (isSet(CONTENT) && !content.isEmpty()) {
             return false;
         }
-        if (isReplace() && components.isEmpty()) {
-            return false;
-        }
-
-        return true;
+        return !isReplace() || !components.isEmpty();
     }
 
     private boolean isSet(int flag) {
@@ -371,7 +363,7 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
         List<MessageTopLevelComponentUnion> components = new ArrayList<>(this.components);
         AllowedMentionsData mentions = this.mentions.copy();
 
-        if ((isSet(CONTENT) && content.length() > 0) || (isSet(EMBEDS) && !embeds.isEmpty())) {
+        if ((isSet(CONTENT) && !content.isEmpty()) || (isSet(EMBEDS) && !embeds.isEmpty())) {
             throw new IllegalStateException(
                     "Cannot build a message with components V2 enabled while having content or embeds");
         }
@@ -396,14 +388,7 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
         }
 
         return new MessageEditData(
-                configuredFields,
-                messageFlags,
-                replace,
-                "",
-                Collections.emptyList(),
-                attachments,
-                components,
-                mentions);
+                configuredFields, messageFlags, replace, "", List.of(), attachments, components, mentions);
     }
 
     @Nonnull

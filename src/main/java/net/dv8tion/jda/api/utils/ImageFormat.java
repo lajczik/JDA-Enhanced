@@ -18,11 +18,8 @@ package net.dv8tion.jda.api.utils;
 
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.Helpers;
-import okhttp3.HttpUrl;
 import org.jetbrains.annotations.Unmodifiable;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -42,7 +39,7 @@ public final class ImageFormat {
      *
      * <p>Requesting an image with this format should always work.
      */
-    public static final ImageFormat JPG = new ImageFormat("jpg", Collections.emptyList());
+    public static final ImageFormat JPG = new ImageFormat("jpg", List.of());
 
     /**
      * Lossless static image format.
@@ -50,7 +47,7 @@ public final class ImageFormat {
      *
      * <p>Requesting an image with this format should always work.
      */
-    public static final ImageFormat PNG = new ImageFormat("png", Collections.emptyList());
+    public static final ImageFormat PNG = new ImageFormat("png", List.of());
 
     /**
      * Lossless animated image format.
@@ -62,7 +59,7 @@ public final class ImageFormat {
      *
      * @see #ANIMATED_WEBP
      */
-    public static final ImageFormat GIF = new ImageFormat("gif", Collections.emptyList());
+    public static final ImageFormat GIF = new ImageFormat("gif", List.of());
 
     /**
      * Lossy or lossless static image format.
@@ -71,7 +68,7 @@ public final class ImageFormat {
      * <p>This is the format Discord recommends for static images.
      * Requesting an image with this format should always work.
      */
-    public static final ImageFormat STATIC_WEBP = new ImageFormat("webp", Collections.emptyList());
+    public static final ImageFormat STATIC_WEBP = new ImageFormat("webp", List.of());
 
     /**
      * Lossy or lossless animated image format.
@@ -80,7 +77,7 @@ public final class ImageFormat {
      * <p>This is the format Discord recommends for animated images.
      * Requesting an image with this format should always work, including static images.
      */
-    public static final ImageFormat ANIMATED_WEBP = new ImageFormat("webp", Arrays.asList("animated", "true"));
+    public static final ImageFormat ANIMATED_WEBP = new ImageFormat("webp", List.of("animated", "true"));
 
     private final String extension;
     private final List<String> queryParameters;
@@ -104,7 +101,7 @@ public final class ImageFormat {
     @Nonnull
     public static ImageFormat of(@Nonnull String extension) {
         Checks.notBlank(extension, "Extension");
-        return new ImageFormat(extension, Collections.emptyList());
+        return new ImageFormat(extension, List.of());
     }
 
     /**
@@ -155,11 +152,21 @@ public final class ImageFormat {
     }
 
     @Nonnull
-    ImageProxy finishProxy(@Nonnull HttpUrl.Builder builder, @Nonnull String lastSegment) {
-        builder.addPathSegment(lastSegment + "." + extension);
+    ImageProxy finishProxy(@Nonnull String path, @Nonnull String lastSegment) {
+        StringBuilder builder = new StringBuilder(path);
+        if (!path.isEmpty() && path.charAt(path.length() - 1) != '/') {
+            builder.append('/');
+        }
+        builder.append(lastSegment).append('.').append(extension);
 
-        for (Iterator<String> it = queryParameters.iterator(); it.hasNext(); ) {
-            builder.addQueryParameter(it.next(), it.next());
+        if (!queryParameters.isEmpty()) {
+            builder.append('?');
+            for (Iterator<String> it = queryParameters.iterator(); it.hasNext(); ) {
+                builder.append(it.next()).append('=').append(it.next());
+                if (it.hasNext()) {
+                    builder.append('&');
+                }
+            }
         }
 
         return new ImageProxy(builder.toString());

@@ -115,7 +115,6 @@ public class ActivityTest {
         assertThat(activity.isRich()).isFalse();
         assertThat(activity.getType()).isEqualTo(Activity.ActivityType.PLAYING);
         assertThat(activity.getName()).isEqualTo("Games");
-        ;
         assertThat(activity.getState()).isEqualTo("Active");
         assertThat(activity.getUrl()).isNull();
 

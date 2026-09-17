@@ -16,21 +16,20 @@
 
 package net.dv8tion.jda.api.utils.messages;
 
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.components.Component;
 import net.dv8tion.jda.api.components.MessageTopLevelComponent;
 import net.dv8tion.jda.api.components.tree.ComponentTree;
-import net.dv8tion.jda.api.entities.EmbedType;
-import net.dv8tion.jda.api.entities.IMentionable;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.components.tree.MessageComponentTree;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import net.dv8tion.jda.api.utils.AttachedFile;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.dv8tion.jda.internal.utils.Checks;
 
 import java.io.File;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -51,7 +50,7 @@ import javax.annotation.Nullable;
  */
 public interface MessageRequest<R extends MessageRequest<R>> extends MessageData {
     /**
-     * Sets the {@link net.dv8tion.jda.api.entities.Message.MentionType MentionTypes} that should be parsed by default.
+     * Sets the {@link Message.MentionType MentionTypes} that should be parsed by default.
      * This just sets the default for all RestActions and can be overridden on a per-action basis using {@link #setAllowedMentions(Collection)}.
      * <br>If a message is sent with an empty Set of MentionTypes, then it will not ping any User, Role or {@code @everyone}/{@code @here},
      * while still showing up as mention tag.
@@ -74,7 +73,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     }
 
     /**
-     * Returns the default {@link net.dv8tion.jda.api.entities.Message.MentionType MentionTypes} previously set by
+     * Returns the default {@link Message.MentionType MentionTypes} previously set by
      * {@link #setDefaultMentions(Collection) AllowedMentions.setDefaultMentions(Collection)}.
      *
      * @return Default mentions set by AllowedMentions.setDefaultMentions(Collection)
@@ -152,7 +151,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * The {@link MessageEmbed MessageEmbeds} that should be attached to the message.
      * <br>You can use {@link Collections#emptyList()} to remove all embeds from the message.
      *
-     * <p>This requires {@link net.dv8tion.jda.api.Permission#MESSAGE_EMBED_LINKS Permission.MESSAGE_EMBED_LINKS} in the channel.
+     * <p>This requires {@link Permission#MESSAGE_EMBED_LINKS Permission.MESSAGE_EMBED_LINKS} in the channel.
      *
      * @param  embeds
      *         The embeds to attach to the message (up to {@value Message#MAX_EMBED_COUNT})
@@ -171,7 +170,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * The {@link MessageEmbed MessageEmbeds} that should be attached to the message.
      * <br>You can use {@code new MessageEmbed[0]} to remove all embeds from the message.
      *
-     * <p>This requires {@link net.dv8tion.jda.api.Permission#MESSAGE_EMBED_LINKS Permission.MESSAGE_EMBED_LINKS} in the channel.
+     * <p>This requires {@link Permission#MESSAGE_EMBED_LINKS Permission.MESSAGE_EMBED_LINKS} in the channel.
      *
      * @param  embeds
      *         The embeds to attach to the message (up to {@value Message#MAX_EMBED_COUNT})
@@ -193,7 +192,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * <p><b>Example: Set action rows</b><br>
      * {@snippet lang="java":
      * final List<MessageTopLevelComponent> list = new ArrayList<>();
-     * list.add(ActionRow.of(selectMenu); // first row
+     * list.add(ActionRow.of(selectMenu)); // first row
      * list.add(ActionRow.of(button1, button2)); // second row (shows below the first)
      *
      * channel.sendMessage("Content here")
@@ -204,7 +203,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * <p><b>Example: Remove action rows</b><br>
      * {@snippet lang="java":
      * channel.sendMessage("Content here")
-     *    .setComponents(Collections.emptyList())
+     *    .setComponents(List.of())
      *    .queue();
      * }
      *
@@ -282,7 +281,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    net.dv8tion.jda.api.components.tree.MessageComponentTree MessageComponentTree
+     * @see    MessageComponentTree MessageComponentTree
      */
     @Nonnull
     default R setComponents(@Nonnull ComponentTree<? extends MessageTopLevelComponent> tree) {
@@ -449,7 +448,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
 
     /**
      * Whether to mention the user, when replying to a message.
-     * <br>This only matters in combination with {@link net.dv8tion.jda.api.requests.restaction.MessageCreateAction#setMessageReference(Message) MessageCreateAction.setMessageReference(...)}!
+     * <br>This only matters in combination with {@link MessageCreateAction#setMessageReference(Message) MessageCreateAction.setMessageReference(...)}!
      *
      * <p>This is true by default but can be configured using {@link #setDefaultMentionRepliedUser(boolean)}!
      *
@@ -463,7 +462,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     R mentionRepliedUser(boolean mention);
 
     /**
-     * Sets the {@link net.dv8tion.jda.api.entities.Message.MentionType MentionTypes} that should be parsed.
+     * Sets the {@link Message.MentionType MentionTypes} that should be parsed.
      * <br>If a message is sent with an empty Set of MentionTypes, then it will not ping any User, Role or {@code @everyone}/{@code @here},
      * while still showing up as mention tag.
      *
@@ -484,10 +483,10 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     R setAllowedMentions(@Nullable Collection<Message.MentionType> allowedMentions);
 
     /**
-     * Used to provide a whitelist for {@link net.dv8tion.jda.api.entities.User Users}, {@link net.dv8tion.jda.api.entities.Member Members}
-     * and {@link net.dv8tion.jda.api.entities.Role Roles} that should be pinged,
+     * Used to provide a whitelist for {@link User Users}, {@link Member Members}
+     * and {@link Role Roles} that should be pinged,
      * even when they would not be pinged otherwise according to the Set of allowed mention types.
-     * <br>On other types of {@link net.dv8tion.jda.api.entities.IMentionable IMentionable}, this does nothing.
+     * <br>On other types of {@link IMentionable}, this does nothing.
      *
      * <p><b>Note:</b> When a User/Member is whitelisted this way, then parsing of User mentions is automatically disabled (same applies to Roles).
      * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
@@ -509,10 +508,10 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     R mention(@Nonnull Collection<? extends IMentionable> mentions);
 
     /**
-     * Used to provide a whitelist for {@link net.dv8tion.jda.api.entities.User Users}, {@link net.dv8tion.jda.api.entities.Member Members}
-     * and {@link net.dv8tion.jda.api.entities.Role Roles} that should be pinged,
+     * Used to provide a whitelist for {@link User Users}, {@link Member Members}
+     * and {@link Role Roles} that should be pinged,
      * even when they would not be pinged otherwise according to the Set of allowed mention types.
-     * <br>On other types of {@link net.dv8tion.jda.api.entities.IMentionable IMentionable}, this does nothing.
+     * <br>On other types of {@link IMentionable}, this does nothing.
      *
      * <p><b>Note:</b> When a User/Member is whitelisted this way, then parsing of User mentions is automatically disabled (same applies to Roles).
      * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
@@ -537,7 +536,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     }
 
     /**
-     * Used to provide a whitelist of {@link net.dv8tion.jda.api.entities.User Users} that should be pinged,
+     * Used to provide a whitelist of {@link User Users} that should be pinged,
      * even when they would not be pinged otherwise according to the Set of allowed mention types.
      *
      * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
@@ -560,7 +559,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     R mentionUsers(@Nonnull Collection<String> userIds);
 
     /**
-     * Used to provide a whitelist of {@link net.dv8tion.jda.api.entities.User Users} that should be pinged,
+     * Used to provide a whitelist of {@link User Users} that should be pinged,
      * even when they would not be pinged otherwise according to the Set of allowed mention types.
      *
      * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
@@ -586,7 +585,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     }
 
     /**
-     * Used to provide a whitelist of {@link net.dv8tion.jda.api.entities.User Users} that should be pinged,
+     * Used to provide a whitelist of {@link User Users} that should be pinged,
      * even when they would not be pinged otherwise according to the Set of allowed mention types.
      *
      * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
@@ -616,7 +615,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     }
 
     /**
-     * Used to provide a whitelist of {@link net.dv8tion.jda.api.entities.Role Roles} that should be pinged,
+     * Used to provide a whitelist of {@link Role Roles} that should be pinged,
      * even when they would not be pinged otherwise according to the Set of allowed mention types.
      *
      * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
@@ -639,7 +638,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     R mentionRoles(@Nonnull Collection<String> roleIds);
 
     /**
-     * Used to provide a whitelist of {@link net.dv8tion.jda.api.entities.Role Roles} that should be pinged,
+     * Used to provide a whitelist of {@link Role Roles} that should be pinged,
      * even when they would not be pinged otherwise according to the Set of allowed mention types.
      *
      * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
@@ -665,7 +664,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     }
 
     /**
-     * Used to provide a whitelist of {@link net.dv8tion.jda.api.entities.Role Roles} that should be pinged,
+     * Used to provide a whitelist of {@link Role Roles} that should be pinged,
      * even when they would not be pinged otherwise according to the Set of allowed mention types.
      *
      * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
@@ -715,7 +714,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
         Checks.check(!message.getType().isSystem(), "Cannot copy a system message");
         List<MessageEmbed> embeds = message.getEmbeds().stream()
                 .filter(e -> e.getType() == EmbedType.RICH)
-                .collect(Collectors.toList());
+                .toList();
         return setContent(message.getContentRaw())
                 .setEmbeds(embeds)
                 .setComponents(message.getComponents())

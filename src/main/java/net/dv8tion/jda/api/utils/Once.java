@@ -20,6 +20,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.hooks.SubscribeEvent;
+import net.dv8tion.jda.api.requests.RestFuture;
 import net.dv8tion.jda.api.utils.concurrent.Task;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.JDALogger;
@@ -41,7 +42,7 @@ import javax.annotation.Nullable;
  *
  * @param <E> Type of the event listened to
  *
- * @see   JDA#listenOnce(Class)
+ * @see JDA#listenOnce(Class)
  */
 public class Once<E extends GenericEvent> implements EventListener {
     private static final Logger LOG = JDALogger.getLog(Once.class);
@@ -63,10 +64,10 @@ public class Once<E extends GenericEvent> implements EventListener {
             ScheduledExecutorService timeoutPool) {
         this.jda = jda;
         this.eventType = eventType;
-        this.filters = new ArrayList<>(filters);
+        this.filters = List.copyOf(filters);
         this.timeoutCallback = timeoutCallback;
 
-        this.future = new CompletableFuture<>();
+        this.future = new RestFuture<>(jda);
         this.task = createTask();
         this.timeoutFuture = scheduleTimeout(timeout, timeoutPool);
     }
@@ -109,8 +110,8 @@ public class Once<E extends GenericEvent> implements EventListener {
                             timeoutCallback.run();
                         } catch (Throwable e) {
                             LOG.error("An error occurred while running the timeout callback", e);
-                            if (e instanceof Error) {
-                                throw (Error) e;
+                            if (e instanceof Error err) {
+                                throw err;
                             }
                         }
                     }
@@ -127,7 +128,14 @@ public class Once<E extends GenericEvent> implements EventListener {
         }
         E casted = eventType.cast(event);
         try {
-            if (filters.stream().allMatch(p -> p.test(casted))) {
+            boolean matches = true;
+            for (Predicate<? super E> filter : filters) {
+                if (!filter.test(casted)) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
                 if (timeoutFuture != null) {
                     timeoutFuture.cancel(false);
                 }
@@ -138,8 +146,8 @@ public class Once<E extends GenericEvent> implements EventListener {
             if (future.completeExceptionally(e)) {
                 event.getJDA().removeEventListener(this);
             }
-            if (e instanceof Error) {
-                throw (Error) e;
+            if (e instanceof Error err) {
+                throw err;
             }
         }
     }
@@ -162,12 +170,12 @@ public class Once<E extends GenericEvent> implements EventListener {
          * Creates a builder for a one-time event listener
          *
          * @param jda
-         *        The JDA instance
+         *                  The JDA instance
          * @param eventType
-         *        The event type to listen for
+         *                  The event type to listen for
          *
          * @throws IllegalArgumentException
-         *         If any of the parameters is null
+         *                                  If any of the parameters is null
          */
         public Builder(@Nonnull JDA jda, @Nonnull Class<E> eventType) {
             Checks.notNull(jda, "JDA");
@@ -177,15 +185,18 @@ public class Once<E extends GenericEvent> implements EventListener {
         }
 
         /**
-         * Adds an event filter, all filters need to return {@code true} for the event to be consumed.
+         * Adds an event filter, all filters need to return {@code true} for the event
+         * to be consumed.
          *
-         * <p>If the filter throws an exception, this listener will unregister itself.
+         * <p>
+         * If the filter throws an exception, this listener will unregister itself.
          *
-         * @param  filter
-         *         The filter to add, returns {@code true} if the event can be consumed
+         * @param filter
+         *               The filter to add, returns {@code true} if the event can be
+         *               consumed
          *
          * @throws IllegalArgumentException
-         *         If the filter is null
+         *                                  If the filter is null
          *
          * @return This instance for chaining convenience
          */
@@ -199,11 +210,11 @@ public class Once<E extends GenericEvent> implements EventListener {
         /**
          * Sets the timeout duration, after which the event is no longer listener for.
          *
-         * @param  timeout
-         *         The duration after which the event is no longer listener for
+         * @param timeout
+         *                The duration after which the event is no longer listener for
          *
          * @throws IllegalArgumentException
-         *         If the timeout is null
+         *                                  If the timeout is null
          *
          * @return This instance for chaining convenience
          */
@@ -216,13 +227,14 @@ public class Once<E extends GenericEvent> implements EventListener {
          * Sets the timeout duration, after which the event is no longer listener for,
          * and the callback is run.
          *
-         * @param  timeout
-         *         The duration after which the event is no longer listener for
-         * @param  timeoutCallback
-         *         The callback run after the duration
+         * @param timeout
+         *                        The duration after which the event is no longer
+         *                        listener for
+         * @param timeoutCallback
+         *                        The callback run after the duration
          *
          * @throws IllegalArgumentException
-         *         If the timeout is null
+         *                                  If the timeout is null
          *
          * @return This instance for chaining convenience
          */
@@ -237,13 +249,14 @@ public class Once<E extends GenericEvent> implements EventListener {
         /**
          * Sets the thread pool used to schedule timeouts and run its callback.
          *
-         * <p>By default {@link JDA#getGatewayPool()} is used.
+         * <p>
+         * By default {@link JDA#getGatewayPool()} is used.
          *
-         * @param  timeoutPool
-         *         The thread pool to use for timeouts
+         * @param timeoutPool
+         *                    The thread pool to use for timeouts
          *
          * @throws IllegalArgumentException
-         *         If the timeout pool is null
+         *                                  If the timeout pool is null
          *
          * @return This instance for chaining convenience
          */
@@ -257,17 +270,22 @@ public class Once<E extends GenericEvent> implements EventListener {
         /**
          * Starts listening for the event, once.
          *
-         * <p>The task will be completed after all {@link #filter(Predicate) filters} return {@code true}.
+         * <p>
+         * The task will be completed after all {@link #filter(Predicate) filters}
+         * return {@code true}.
          *
-         * <p>Exceptions thrown in {@link Task#get() blocking} and {@link Task#onSuccess(Consumer) async} contexts includes:
+         * <p>
+         * Exceptions thrown in {@link Task#get() blocking} and
+         * {@link Task#onSuccess(Consumer) async} contexts includes:
          * <ul>
-         *     <li>{@link CancellationException} - When {@link Task#cancel()} is called</li>
-         *     <li>{@link TimeoutException} - When the listener has expired</li>
-         *     <li>Any exception thrown by the {@link #timeout(Duration, Runnable) timeout callback}</li>
+         * <li>{@link CancellationException} - When {@link Task#cancel()} is called</li>
+         * <li>{@link TimeoutException} - When the listener has expired</li>
+         * <li>Any exception thrown by the {@link #timeout(Duration, Runnable) timeout
+         * callback}</li>
          * </ul>
          *
          * @throws IllegalArgumentException
-         *         If the callback is null
+         *                                  If the callback is null
          *
          * @return {@link Task} returning an event satisfying all preconditions
          *

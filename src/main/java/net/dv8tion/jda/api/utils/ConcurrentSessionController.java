@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.api.utils;
 
-import com.neovisionaries.ws.client.OpeningHandshakeException;
+import io.netty.handler.codec.http.websocketx.WebSocketHandshakeException;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.internal.utils.Helpers;
@@ -31,20 +31,35 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 
 /**
- * Implementation of {@link SessionController} which respects concurrent shard login.
- * <br>This makes use of the {@link #setConcurrency(int)} hook to delegate buckets for individual shard queues.
+ * Implementation of {@link SessionController} which respects concurrent shard
+ * login.
+ * <br>
+ * This makes use of the {@link #setConcurrency(int)} hook to delegate buckets
+ * for individual shard queues.
  *
- * <p>The concurrency model works through a modulo over the concurrency limit.
- * <pre>{@code bucket = shard_id % concurrency}</pre>
- * This limit is different depending on the scale of the bot and is determined by discord. Bots who participate in
- * a larger set of guilds are eligible to login more shards at once than smaller bots. A bot in 250 guilds will only
- * be able to login 1 shard but a bot in 250K guilds can login 16 or 64 shards at once. Each bucket has a 5 second delay
+ * <p>
+ * The concurrency model works through a modulo over the concurrency limit.
+ *
+ * <pre>{@code
+ * bucket = shard_id % concurrency
+ * }</pre>
+ *
+ * This limit is different depending on the scale of the bot and is determined
+ * by discord. Bots who participate in
+ * a larger set of guilds are eligible to login more shards at once than smaller
+ * bots. A bot in 250 guilds will only
+ * be able to login 1 shard but a bot in 250K guilds can login 16 or 64 shards
+ * at once. Each bucket has a 5 second delay
  * between logins.
  *
- * <p>This implementation is rather naive. It will use one thread per bucket and use sleeps to backoff.
+ * <p>
+ * This implementation is rather naive. It will use one thread per bucket and
+ * use sleeps to backoff.
  * If desired, this could be done a lot more efficiently by using a scheduler.
- * However, it is rather unlikely to be an issue in most cases. The only time where 64 threads would actually be used
- * is during the initial startup. During runtime its not common for all shards to reconnect at once.
+ * However, it is rather unlikely to be an issue in most cases. The only time
+ * where 64 threads would actually be used
+ * is during the initial startup. During runtime its not common for all shards
+ * to reconnect at once.
  */
 public class ConcurrentSessionController extends SessionControllerAdapter implements SessionController {
     private Worker[] workers = new Worker[1];
@@ -88,9 +103,10 @@ public class ConcurrentSessionController extends SessionControllerAdapter implem
 
         private synchronized void start() {
             if (thread == null) {
-                thread = new Thread(this, "ConcurrentSessionController-Worker-" + id);
+                thread = Thread.ofVirtual()
+                        .name("ConcurrentSessionController-Worker-" + id)
+                        .start(this);
                 log.debug("Running worker");
-                thread.start();
             }
         }
 
@@ -142,9 +158,9 @@ public class ConcurrentSessionController extends SessionControllerAdapter implem
                 queue.add(node);
                 throw e;
             } catch (IllegalStateException | ErrorResponseException e) {
-                if (Helpers.hasCause(e, OpeningHandshakeException.class)) {
+                if (Helpers.hasCause(e, WebSocketHandshakeException.class)) {
                     log.error("Failed opening handshake, appending to queue. Message: {}", e.getMessage());
-                } else if (e instanceof ErrorResponseException && e.getCause() instanceof IOException) {
+                } else if (e instanceof ErrorResponseException err && err.getCause() instanceof IOException) {
                     /* This is already logged by the Requester */
                 } else if (Helpers.hasCause(e, UnknownHostException.class)) {
                     log.error("DNS resolution failed: {}", e.getMessage());

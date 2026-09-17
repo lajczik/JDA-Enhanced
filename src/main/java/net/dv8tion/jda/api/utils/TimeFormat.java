@@ -19,6 +19,7 @@ package net.dv8tion.jda.api.utils;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.ClockProvider;
 
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
@@ -130,12 +131,18 @@ public enum TimeFormat {
     public static TimeFormat fromStyle(@Nonnull String style) {
         Checks.notEmpty(style, "Style");
         Checks.notLonger(style, 1, "Style");
-        for (TimeFormat format : values()) {
-            if (format.style.equals(style)) {
-                return format;
-            }
-        }
-        return DEFAULT;
+        return switch (style) {
+            case "t" -> TIME_SHORT;
+            case "T" -> TIME_LONG;
+            case "d" -> DATE_SHORT;
+            case "D" -> DATE_LONG;
+            case "f" -> DATE_TIME_SHORT;
+            case "F" -> DATE_TIME_LONG;
+            case "s" -> DATE_SHORT_TIME_SHORT;
+            case "S" -> DATE_SHORT_TIME_LONG;
+            case "R" -> RELATIVE;
+            default -> DEFAULT;
+        };
     }
 
     /**
@@ -170,7 +177,7 @@ public enum TimeFormat {
      *
      * @throws IllegalArgumentException
      *         If the provided temporal instance is null
-     * @throws java.time.DateTimeException
+     * @throws DateTimeException
      *         If the temporal accessor cannot be converted to an instant
      *
      * @return The markdown string with this encoded style

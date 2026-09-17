@@ -16,8 +16,9 @@
 
 package net.dv8tion.jda.api.utils;
 
-import gnu.trove.map.TIntObjectMap;
-import gnu.trove.map.hash.TIntObjectHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.dv8tion.jda.internal.utils.Checks;
 
 import java.util.regex.Pattern;
@@ -71,21 +72,23 @@ public class MarkdownSanitizer {
     private static final Pattern quote = Pattern.compile("> +.*", Pattern.DOTALL | Pattern.MULTILINE);
     private static final Pattern quoteBlock = Pattern.compile(">>>\\s+\\S.*", Pattern.DOTALL | Pattern.MULTILINE);
 
-    private static final TIntObjectMap<String> tokens;
+    private static final Int2ObjectMap<String> tokens;
 
     static {
-        tokens = new TIntObjectHashMap<>();
-        tokens.put(NORMAL, "");
-        tokens.put(BOLD, "**");
-        tokens.put(ITALICS_U, "_");
-        tokens.put(ITALICS_A, "*");
-        tokens.put(BOLD | ITALICS_A, "***");
-        tokens.put(MONO, "`");
-        tokens.put(MONO_TWO, "``");
-        tokens.put(BLOCK, "```");
-        tokens.put(SPOILER, "||");
-        tokens.put(UNDERLINE, "__");
-        tokens.put(STRIKE, "~~");
+        Int2ObjectOpenHashMap<String> map = new Int2ObjectOpenHashMap<>(11);
+        map.put(NORMAL, "");
+        map.put(BOLD, "**");
+        map.put(ITALICS_U, "_");
+        map.put(ITALICS_A, "*");
+        map.put(BOLD | ITALICS_A, "***");
+        map.put(MONO, "`");
+        map.put(MONO_TWO, "``");
+        map.put(BLOCK, "```");
+        map.put(SPOILER, "||");
+        map.put(UNDERLINE, "__");
+        map.put(STRIKE, "~~");
+        map.trim();
+        tokens = Int2ObjectMaps.unmodifiable(map);
     }
 
     private int ignored;
@@ -121,9 +124,9 @@ public class MarkdownSanitizer {
      * @param  sequence
      *         The string to sanitize
      * @param  strategy
-     *         The {@link net.dv8tion.jda.api.utils.MarkdownSanitizer.SanitizationStrategy} to apply
+     *         The {@link MarkdownSanitizer.SanitizationStrategy} to apply
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If provided with null
      *
      * @return The sanitized string
@@ -144,7 +147,7 @@ public class MarkdownSanitizer {
      * @param  sequence
      *         The string to sanitize
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If provided with null
      *
      * @return The string with escaped markdown
@@ -165,7 +168,7 @@ public class MarkdownSanitizer {
      * @param  ignored
      *         Formats to ignore
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If provided with null
      *
      * @return The string with escaped markdown
@@ -187,7 +190,7 @@ public class MarkdownSanitizer {
      * @param single
      *        Whether it should scape single tokens or not.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If provided with null sequence
      *
      * @return The string with escaped markdown
@@ -259,12 +262,12 @@ public class MarkdownSanitizer {
     }
 
     /**
-     * Switches the used {@link net.dv8tion.jda.api.utils.MarkdownSanitizer.SanitizationStrategy}.
+     * Switches the used {@link MarkdownSanitizer.SanitizationStrategy}.
      *
      * @param  strategy
      *         The new strategy
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If provided with null
      *
      * @return The current sanitizer instance with the new strategy
@@ -512,13 +515,13 @@ public class MarkdownSanitizer {
 
     /**
      * Computes the provided input.
-     * <br>Uses the specified {@link net.dv8tion.jda.api.utils.MarkdownSanitizer.SanitizationStrategy} and
+     * <br>Uses the specified {@link MarkdownSanitizer.SanitizationStrategy} and
      * ignores any regions specified with {@link #withIgnored(int)}.
      *
      * @param  sequence
      *         The string to compute
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         If the provided string is null
      *
      * @return The resulting string after applying the computation

@@ -16,6 +16,7 @@
 
 package net.dv8tion.jda.api;
 
+import io.netty.channel.EventLoopGroup;
 import net.dv8tion.jda.annotations.Incubating;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.Channel;
@@ -43,6 +44,7 @@ import net.dv8tion.jda.api.requests.restaction.*;
 import net.dv8tion.jda.api.requests.restaction.pagination.EntitlementPaginationAction;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.MiscUtil;
+import net.dv8tion.jda.api.utils.NettyConfig;
 import net.dv8tion.jda.api.utils.Once;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.dv8tion.jda.api.utils.cache.CacheView;
@@ -53,8 +55,9 @@ import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.EntityString;
 import net.dv8tion.jda.internal.utils.Helpers;
-import okhttp3.OkHttpClient;
 import org.jetbrains.annotations.Unmodifiable;
+import reactor.core.scheduler.Scheduler;
+import reactor.netty.http.client.HttpClient;
 
 import java.awt.*;
 import java.io.IOException;
@@ -516,7 +519,7 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      * {@link ExecutorService} used to handle {@link RestAction} callbacks
      * and completions. This is also used for handling {@link net.dv8tion.jda.api.entities.Message.Attachment} downloads
      * when needed.
-     * <br>By default this uses the {@link ForkJoinPool#commonPool() CommonPool} of the runtime.
+     * <br>By default this uses a virtual thread-per-task executor.
      *
      * @return The {@link ExecutorService} used for callbacks
      */
@@ -524,12 +527,66 @@ public interface JDA extends IGuildChannelContainer<Channel> {
     ExecutorService getCallbackPool();
 
     /**
-     * The {@link OkHttpClient} used for handling http requests from {@link RestAction RestActions}.
+     * {@link Scheduler} used by Project Reactor operations to dispatch on the JDA callback pool.
+     *
+     * @return The {@link Scheduler} wrapping the callback pool
+     */
+    @Nonnull
+    Scheduler getCallbackScheduler();
+
+    /**
+     * {@link ExecutorService} used to dispatch events to registered event listeners.
+     * <br>This can be {@code null} if no dedicated event pool is configured.
+     *
+     * @return The {@link ExecutorService} used for dispatching events, or null
+     */
+    @Nullable
+    ExecutorService getEventPool();
+
+    /**
+     * The {@link HttpClient} used for handling http requests from {@link RestAction RestActions}.
      *
      * @return The http client
      */
     @Nonnull
-    OkHttpClient getHttpClient();
+    HttpClient getHttpClient();
+
+    /**
+     * The {@link EventLoopGroup} used for WebSocket connections.
+     * <br>This instance is constant for the lifetime of this {@link JDA} instance.
+     *
+     * @return The constant WebSocket {@link EventLoopGroup}
+     */
+    @Nonnull
+    EventLoopGroup getWebsocketEventLoopGroup();
+
+    /**
+     * The {@link EventLoopGroup} used by the HTTP client.
+     * <br>This instance is constant for the lifetime of this {@link JDA} instance.
+     *
+     * @return The constant HTTP client {@link EventLoopGroup}
+     */
+    @Nonnull
+    EventLoopGroup getHttpClientEventLoopGroup();
+
+    /**
+     * The {@link EventLoopGroup} used for Audio connections.
+     * <br>If not explicitly configured, this shares the same group as {@link #getWebsocketEventLoopGroup()}.
+     * <br>This instance is constant for the lifetime of this {@link JDA} instance.
+     *
+     * @return The constant Audio {@link EventLoopGroup}
+     */
+    @Nonnull
+    EventLoopGroup getAudioEventLoopGroup();
+
+    /**
+     * The immutable {@link NettyConfig} used by this JDA instance.
+     * <br>This instance is constant for the lifetime of this {@link JDA} instance.
+     *
+     * @return The constant {@link NettyConfig}
+     */
+    @Nonnull
+    NettyConfig getNettyConfig();
 
     /**
      * Direct access to audio (dis-)connect requests.

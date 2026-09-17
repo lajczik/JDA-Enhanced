@@ -16,34 +16,47 @@
 
 package net.dv8tion.jda.api;
 
-import com.neovisionaries.ws.client.WebSocketFactory;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.channel.EventLoopGroup;
 import net.dv8tion.jda.annotations.ReplaceWith;
 import net.dv8tion.jda.api.audio.AudioModuleConfig;
 import net.dv8tion.jda.api.audio.factory.DefaultSendFactory;
 import net.dv8tion.jda.api.audio.factory.IAudioSendFactory;
+import net.dv8tion.jda.api.audio.factory.IAudioSendSystem;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.events.Event;
+import net.dv8tion.jda.api.events.GenericEvent;
+import net.dv8tion.jda.api.events.RawGatewayEvent;
+import net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.exceptions.InvalidTokenException;
-import net.dv8tion.jda.api.hooks.IEventManager;
-import net.dv8tion.jda.api.hooks.VoiceDispatchInterceptor;
+import net.dv8tion.jda.api.hooks.*;
+import net.dv8tion.jda.api.managers.Presence;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.RestConfig;
+import net.dv8tion.jda.api.sharding.ShardManager;
 import net.dv8tion.jda.api.utils.*;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
+import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.managers.PresenceImpl;
 import net.dv8tion.jda.internal.utils.Checks;
-import net.dv8tion.jda.internal.utils.IOUtil;
 import net.dv8tion.jda.internal.utils.config.AuthorizationConfig;
 import net.dv8tion.jda.internal.utils.config.MetaConfig;
 import net.dv8tion.jda.internal.utils.config.SessionConfig;
 import net.dv8tion.jda.internal.utils.config.ThreadingConfig;
 import net.dv8tion.jda.internal.utils.config.flags.ConfigFlag;
-import okhttp3.OkHttpClient;
+import org.slf4j.MDC;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.resources.ConnectionProvider;
+import reactor.netty.resources.LoopResources;
 
+import java.net.SocketTimeoutException;
+import java.time.Duration;
 import java.util.*;
+import java.util.EventListener;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
@@ -52,14 +65,19 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Used to create new {@link net.dv8tion.jda.api.JDA} instances. This is also useful for making sure all of
- * your {@link net.dv8tion.jda.api.hooks.EventListener EventListeners} are registered
- * before {@link net.dv8tion.jda.api.JDA} attempts to log in.
+ * Used to create new {@link JDA} instances. This is also
+ * useful for making sure all of
+ * your {@link EventListener EventListeners} are
+ * registered
+ * before {@link JDA} attempts to log in.
  *
- * <p>A single JDABuilder can be reused multiple times. Each call to
- * {@link net.dv8tion.jda.api.JDABuilder#build() build()}
- * creates a new {@link net.dv8tion.jda.api.JDA} instance using the same information.
- * This means that you can have listeners easily registered to multiple {@link net.dv8tion.jda.api.JDA} instances.
+ * <p>
+ * A single JDABuilder can be reused multiple times. Each call to
+ * {@link JDABuilder#build() build()}
+ * creates a new {@link JDA} instance using the same
+ * information.
+ * This means that you can have listeners easily registered to multiple
+ * {@link JDA} instances.
  */
 public class JDABuilder {
     protected final List<Object> listeners = new ArrayList<>();
@@ -75,19 +93,18 @@ public class JDABuilder {
     protected boolean shutdownCallbackPool = true;
     protected ExecutorService eventPool = null;
     protected boolean shutdownEventPool = true;
+    protected boolean explicitEventPool = false;
     protected ScheduledExecutorService audioPool = null;
     protected boolean shutdownAudioPool = true;
     protected EnumSet<CacheFlag> cacheFlags = EnumSet.allOf(CacheFlag.class);
     protected ConcurrentMap<String, String> contextMap = null;
     protected SessionController controller = null;
     protected VoiceDispatchInterceptor voiceDispatchInterceptor = null;
-    protected OkHttpClient.Builder httpClientBuilder = null;
-    protected OkHttpClient httpClient = null;
-    protected WebSocketFactory wsFactory = null;
     protected String token = null;
     protected IEventManager eventManager = null;
     protected JDA.ShardInfo shardInfo = null;
-    protected Compression compression = Compression.ZLIB;
+    protected Compression compression = Compression.NONE;
+    protected JsonEngineType jsonEngine = null;
     protected Activity activity = null;
     protected OnlineStatus status = OnlineStatus.ONLINE;
     protected boolean idle = false;
@@ -98,9 +115,25 @@ public class JDABuilder {
     protected EnumSet<ConfigFlag> flags = ConfigFlag.getDefault();
     protected ChunkingFilter chunkingFilter = ChunkingFilter.ALL;
     protected MemberCachePolicy memberCachePolicy = MemberCachePolicy.ALL;
-    protected GatewayEncoding encoding = GatewayEncoding.JSON;
+    protected GatewayEncoding encoding = GatewayEncoding.ETF;
     protected RestConfig restConfig = new RestConfig();
     protected AudioModuleConfig audioModuleConfig = null;
+
+    protected ByteBufAllocator byteBufAllocator = null;
+    protected boolean useNativeTransport = true;
+    protected boolean tcpNoDelay = true;
+    protected int websocketEventLoopThreads = NettyConfig.DEFAULT_WEBSOCKET_EVENT_LOOP_THREADS;
+    protected int httpClientEventLoopThreads = NettyConfig.DEFAULT_HTTP_CLIENT_EVENT_LOOP_THREADS;
+    protected int audioEventLoopThreads = NettyConfig.DEFAULT_AUDIO_EVENT_LOOP_THREADS;
+    protected int connectTimeoutMillis = NettyConfig.DEFAULT_CONNECT_TIMEOUT_MILLIS;
+    protected int maxFramePayloadLength = NettyConfig.DEFAULT_MAX_FRAME_PAYLOAD_LENGTH;
+    protected int httpAggregatorMaxContentLength = NettyConfig.DEFAULT_HTTP_AGGREGATOR_MAX_CONTENT_LENGTH;
+    protected EventLoopGroup websocketLoopGroup = null;
+    protected EventLoopGroup httpClientLoopGroup = null;
+    protected EventLoopGroup audioLoopGroup = null;
+    protected LoopResources loopResources = null;
+    protected ConnectionProvider connectionProvider = null;
+    protected HttpClient httpClient = null;
 
     protected JDABuilder(@Nullable String token, int intents) {
         this.token = token;
@@ -109,22 +142,27 @@ public class JDABuilder {
 
     /**
      * Creates a JDABuilder with recommended default settings.
-     * <br>Note that these defaults can potentially change in the future.
+     * <br>
+     * Note that these defaults can potentially change in the future.
      *
      * <ul>
-     *     <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to {@link MemberCachePolicy#DEFAULT}</li>
-     *     <li>{@link #setChunkingFilter(ChunkingFilter)} is set to {@link ChunkingFilter#NONE}</li>
-     *     <li>{@link #setEnabledIntents(Collection)} is set to {@link GatewayIntent#DEFAULT}</li>
-     *     <li>This disables {@link CacheFlag#ACTIVITY} and {@link CacheFlag#CLIENT_STATUS}</li>
+     * <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to
+     * {@link MemberCachePolicy#DEFAULT}</li>
+     * <li>{@link #setChunkingFilter(ChunkingFilter)} is set to
+     * {@link ChunkingFilter#NONE}</li>
+     * <li>{@link #setEnabledIntents(Collection)} is set to
+     * {@link GatewayIntent#DEFAULT}</li>
+     * <li>This disables {@link CacheFlag#ACTIVITY} and
+     * {@link CacheFlag#CLIENT_STATUS}</li>
      * </ul>
      *
-     * @param  token
-     *         The bot token to use
+     * @param token
+     *              The bot token to use
      *
      * @return The new JDABuilder
      *
-     * @see    #disableIntents(GatewayIntent, GatewayIntent...)
-     * @see    #enableIntents(GatewayIntent, GatewayIntent...)
+     * @see #disableIntents(GatewayIntent, GatewayIntent...)
+     * @see #enableIntents(GatewayIntent, GatewayIntent...)
      */
     @Nonnull
     @CheckReturnValue
@@ -134,35 +172,45 @@ public class JDABuilder {
 
     /**
      * Creates a JDABuilder with recommended default settings.
-     * <br>Note that these defaults can potentially change in the future.
+     * <br>
+     * Note that these defaults can potentially change in the future.
      *
      * <ul>
-     *     <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to {@link MemberCachePolicy#DEFAULT}</li>
-     *     <li>{@link #setChunkingFilter(ChunkingFilter)} is set to {@link ChunkingFilter#NONE}</li>
-     *     <li>This disables {@link CacheFlag#ACTIVITY} and {@link CacheFlag#CLIENT_STATUS}</li>
+     * <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to
+     * {@link MemberCachePolicy#DEFAULT}</li>
+     * <li>{@link #setChunkingFilter(ChunkingFilter)} is set to
+     * {@link ChunkingFilter#NONE}</li>
+     * <li>This disables {@link CacheFlag#ACTIVITY} and
+     * {@link CacheFlag#CLIENT_STATUS}</li>
      * </ul>
      *
-     * <p>You can omit intents in this method to use {@link GatewayIntent#DEFAULT} and enable additional intents with
+     * <p>
+     * You can omit intents in this method to use {@link GatewayIntent#DEFAULT} and
+     * enable additional intents with
      * {@link #enableIntents(Collection)}.
      *
-     * <p>If you don't enable certain intents, the cache will be disabled.
-     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent is disabled, then members will only
+     * <p>
+     * If you don't enable certain intents, the cache will be disabled.
+     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent
+     * is disabled, then members will only
      * be cached when a voice state is available.
-     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
+     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and
+     * {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
      * then no members will be cached.
      *
-     * <p>The individual {@link CacheFlag CacheFlags} will also be disabled
+     * <p>
+     * The individual {@link CacheFlag CacheFlags} will also be disabled
      * if the {@link CacheFlag#getRequiredIntent() required intent} is not enabled.
      *
-     * @param  token
-     *         The bot token to use
-     * @param  intent
-     *         The intent to enable
-     * @param  intents
-     *         Any other intents to enable
+     * @param token
+     *                The bot token to use
+     * @param intent
+     *                The intent to enable
+     * @param intents
+     *                Any other intents to enable
      *
      * @throws IllegalArgumentException
-     *         If provided with null intents
+     *                                  If provided with null intents
      *
      * @return The new JDABuilder
      */
@@ -177,33 +225,43 @@ public class JDABuilder {
 
     /**
      * Creates a JDABuilder with recommended default settings.
-     * <br>Note that these defaults can potentially change in the future.
+     * <br>
+     * Note that these defaults can potentially change in the future.
      *
      * <ul>
-     *     <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to {@link MemberCachePolicy#DEFAULT}</li>
-     *     <li>{@link #setChunkingFilter(ChunkingFilter)} is set to {@link ChunkingFilter#NONE}</li>
-     *     <li>This disables {@link CacheFlag#ACTIVITY} and {@link CacheFlag#CLIENT_STATUS}</li>
+     * <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to
+     * {@link MemberCachePolicy#DEFAULT}</li>
+     * <li>{@link #setChunkingFilter(ChunkingFilter)} is set to
+     * {@link ChunkingFilter#NONE}</li>
+     * <li>This disables {@link CacheFlag#ACTIVITY} and
+     * {@link CacheFlag#CLIENT_STATUS}</li>
      * </ul>
      *
-     * <p>You can omit intents in this method to use {@link GatewayIntent#DEFAULT} and enable additional intents with
+     * <p>
+     * You can omit intents in this method to use {@link GatewayIntent#DEFAULT} and
+     * enable additional intents with
      * {@link #enableIntents(Collection)}.
      *
-     * <p>If you don't enable certain intents, the cache will be disabled.
-     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent is disabled, then members will only
+     * <p>
+     * If you don't enable certain intents, the cache will be disabled.
+     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent
+     * is disabled, then members will only
      * be cached when a voice state is available.
-     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
+     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and
+     * {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
      * then no members will be cached.
      *
-     * <p>The individual {@link CacheFlag CacheFlags} will also be disabled
+     * <p>
+     * The individual {@link CacheFlag CacheFlags} will also be disabled
      * if the {@link CacheFlag#getRequiredIntent() required intent} is not enabled.
      *
-     * @param  token
-     *         The bot token to use
-     * @param  intents
-     *         The intents to enable
+     * @param token
+     *                The bot token to use
+     * @param intents
+     *                The intents to enable
      *
      * @throws IllegalArgumentException
-     *         If provided with null intents
+     *                                  If provided with null intents
      *
      * @return The new JDABuilder
      */
@@ -222,22 +280,26 @@ public class JDABuilder {
 
     /**
      * Creates a JDABuilder with low memory profile settings.
-     * <br>Note that these defaults can potentially change in the future.
+     * <br>
+     * Note that these defaults can potentially change in the future.
      *
      * <ul>
-     *     <li>{@link #setEnabledIntents(Collection)} is set to {@link GatewayIntent#DEFAULT}</li>
-     *     <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to {@link MemberCachePolicy#NONE}</li>
-     *     <li>{@link #setChunkingFilter(ChunkingFilter)} is set to {@link ChunkingFilter#NONE}</li>
-     *     <li>This disables all existing {@link CacheFlag CacheFlags}</li>
+     * <li>{@link #setEnabledIntents(Collection)} is set to
+     * {@link GatewayIntent#DEFAULT}</li>
+     * <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to
+     * {@link MemberCachePolicy#NONE}</li>
+     * <li>{@link #setChunkingFilter(ChunkingFilter)} is set to
+     * {@link ChunkingFilter#NONE}</li>
+     * <li>This disables all existing {@link CacheFlag CacheFlags}</li>
      * </ul>
      *
-     * @param  token
-     *         The bot token to use
+     * @param token
+     *              The bot token to use
      *
      * @return The new JDABuilder
      *
-     * @see    #disableIntents(GatewayIntent, GatewayIntent...)
-     * @see    #enableIntents(GatewayIntent, GatewayIntent...)
+     * @see #disableIntents(GatewayIntent, GatewayIntent...)
+     * @see #enableIntents(GatewayIntent, GatewayIntent...)
      */
     @Nonnull
     @CheckReturnValue
@@ -247,32 +309,41 @@ public class JDABuilder {
 
     /**
      * Creates a JDABuilder with low memory profile settings.
-     * <br>Note that these defaults can potentially change in the future.
+     * <br>
+     * Note that these defaults can potentially change in the future.
      *
      * <ul>
-     *     <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to {@link MemberCachePolicy#NONE}</li>
-     *     <li>{@link #setChunkingFilter(ChunkingFilter)} is set to {@link ChunkingFilter#NONE}</li>
-     *     <li>This disables all existing {@link CacheFlag CacheFlags}</li>
+     * <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to
+     * {@link MemberCachePolicy#NONE}</li>
+     * <li>{@link #setChunkingFilter(ChunkingFilter)} is set to
+     * {@link ChunkingFilter#NONE}</li>
+     * <li>This disables all existing {@link CacheFlag CacheFlags}</li>
      * </ul>
      *
-     * <p>You can omit intents in this method to use {@link GatewayIntent#DEFAULT} and enable additional intents with
+     * <p>
+     * You can omit intents in this method to use {@link GatewayIntent#DEFAULT} and
+     * enable additional intents with
      * {@link #enableIntents(Collection)}.
      *
-     * <p>If you don't enable certain intents, the cache will be disabled.
-     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent is disabled, then members will only
+     * <p>
+     * If you don't enable certain intents, the cache will be disabled.
+     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent
+     * is disabled, then members will only
      * be cached when a voice state is available.
-     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
+     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and
+     * {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
      * then no members will be cached.
      *
-     * <p>The individual {@link CacheFlag CacheFlags} will also be disabled
+     * <p>
+     * The individual {@link CacheFlag CacheFlags} will also be disabled
      * if the {@link CacheFlag#getRequiredIntent() required intent} is not enabled.
      *
-     * @param  token
-     *         The bot token to use
-     * @param  intent
-     *         The first intent to use
-     * @param  intents
-     *         The other gateway intents to use
+     * @param token
+     *                The bot token to use
+     * @param intent
+     *                The first intent to use
+     * @param intents
+     *                The other gateway intents to use
      *
      * @return The new JDABuilder
      */
@@ -287,30 +358,39 @@ public class JDABuilder {
 
     /**
      * Creates a JDABuilder with low memory profile settings.
-     * <br>Note that these defaults can potentially change in the future.
+     * <br>
+     * Note that these defaults can potentially change in the future.
      *
      * <ul>
-     *     <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to {@link MemberCachePolicy#NONE}</li>
-     *     <li>{@link #setChunkingFilter(ChunkingFilter)} is set to {@link ChunkingFilter#NONE}</li>
-     *     <li>This disables all existing {@link CacheFlag CacheFlags}</li>
+     * <li>{@link #setMemberCachePolicy(MemberCachePolicy)} is set to
+     * {@link MemberCachePolicy#NONE}</li>
+     * <li>{@link #setChunkingFilter(ChunkingFilter)} is set to
+     * {@link ChunkingFilter#NONE}</li>
+     * <li>This disables all existing {@link CacheFlag CacheFlags}</li>
      * </ul>
      *
-     * <p>You can omit intents in this method to use {@link GatewayIntent#DEFAULT} and enable additional intents with
+     * <p>
+     * You can omit intents in this method to use {@link GatewayIntent#DEFAULT} and
+     * enable additional intents with
      * {@link #enableIntents(Collection)}.
      *
-     * <p>If you don't enable certain intents, the cache will be disabled.
-     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent is disabled, then members will only
+     * <p>
+     * If you don't enable certain intents, the cache will be disabled.
+     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent
+     * is disabled, then members will only
      * be cached when a voice state is available.
-     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
+     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and
+     * {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
      * then no members will be cached.
      *
-     * <p>The individual {@link CacheFlag CacheFlags} will also be disabled
+     * <p>
+     * The individual {@link CacheFlag CacheFlags} will also be disabled
      * if the {@link CacheFlag#getRequiredIntent() required intent} is not enabled.
      *
-     * @param  token
-     *         The bot token to use
-     * @param  intents
-     *         The gateway intents to use
+     * @param token
+     *                The bot token to use
+     * @param intents
+     *                The gateway intents to use
      *
      * @return The new JDABuilder
      */
@@ -329,32 +409,40 @@ public class JDABuilder {
 
     /**
      * Creates a completely empty JDABuilder with the predefined intents.
-     * <br>You can use {@link #create(Collection) JDABuilder.create(EnumSet.noneOf(GatewayIntent.class))} to disable all intents.
+     * <br>
+     * You can use {@link #create(Collection)
+     * JDABuilder.create(EnumSet.noneOf(GatewayIntent.class))} to disable all
+     * intents.
      *
-     * <br>If you use this, you need to set the token using
-     * {@link net.dv8tion.jda.api.JDABuilder#setToken(String) setToken(String)}
-     * before calling {@link net.dv8tion.jda.api.JDABuilder#build() build()}
+     * <br>
+     * If you use this, you need to set the token using
+     * {@link JDABuilder#setToken(String) setToken(String)}
+     * before calling {@link JDABuilder#build() build()}
      *
-     * <p>If you don't enable certain intents, the cache will be disabled.
-     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent is disabled, then members will only
+     * <p>
+     * If you don't enable certain intents, the cache will be disabled.
+     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent
+     * is disabled, then members will only
      * be cached when a voice state is available.
-     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
+     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and
+     * {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
      * then no members will be cached.
      *
-     * <p>The individual {@link CacheFlag CacheFlags} will also be disabled
+     * <p>
+     * The individual {@link CacheFlag CacheFlags} will also be disabled
      * if the {@link CacheFlag#getRequiredIntent() required intent} is not enabled.
      *
      * @param intent
-     *        The first intent
+     *                The first intent
      * @param intents
-     *        The gateway intents to use
+     *                The gateway intents to use
      *
      * @throws IllegalArgumentException
-     *         If the provided intents are null
+     *                                  If the provided intents are null
      *
      * @return The JDABuilder instance
      *
-     * @see   #setToken(String)
+     * @see #setToken(String)
      */
     @Nonnull
     @CheckReturnValue
@@ -365,28 +453,33 @@ public class JDABuilder {
     /**
      * Creates a completely empty JDABuilder with the predefined intents.
      *
-     * <br>If you use this, you need to set the token using
-     * {@link net.dv8tion.jda.api.JDABuilder#setToken(String) setToken(String)}
-     * before calling {@link net.dv8tion.jda.api.JDABuilder#build() build()}
+     * <br>
+     * If you use this, you need to set the token using
+     * {@link JDABuilder#setToken(String) setToken(String)}
+     * before calling {@link JDABuilder#build() build()}
      *
-     * <p>If you don't enable certain intents, the cache will be disabled.
-     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent is disabled, then members will only
+     * <p>
+     * If you don't enable certain intents, the cache will be disabled.
+     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent
+     * is disabled, then members will only
      * be cached when a voice state is available.
-     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
+     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and
+     * {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
      * then no members will be cached.
      *
-     * <p>The individual {@link CacheFlag CacheFlags} will also be disabled
+     * <p>
+     * The individual {@link CacheFlag CacheFlags} will also be disabled
      * if the {@link CacheFlag#getRequiredIntent() required intent} is not enabled.
      *
      * @param intents
-     *        The gateway intents to use
+     *                The gateway intents to use
      *
      * @throws IllegalArgumentException
-     *         If the provided intents are null
+     *                                  If the provided intents are null
      *
      * @return The JDABuilder instance
      *
-     * @see   #setToken(String)
+     * @see #setToken(String)
      */
     @Nonnull
     @CheckReturnValue
@@ -396,30 +489,36 @@ public class JDABuilder {
 
     /**
      * Creates a JDABuilder with the predefined token.
-     * <br>You can use {@link #create(String, Collection) JDABuilder.create(token, EnumSet.noneOf(GatewayIntent.class))} to disable all intents.
+     * <br>
+     * You can use {@link #create(String, Collection) JDABuilder.create(token,
+     * EnumSet.noneOf(GatewayIntent.class))} to disable all intents.
      *
-     * <p>If you don't enable certain intents, the cache will be disabled.
-     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent is disabled, then members will only
+     * <p>
+     * If you don't enable certain intents, the cache will be disabled.
+     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent
+     * is disabled, then members will only
      * be cached when a voice state is available.
-     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
+     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and
+     * {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
      * then no members will be cached.
      *
-     * <p>The individual {@link CacheFlag CacheFlags} will also be disabled
+     * <p>
+     * The individual {@link CacheFlag CacheFlags} will also be disabled
      * if the {@link CacheFlag#getRequiredIntent() required intent} is not enabled.
      *
      * @param token
-     *        The bot token to use
+     *                The bot token to use
      * @param intent
-     *        The first gateway intent to use
+     *                The first gateway intent to use
      * @param intents
-     *        Additional gateway intents to use
+     *                Additional gateway intents to use
      *
      * @throws IllegalArgumentException
-     *         If the provided intents are null
+     *                                  If the provided intents are null
      *
      * @return The JDABuilder instance
      *
-     * @see   #setToken(String)
+     * @see #setToken(String)
      */
     @Nonnull
     @CheckReturnValue
@@ -431,26 +530,30 @@ public class JDABuilder {
     /**
      * Creates a JDABuilder with the predefined token.
      *
-     * <p>If you don't enable certain intents, the cache will be disabled.
-     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent is disabled, then members will only
+     * <p>
+     * If you don't enable certain intents, the cache will be disabled.
+     * For instance, if the {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} intent
+     * is disabled, then members will only
      * be cached when a voice state is available.
-     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
+     * If both {@link GatewayIntent#GUILD_MEMBERS GUILD_MEMBERS} and
+     * {@link GatewayIntent#GUILD_VOICE_STATES GUILD_VOICE_STATES} are disabled
      * then no members will be cached.
      *
-     * <p>The individual {@link CacheFlag CacheFlags} will also be disabled
+     * <p>
+     * The individual {@link CacheFlag CacheFlags} will also be disabled
      * if the {@link CacheFlag#getRequiredIntent() required intent} is not enabled.
      *
      * @param token
-     *        The bot token to use
+     *                The bot token to use
      * @param intents
-     *        The gateway intents to use
+     *                The gateway intents to use
      *
      * @throws IllegalArgumentException
-     *         If the provided intents are null
+     *                                  If the provided intents are null
      *
      * @return The JDABuilder instance
      *
-     * @see   #setToken(String)
+     * @see #setToken(String)
      */
     @Nonnull
     @CheckReturnValue
@@ -482,11 +585,11 @@ public class JDABuilder {
     /**
      * Choose which {@link GatewayEncoding} JDA should use.
      *
-     * @param  encoding
-     *         The {@link GatewayEncoding} (default: JSON)
+     * @param encoding
+     *                 The {@link GatewayEncoding} (default: JSON)
      *
      * @throws IllegalArgumentException
-     *         If null is provided
+     *                                  If null is provided
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -498,11 +601,14 @@ public class JDABuilder {
     }
 
     /**
-     * Whether JDA should fire {@link net.dv8tion.jda.api.events.RawGatewayEvent} for every discord event.
-     * <br>Default: {@code false}
+     * Whether JDA should fire {@link RawGatewayEvent}
+     * for every discord event.
+     * <br>
+     * Default: {@code false}
      *
-     * @param  enable
-     *         True, if JDA should fire {@link net.dv8tion.jda.api.events.RawGatewayEvent}.
+     * @param enable
+     *               True, if JDA should fire
+     *               {@link RawGatewayEvent}.
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -512,18 +618,33 @@ public class JDABuilder {
     }
 
     /**
-     * Whether JDA should store the raw {@link net.dv8tion.jda.api.utils.data.DataObject DataObject} for every discord event, accessible through {@link net.dv8tion.jda.api.events.GenericEvent#getRawData() getRawData()}.
-     * <br>You can expect to receive the full gateway message payload, including sequence, event name and dispatch type of the events
-     * <br>You can read more about payloads <a href="https://discord.com/developers/docs/topics/gateway" target="_blank">here</a> and the different events <a href="https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events" target="_blank">here</a>.
-     * <br>Warning: be aware that enabling this could consume a lot of memory if your event objects have a long lifetime.
-     * <br>Default: {@code false}
+     * Whether JDA should store the raw
+     * {@link DataObject} for every
+     * discord event, accessible through
+     * {@link GenericEvent#getRawData() getRawData()}.
+     * <br>
+     * You can expect to receive the full gateway message payload, including
+     * sequence, event name and dispatch type of the events
+     * <br>
+     * You can read more about payloads
+     * <a href="https://discord.com/developers/docs/topics/gateway" target=
+     * "_blank">here</a> and the different events <a href=
+     * "https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events"
+     * target="_blank">here</a>.
+     * <br>
+     * Warning: be aware that enabling this could consume a lot of memory if your
+     * event objects have a long lifetime.
+     * <br>
+     * Default: {@code false}
      *
-     * @param  enable
-     *         True, if JDA should add the raw {@link net.dv8tion.jda.api.utils.data.DataObject DataObject} to every discord event.
+     * @param enable
+     *               True, if JDA should add the raw
+     *               {@link DataObject} to
+     *               every discord event.
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    Event#getRawData()
+     * @see Event#getRawData()
      */
     @Nonnull
     public JDABuilder setEventPassthrough(boolean enable) {
@@ -532,13 +653,15 @@ public class JDABuilder {
 
     /**
      * Custom {@link RestConfig} to use for this JDA instance.
-     * <br>This can be used to customize how rate-limits are handled and configure a custom http proxy.
+     * <br>
+     * This can be used to customize how rate-limits are handled and configure a
+     * custom http proxy.
      *
-     * @param  config
-     *         The {@link RestConfig} to use
+     * @param config
+     *               The {@link RestConfig} to use
      *
      * @throws IllegalArgumentException
-     *         If null is provided
+     *                                  If null is provided
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -551,18 +674,19 @@ public class JDABuilder {
 
     /**
      * Enable specific cache flags.
-     * <br>This will not disable any currently set cache flags.
+     * <br>
+     * This will not disable any currently set cache flags.
      *
-     * @param  flags
-     *         The {@link CacheFlag CacheFlags} to enable
+     * @param flags
+     *              The {@link CacheFlag CacheFlags} to enable
      *
      * @throws IllegalArgumentException
-     *         If provided with null
+     *                                  If provided with null
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #enableCache(CacheFlag, CacheFlag...)
-     * @see    #disableCache(Collection)
+     * @see #enableCache(CacheFlag, CacheFlag...)
+     * @see #disableCache(Collection)
      */
     @Nonnull
     public JDABuilder enableCache(@Nonnull Collection<CacheFlag> flags) {
@@ -573,20 +697,21 @@ public class JDABuilder {
 
     /**
      * Enable specific cache flags.
-     * <br>This will not disable any currently set cache flags.
+     * <br>
+     * This will not disable any currently set cache flags.
      *
-     * @param  flag
-     *         {@link CacheFlag} to enable
-     * @param  flags
-     *         Other flags to enable
+     * @param flag
+     *              {@link CacheFlag} to enable
+     * @param flags
+     *              Other flags to enable
      *
      * @throws IllegalArgumentException
-     *         If provided with null
+     *                                  If provided with null
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #enableCache(Collection)
-     * @see    #disableCache(CacheFlag, CacheFlag...)
+     * @see #enableCache(Collection)
+     * @see #disableCache(CacheFlag, CacheFlag...)
      */
     @Nonnull
     public JDABuilder enableCache(@Nonnull CacheFlag flag, @Nonnull CacheFlag... flags) {
@@ -598,18 +723,19 @@ public class JDABuilder {
 
     /**
      * Disable specific cache flags.
-     * <br>This will not enable any currently unset cache flags.
+     * <br>
+     * This will not enable any currently unset cache flags.
      *
-     * @param  flags
-     *         The {@link CacheFlag CacheFlags} to disable
+     * @param flags
+     *              The {@link CacheFlag CacheFlags} to disable
      *
      * @throws IllegalArgumentException
-     *         If provided with null
+     *                                  If provided with null
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #disableCache(CacheFlag, CacheFlag...)
-     * @see    #enableCache(Collection)
+     * @see #disableCache(CacheFlag, CacheFlag...)
+     * @see #enableCache(Collection)
      */
     @Nonnull
     public JDABuilder disableCache(@Nonnull Collection<CacheFlag> flags) {
@@ -621,20 +747,21 @@ public class JDABuilder {
 
     /**
      * Disable specific cache flags.
-     * <br>This will not enable any currently unset cache flags.
+     * <br>
+     * This will not enable any currently unset cache flags.
      *
-     * @param  flag
-     *         {@link CacheFlag} to disable
-     * @param  flags
-     *         Other flags to disable
+     * @param flag
+     *              {@link CacheFlag} to disable
+     * @param flags
+     *              Other flags to disable
      *
      * @throws IllegalArgumentException
-     *         If provided with null
+     *                                  If provided with null
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #disableCache(Collection)
-     * @see    #enableCache(CacheFlag, CacheFlag...)
+     * @see #disableCache(Collection)
+     * @see #enableCache(CacheFlag, CacheFlag...)
      */
     @Nonnull
     public JDABuilder disableCache(@Nonnull CacheFlag flag, @Nonnull CacheFlag... flags) {
@@ -646,14 +773,22 @@ public class JDABuilder {
     /**
      * Configure the member caching policy.
      * This will decide whether to cache a member (and its respective user).
-     * <br>All members are cached by default. If a guild is enabled for chunking, all members will be cached for it.
+     * <br>
+     * All members are cached by default. If a guild is enabled for chunking, all
+     * members will be cached for it.
      *
-     * <p>You can use this to define a custom caching policy that will greatly improve memory usage.
-     * <p>It is not recommended to disable {@link GatewayIntent#GUILD_MEMBERS GatewayIntent.GUILD_MEMBERS} when
-     * using {@link MemberCachePolicy#ALL MemberCachePolicy.ALL} as the members cannot be removed from cache by a leave event without this intent.
+     * <p>
+     * You can use this to define a custom caching policy that will greatly improve
+     * memory usage.
+     * <p>
+     * It is not recommended to disable {@link GatewayIntent#GUILD_MEMBERS
+     * GatewayIntent.GUILD_MEMBERS} when
+     * using {@link MemberCachePolicy#ALL MemberCachePolicy.ALL} as the members
+     * cannot be removed from cache by a leave event without this intent.
      *
-     * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * <p>
+     * <b>Example</b><br>
+     * {@snippet lang = "java":
      * public void configureCache(JDABuilder builder) {
      *     // Cache members who are in a voice channel
      *     MemberCachePolicy policy = MemberCachePolicy.VOICE;
@@ -669,13 +804,14 @@ public class JDABuilder {
      * }
      * }
      *
-     * @param  policy
-     *         The {@link MemberCachePolicy} or null to use default {@link MemberCachePolicy#ALL}
+     * @param policy
+     *               The {@link MemberCachePolicy} or null to use default
+     *               {@link MemberCachePolicy#ALL}
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    MemberCachePolicy
-     * @see    #setEnabledIntents(Collection)
+     * @see MemberCachePolicy
+     * @see #setEnabledIntents(Collection)
      */
     @Nonnull
     public JDABuilder setMemberCachePolicy(@Nullable MemberCachePolicy policy) {
@@ -688,20 +824,27 @@ public class JDABuilder {
     }
 
     /**
-     * Sets the {@link org.slf4j.MDC MDC} mappings to use in JDA.
-     * <br>If sharding is enabled JDA will automatically add a {@code jda.shard} context with the format {@code [SHARD_ID / TOTAL]}
+     * Sets the {@link MDC} mappings to use in JDA.
+     * <br>
+     * If sharding is enabled JDA will automatically add a {@code jda.shard} context
+     * with the format {@code [SHARD_ID / TOTAL]}
      * where {@code SHARD_ID} and {@code TOTAL} are the shard configuration.
-     * Additionally it will provide context for the id via {@code jda.shard.id} and the total via {@code jda.shard.total}.
+     * Additionally it will provide context for the id via {@code jda.shard.id} and
+     * the total via {@code jda.shard.total}.
      *
-     * <p>If provided with non-null map this automatically enables MDC context using {@link #setContextEnabled(boolean) setContextEnable(true)}!
+     * <p>
+     * If provided with non-null map this automatically enables MDC context using
+     * {@link #setContextEnabled(boolean) setContextEnable(true)}!
      *
-     * @param  map
-     *         The <b>modifiable</b> context map to use in JDA, or {@code null} to reset
+     * @param map
+     *            The <b>modifiable</b> context map to use in JDA, or {@code null}
+     *            to reset
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    <a href="https://www.slf4j.org/api/org/slf4j/MDC.html" target="_blank">MDC Javadoc</a>
-     * @see    #setContextEnabled(boolean)
+     * @see <a href="https://www.slf4j.org/api/org/slf4j/MDC.html" target=
+     *      "_blank">MDC Javadoc</a>
+     * @see #setContextEnabled(boolean)
      */
     @Nonnull
     public JDABuilder setContextMap(@Nullable ConcurrentMap<String, String> map) {
@@ -713,16 +856,19 @@ public class JDABuilder {
     }
 
     /**
-     * Whether JDA should use a synchronized MDC context for all of its controlled threads.
-     * <br>Default: {@code true}
+     * Whether JDA should use a synchronized MDC context for all of its controlled
+     * threads.
+     * <br>
+     * Default: {@code true}
      *
-     * @param  enable
-     *         True, if JDA should provide an MDC context map
+     * @param enable
+     *               True, if JDA should provide an MDC context map
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    <a href="https://www.slf4j.org/api/org/slf4j/MDC.html" target="_blank">MDC Javadoc</a>
-     * @see    #setContextMap(java.util.concurrent.ConcurrentMap)
+     * @see <a href="https://www.slf4j.org/api/org/slf4j/MDC.html" target=
+     *      "_blank">MDC Javadoc</a>
+     * @see #setContextMap(java.util.concurrent.ConcurrentMap)
      */
     @Nonnull
     public JDABuilder setContextEnabled(boolean enable) {
@@ -733,38 +879,81 @@ public class JDABuilder {
      * Sets the compression algorithm used with the gateway connection,
      * this will decrease the amount of used bandwidth for the running bot instance
      * for the cost of a few extra cycles for decompression.
-     * Compression can be entirely disabled by setting this to {@link net.dv8tion.jda.api.utils.Compression#NONE}.
-     * <br><b>Default: {@link net.dv8tion.jda.api.utils.Compression#ZLIB}</b>
+     * Compression can be entirely disabled by setting this to
+     * {@link Compression#NONE}.
+     * <br>
+     * <b>Default: {@link Compression#ZLIB}</b>
      *
-     * <p><b>We recommend to keep this on the default unless you have issues with the decompression.</b>
-     * <br>This mode might become obligatory in a future version, do not rely on this switch to stay.
+     * <p>
+     * <b>We recommend to keep this on the default unless you have issues with the
+     * decompression.</b>
+     * <br>
+     * This mode might become obligatory in a future version, do not rely on this
+     * switch to stay.
      *
-     * @param  compression
-     *         The compression algorithm to use with the gateway connection
+     * @param compression
+     *                    The compression algorithm to use with the gateway
+     *                    connection
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If provided with null
+     * @throws IllegalArgumentException
+     *                                            If provided with null
      *
      * @return The JDABuilder instance. Useful for chaining
      *
-     * @see    <a href="https://discord.com/developers/docs/topics/gateway#transport-compression" target="_blank">Official Discord Documentation - Transport Compression</a>
+     * @see <a href=
+     *      "https://discord.com/developers/docs/topics/gateway#transport-compression"
+     *      target="_blank">Official Discord Documentation - Transport
+     *      Compression</a>
      */
     @Nonnull
     public JDABuilder setCompression(@Nonnull Compression compression) {
         Checks.notNull(compression, "Compression");
+        Checks.check(
+                compression.isSupported(),
+                "Compression algorithm '%s' is not supported on this classpath (missing dependency)",
+                compression);
         this.compression = compression;
         return this;
     }
 
     /**
+     * Sets the JSON engine to use for serialization and deserialization.
+     * <br>By default, JDA uses {@link JsonEngineType#NANOJSON}.
+     *
+     * @param  jsonEngine
+     *         The JSON engine to use
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or the requested engine is not supported on this classpath
+     *
+     * @return The JDABuilder instance. Useful for chaining
+     */
+    @Nonnull
+    public JDABuilder setJsonEngine(@Nonnull JsonEngineType jsonEngine) {
+        Checks.notNull(jsonEngine, "JsonEngineType");
+        Checks.check(
+                jsonEngine.isSupported(),
+                "JSON engine '%s' is not supported on this classpath (missing dependency: %s)",
+                jsonEngine,
+                jsonEngine.getDependencyExample());
+        this.jsonEngine = jsonEngine;
+        return this;
+    }
+
+    /**
      * Whether the Requester should retry when
-     * a {@link java.net.SocketTimeoutException SocketTimeoutException} occurs.
-     * <br><b>Default</b>: {@code true}
+     * a {@link SocketTimeoutException} occurs.
+     * <br>
+     * <b>Default</b>: {@code true}
      *
-     * <p>This value can be changed at any time with {@link net.dv8tion.jda.api.JDA#setRequestTimeoutRetry(boolean) JDA.setRequestTimeoutRetry(boolean)}!
+     * <p>
+     * This value can be changed at any time with
+     * {@link JDA#setRequestTimeoutRetry(boolean)
+     * JDA.setRequestTimeoutRetry(boolean)}!
      *
-     * @param  retryOnTimeout
-     *         True, if the Request should retry once on a socket timeout
+     * @param retryOnTimeout
+     *                       True, if the Request should retry once on a socket
+     *                       timeout
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -774,19 +963,41 @@ public class JDABuilder {
     }
 
     /**
-     * Sets the token that will be used by the {@link net.dv8tion.jda.api.JDA} instance to log in when
-     * {@link net.dv8tion.jda.api.JDABuilder#build() build()} is called.
+     * Whether JDA should intern/deduplicate Strings during JSON and ETF parsing from WebSocket events.
+     * <br>This significantly reduces memory footprint and Garbage Collection pressure by deduplicating duplicate Strings
+     * (such as snowflake IDs, keys, statuses, and common values) across entities and events.
+     * <br><b>Default: {@code true}</b>
      *
-     * <p>To get a bot token:<br>
+     * @param  enable
+     *         True, if JDA should deduplicate strings
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setStringDeduplication(boolean enable) {
+        return setFlag(ConfigFlag.STRING_DEDUPLICATION, enable);
+    }
+
+    /**
+     * Sets the token that will be used by the {@link JDA}
+     * instance to log in when
+     * {@link JDABuilder#build() build()} is called.
+     *
+     * <p>
+     * To get a bot token:<br>
      * <ol>
-     *     <li>Go to your <a href="https://discord.com/developers/applications/me">Discord Applications</a></li>
-     *     <li>Create or select an already existing application</li>
-     *     <li>Verify that it has already been turned into a Bot. If you see the "Create a Bot User" button, click it.</li>
-     *     <li>Click the <i>click to reveal</i> link beside the <b>Token</b> label to show your Bot's {@code token}</li>
+     * <li>Go to your
+     * <a href="https://discord.com/developers/applications/me">Discord
+     * Applications</a></li>
+     * <li>Create or select an already existing application</li>
+     * <li>Verify that it has already been turned into a Bot. If you see the "Create
+     * a Bot User" button, click it.</li>
+     * <li>Click the <i>click to reveal</i> link beside the <b>Token</b> label to
+     * show your Bot's {@code token}</li>
      * </ol>
      *
-     * @param  token
-     *         The token of the account that you would like to login with.
+     * @param token
+     *              The token of the account that you would like to login with.
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -797,65 +1008,438 @@ public class JDABuilder {
     }
 
     /**
-     * Sets the {@link okhttp3.OkHttpClient.Builder Builder} that will be used by JDAs requester.
-     * <br>This can be used to set things such as connection timeout and proxy.
+     * Sets the {@link HttpClient} that will be used by JDAs requester.
+     * <br>
+     * This can be used to set things such as connection timeout and proxy.
      *
-     * @param  builder
-     *         The new {@link okhttp3.OkHttpClient.Builder Builder} to use
-     *
-     * @return The JDABuilder instance. Useful for chaining.
-     */
-    @Nonnull
-    public JDABuilder setHttpClientBuilder(@Nullable OkHttpClient.Builder builder) {
-        this.httpClientBuilder = builder;
-        return this;
-    }
-
-    /**
-     * Sets the {@link okhttp3.OkHttpClient OkHttpClient} that will be used by JDAs requester.
-     * <br>This can be used to set things such as connection timeout and proxy.
-     *
-     * @param  client
-     *         The new {@link okhttp3.OkHttpClient OkHttpClient} to use
+     * @param client
+     *               The new {@link HttpClient} to use
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
     @Nonnull
-    public JDABuilder setHttpClient(@Nullable OkHttpClient client) {
+    public JDABuilder setHttpClient(@Nullable HttpClient client) {
         this.httpClient = client;
         return this;
     }
 
     /**
-     * Sets the {@link com.neovisionaries.ws.client.WebSocketFactory WebSocketFactory} that will be used by JDA's websocket client.
-     * This can be used to set things such as connection timeout and proxy.
+     * Sets the {@link EventLoopGroup} that will be
+     * used for WebSocket connections (Gateway and Audio).
+     * <br>
+     * If not set, JDA will create its own event loop group.
      *
-     * @param  factory
-     *         The new {@link com.neovisionaries.ws.client.WebSocketFactory WebSocketFactory} to use.
+     * @param  group
+     *         The {@link EventLoopGroup} to
+     *         use, or null to use a default one.
      *
      * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#getWebsocketLoopGroup()
      */
     @Nonnull
-    public JDABuilder setWebsocketFactory(@Nullable WebSocketFactory factory) {
-        this.wsFactory = factory;
+    public JDABuilder setWebsocketLoopGroup(@Nullable EventLoopGroup group) {
+        this.websocketLoopGroup = group;
         return this;
     }
 
     /**
-     * Sets the {@link ScheduledExecutorService ScheduledExecutorService} that should be used in
-     * the JDA rate-limit handler. Changing this can drastically change the JDA behavior for RestAction execution
-     * and should be handled carefully. <b>Only change this pool if you know what you're doing.</b>
-     * <br><b>This automatically disables the automatic shutdown of the rate-limit pool, you can enable
-     * it using {@link #setRateLimitScheduler(ScheduledExecutorService, boolean) setRateLimitScheduler(executor, true)}</b>
+     * Alias for {@link #setWebsocketLoopGroup(EventLoopGroup)}.
      *
-     * <p>This is used mostly by the Rate-Limiter to handle backoff delays by using scheduled executions.
-     * Besides that it is also used by planned execution for {@link net.dv8tion.jda.api.requests.RestAction#queueAfter(long, TimeUnit)}
-     * and similar methods. Requests are handed off to the {@link #setRateLimitElastic(ExecutorService) elastic pool} for blocking execution.
+     * @param  group
+     *         The {@link EventLoopGroup} to
+     *         use, or null to use a default one.
      *
-     * <p>Default: {@link ScheduledThreadPoolExecutor} with 2 threads.
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setWebsocketEventLoopGroup(@Nullable EventLoopGroup group) {
+        return setWebsocketLoopGroup(group);
+    }
+
+    /**
+     * Sets the {@link EventLoopGroup} that will be
+     * used by the Reactor Netty HTTP client.
+     * <br>
+     * If not set, Reactor Netty will manage its own event loops.
      *
-     * @param  pool
-     *         The thread-pool to use for rate-limit handling
+     * @param  group
+     *         The {@link EventLoopGroup} to
+     *         use, or null to use default loops.
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#getHttpClientLoopGroup()
+     */
+    @Nonnull
+    public JDABuilder setHttpClientLoopGroup(@Nullable EventLoopGroup group) {
+        this.httpClientLoopGroup = group;
+        return this;
+    }
+
+    /**
+     * Alias for {@link #setHttpClientLoopGroup(EventLoopGroup)}.
+     *
+     * @param  group
+     *         The {@link EventLoopGroup} to
+     *         use, or null to use default loops.
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setHttpClientEventLoopGroup(@Nullable EventLoopGroup group) {
+        return setHttpClientLoopGroup(group);
+    }
+
+    /**
+     * Sets the same {@link EventLoopGroup} to be
+     * used for both WebSocket connections and the Reactor HTTP client.
+     * <br>
+     * If not set, JDA and Reactor Netty will create their own default event loops.
+     *
+     * @param  group
+     *         The {@link EventLoopGroup} to
+     *         use, or null to use default ones.
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#getWebsocketLoopGroup()
+     * @see    NettyConfig#getHttpClientLoopGroup()
+     */
+    @Nonnull
+    public JDABuilder setEventLoopGroup(@Nullable EventLoopGroup group) {
+        this.websocketLoopGroup = group;
+        this.httpClientLoopGroup = group;
+        return this;
+    }
+
+    /**
+     * Sets the {@link NettyConfig} values that will be used by JDA for Netty networking
+     * and WebSocket connections.
+     *
+     * @param config
+     *               The {@link NettyConfig} to copy settings from, or null to reset to default
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setNettyConfig(@Nullable NettyConfig config) {
+        if (config != null) {
+            this.byteBufAllocator = config.getByteBufAllocator();
+            this.useNativeTransport = config.isUseNativeTransport();
+            this.tcpNoDelay = config.isTcpNoDelay();
+            this.websocketEventLoopThreads = config.getWebsocketEventLoopThreads();
+            this.httpClientEventLoopThreads = config.getHttpClientEventLoopThreads();
+            this.audioEventLoopThreads = config.getAudioEventLoopThreads();
+            this.connectTimeoutMillis = config.getConnectTimeoutMillis();
+            this.maxFramePayloadLength = config.getMaxFramePayloadLength();
+            this.httpAggregatorMaxContentLength = config.getHttpAggregatorMaxContentLength();
+            this.websocketLoopGroup = config.getWebsocketLoopGroup();
+            this.httpClientLoopGroup = config.getHttpClientLoopGroup();
+            this.audioLoopGroup = config.isAudioLoopGroupShared() ? null : config.getAudioLoopGroup();
+            this.loopResources = config.getLoopResources();
+            this.connectionProvider = config.getConnectionProvider();
+            this.httpClient = config.getHttpClient();
+        } else {
+            this.byteBufAllocator = null;
+            this.useNativeTransport = true;
+            this.tcpNoDelay = true;
+            this.websocketEventLoopThreads = NettyConfig.DEFAULT_WEBSOCKET_EVENT_LOOP_THREADS;
+            this.httpClientEventLoopThreads = NettyConfig.DEFAULT_HTTP_CLIENT_EVENT_LOOP_THREADS;
+            this.audioEventLoopThreads = NettyConfig.DEFAULT_AUDIO_EVENT_LOOP_THREADS;
+            this.connectTimeoutMillis = NettyConfig.DEFAULT_CONNECT_TIMEOUT_MILLIS;
+            this.maxFramePayloadLength = NettyConfig.DEFAULT_MAX_FRAME_PAYLOAD_LENGTH;
+            this.httpAggregatorMaxContentLength = NettyConfig.DEFAULT_HTTP_AGGREGATOR_MAX_CONTENT_LENGTH;
+            this.websocketLoopGroup = null;
+            this.httpClientLoopGroup = null;
+            this.audioLoopGroup = null;
+            this.loopResources = null;
+            this.connectionProvider = null;
+            this.httpClient = null;
+        }
+        return this;
+    }
+
+    /**
+     * Sets the {@link ByteBufAllocator} used by Netty channels.
+     * <br>
+     * Defaults to {@link PooledByteBufAllocator#DEFAULT}.
+     *
+     * @param  allocator
+     *         The allocator to use, or null to reset to default
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#getByteBufAllocator()
+     */
+    @Nonnull
+    public JDABuilder setByteBufAllocator(@Nullable ByteBufAllocator allocator) {
+        this.byteBufAllocator = allocator;
+        return this;
+    }
+
+    /**
+     * Sets whether native transport (Epoll on Linux, KQueue on macOS) should be used if available.
+     * <br>
+     * Defaults to {@code true}.
+     *
+     * @param  useNativeTransport
+     *         True to enable native transport, false to force NIO
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#isUseNativeTransport()
+     */
+    @Nonnull
+    public JDABuilder setUseNativeTransport(boolean useNativeTransport) {
+        this.useNativeTransport = useNativeTransport;
+        return this;
+    }
+
+    /**
+     * Sets the number of threads for JDA-managed WebSocket
+     * {@link EventLoopGroup} (Gateway and Audio).
+     * <br>
+     * Defaults to {@link NettyConfig#DEFAULT_WEBSOCKET_EVENT_LOOP_THREADS}.
+     *
+     * @param  threads
+     *         The thread count (must be positive)
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#getWebsocketEventLoopThreads()
+     */
+    @Nonnull
+    public JDABuilder setWebsocketEventLoopThreadCount(int threads) {
+        Checks.positive(threads, "WebSocket event loop threads");
+        this.websocketEventLoopThreads = threads;
+        return this;
+    }
+
+    /**
+     * Sets the number of worker threads for Reactor Netty HTTP client loop resources.
+     * <br>
+     * Defaults to {@link NettyConfig#DEFAULT_HTTP_CLIENT_EVENT_LOOP_THREADS} (up to 8 threads).
+     *
+     * @param  threads
+     *         The thread count (must be positive)
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#getHttpClientEventLoopThreads()
+     */
+    @Nonnull
+    public JDABuilder setHttpClientEventLoopThreadCount(int threads) {
+        Checks.positive(threads, "HttpClient event loop threads");
+        this.httpClientEventLoopThreads = threads;
+        return this;
+    }
+
+    /**
+     * Sets the number of worker threads for Netty Audio EventLoopGroup.
+     * <br>A value of {@code 0} indicates that Audio shares the WebSocket event loop group.
+     * <br>Defaults to {@link NettyConfig#DEFAULT_AUDIO_EVENT_LOOP_THREADS} (0, sharing with WebSocket).
+     *
+     * <p><b>Music Bot Recommendation:</b>
+     * For bots with heavy audio usage (e.g. music bots serving many concurrent voice channels), it is recommended
+     * to either increase {@link #setWebsocketEventLoopThreadCount(int)} or configure dedicated audio threads
+     * via this method so that audio UDP packets (20ms frames) and Voice WebSocket events are processed on an isolated
+     * event loop group rather than competing with Discord Gateway events.
+     *
+     * @param  threads
+     *         The thread count (0 to share with WebSocket, or positive for dedicated threads)
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#getAudioEventLoopThreads()
+     */
+    @Nonnull
+    public JDABuilder setAudioEventLoopThreadCount(int threads) {
+        Checks.notNegative(threads, "Audio event loop threads");
+        this.audioEventLoopThreads = threads;
+        return this;
+    }
+
+    /**
+     * Sets the custom {@link EventLoopGroup} used for Audio connections (Voice WebSocket and UDP).
+     * <br>If set to {@code null}, Audio shares the WebSocket event loop group (or creates one if {@link #setAudioEventLoopThreadCount(int)} is positive).
+     *
+     * <p><b>Music Bot Recommendation:</b>
+     * For bots with heavy audio usage (e.g. music bots serving many concurrent voice channels), it is recommended
+     * to either increase WebSocket event loop threads or configure a dedicated audio group so that audio UDP packets
+     * and Voice WebSocket events are processed on an isolated event loop group rather than competing with Discord Gateway events.
+     *
+     * @param  loopGroup
+     *         The custom Audio EventLoopGroup, or null to share with WebSocket
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#getAudioLoopGroup()
+     */
+    @Nonnull
+    public JDABuilder setAudioLoopGroup(@Nullable EventLoopGroup loopGroup) {
+        this.audioLoopGroup = loopGroup;
+        return this;
+    }
+
+    /**
+     * Sets the WebSocket connect timeout.
+     *
+     * @param timeout
+     *                The timeout duration
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setWebsocketConnectTimeout(@Nonnull Duration timeout) {
+        Checks.notNull(timeout, "Timeout");
+        long millis = timeout.toMillis();
+        Checks.check(millis > 0 && millis <= Integer.MAX_VALUE, "Timeout must be between 1ms and Integer.MAX_VALUE ms");
+        this.connectTimeoutMillis = (int) millis;
+        return this;
+    }
+
+    /**
+     * Sets the WebSocket connect timeout.
+     *
+     * @param timeout
+     *                The timeout duration amount
+     * @param unit
+     *                The time unit
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setWebsocketConnectTimeout(long timeout, @Nonnull TimeUnit unit) {
+        Checks.notNull(unit, "TimeUnit");
+        long millis = unit.toMillis(timeout);
+        Checks.check(millis > 0 && millis <= Integer.MAX_VALUE, "Timeout must be between 1ms and Integer.MAX_VALUE ms");
+        this.connectTimeoutMillis = (int) millis;
+        return this;
+    }
+
+    /**
+     * Sets the maximum allowed WebSocket frame payload length in bytes.
+     *
+     * @param maxLength
+     *                  The maximum frame payload length in bytes
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setMaxWebSocketFramePayloadLength(int maxLength) {
+        Checks.positive(maxLength, "Max frame payload length");
+        this.maxFramePayloadLength = maxLength;
+        return this;
+    }
+
+    /**
+     * Sets the maximum allowed content length in bytes for HTTP handshake
+     * aggregation.
+     *
+     * @param maxLength
+     *                  The maximum HTTP content length in bytes
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setHttpObjectAggregatorMaxContentLength(int maxLength) {
+        Checks.positive(maxLength, "HTTP aggregator max content length");
+        this.httpAggregatorMaxContentLength = maxLength;
+        return this;
+    }
+
+    /**
+     * Sets whether TCP_NODELAY (Nagle's algorithm disabled) should be enabled for sockets.
+     * <br>Defaults to {@code true}.
+     *
+     * @param  tcpNoDelay
+     *         True to enable TCP_NODELAY, false to disable
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setTcpNoDelay(boolean tcpNoDelay) {
+        this.tcpNoDelay = tcpNoDelay;
+        return this;
+    }
+
+    /**
+     * Sets custom {@link LoopResources} for Reactor Netty HTTP client.
+     *
+     * @param  loopResources
+     *         The {@link LoopResources} to use, or null to use default
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setLoopResources(@Nullable LoopResources loopResources) {
+        this.loopResources = loopResources;
+        return this;
+    }
+
+    /**
+     * Sets custom {@link ConnectionProvider} for Reactor Netty HTTP client connection pooling.
+     *
+     * @param  connectionProvider
+     *         The {@link ConnectionProvider} to use, or null to use default
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setConnectionProvider(@Nullable ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
+        return this;
+    }
+
+    /**
+     * Sets whether event execution should be direct/synchronous on the dispatching
+     * thread without an asynchronous event pool.
+     * <br>
+     * <b>Warning:</b> Only enable this if your event listeners are 100%
+     * non-blocking! Any blocking operations will block JDA gateway processing.
+     *
+     * @param direct
+     *               True to dispatch events directly without an executor pool
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setDirectEventHandling(boolean direct) {
+        if (direct) {
+            this.eventPool = null;
+            this.shutdownEventPool = false;
+        }
+        return this;
+    }
+
+    /**
+     * Sets the {@link ScheduledExecutorService ScheduledExecutorService} that
+     * should be used in
+     * the JDA rate-limit handler. Changing this can drastically change the JDA
+     * behavior for RestAction execution
+     * and should be handled carefully. <b>Only change this pool if you know what
+     * you're doing.</b>
+     * <br>
+     * <b>This automatically disables the automatic shutdown of the rate-limit pool,
+     * you can enable
+     * it using {@link #setRateLimitScheduler(ScheduledExecutorService, boolean)
+     * setRateLimitScheduler(executor, true)}</b>
+     *
+     * <p>
+     * This is used mostly by the Rate-Limiter to handle backoff delays by using
+     * scheduled executions.
+     * Besides that it is also used by planned execution for
+     * {@link RestAction#queueAfter(long, TimeUnit)}
+     * and similar methods. Requests are handed off to the
+     * {@link #setRateLimitElastic(ExecutorService) elastic pool} for blocking
+     * execution.
+     *
+     * <p>
+     * Default: {@link ScheduledThreadPoolExecutor} with 2 threads.
+     *
+     * @param pool
+     *             The thread-pool to use for rate-limit handling
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -865,20 +1449,30 @@ public class JDABuilder {
     }
 
     /**
-     * Sets the {@link ScheduledExecutorService ScheduledExecutorService} that should be used in
-     * the JDA rate-limit handler. Changing this can drastically change the JDA behavior for RestAction execution
-     * and should be handled carefully. <b>Only change this pool if you know what you're doing.</b>
+     * Sets the {@link ScheduledExecutorService ScheduledExecutorService} that
+     * should be used in
+     * the JDA rate-limit handler. Changing this can drastically change the JDA
+     * behavior for RestAction execution
+     * and should be handled carefully. <b>Only change this pool if you know what
+     * you're doing.</b>
      *
-     * <p>This is used mostly by the Rate-Limiter to handle backoff delays by using scheduled executions.
-     * Besides that it is also used by planned execution for {@link net.dv8tion.jda.api.requests.RestAction#queueAfter(long, TimeUnit)}
-     * and similar methods. Requests are handed off to the {@link #setRateLimitElastic(ExecutorService) elastic pool} for blocking execution.
+     * <p>
+     * This is used mostly by the Rate-Limiter to handle backoff delays by using
+     * scheduled executions.
+     * Besides that it is also used by planned execution for
+     * {@link RestAction#queueAfter(long, TimeUnit)}
+     * and similar methods. Requests are handed off to the
+     * {@link #setRateLimitElastic(ExecutorService) elastic pool} for blocking
+     * execution.
      *
-     * <p>Default: {@link ScheduledThreadPoolExecutor} with 2 threads.
+     * <p>
+     * Default: {@link ScheduledThreadPoolExecutor} with 2 threads.
      *
-     * @param  pool
-     *         The thread-pool to use for rate-limit handling
-     * @param  automaticShutdown
-     *         Whether {@link JDA#shutdown()} should shutdown this pool
+     * @param pool
+     *                          The thread-pool to use for rate-limit handling
+     * @param automaticShutdown
+     *                          Whether {@link JDA#shutdown()} should shutdown this
+     *                          pool
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -891,17 +1485,25 @@ public class JDABuilder {
 
     /**
      * Sets the {@link ExecutorService ExecutorService} that should be used in
-     * the JDA request handler. Changing this can drastically change the JDA behavior for RestAction execution
-     * and should be handled carefully. <b>Only change this pool if you know what you're doing.</b>
-     * <br><b>This automatically disables the automatic shutdown of the rate-limit elastic pool, you can enable
-     * it using {@link #setRateLimitElastic(ExecutorService, boolean) setRateLimitElastic(executor, true)}</b>
+     * the JDA request handler. Changing this can drastically change the JDA
+     * behavior for RestAction execution
+     * and should be handled carefully. <b>Only change this pool if you know what
+     * you're doing.</b>
+     * <br>
+     * <b>This automatically disables the automatic shutdown of the rate-limit
+     * elastic pool, you can enable
+     * it using {@link #setRateLimitElastic(ExecutorService, boolean)
+     * setRateLimitElastic(executor, true)}</b>
      *
-     * <p>This is used mostly by the Rate-Limiter to execute the blocking HTTP requests at runtime.
+     * <p>
+     * This is used mostly by the Rate-Limiter to execute the blocking HTTP requests
+     * at runtime.
      *
-     * <p>Default: {@link Executors#newCachedThreadPool()}.
+     * <p>
+     * Default: {@link Executors#newCachedThreadPool()}.
      *
-     * @param  pool
-     *         The thread-pool to use for executing http requests
+     * @param pool
+     *             The thread-pool to use for executing http requests
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -912,17 +1514,23 @@ public class JDABuilder {
 
     /**
      * Sets the {@link ExecutorService ExecutorService} that should be used in
-     * the JDA request handler. Changing this can drastically change the JDA behavior for RestAction execution
-     * and should be handled carefully. <b>Only change this pool if you know what you're doing.</b>
+     * the JDA request handler. Changing this can drastically change the JDA
+     * behavior for RestAction execution
+     * and should be handled carefully. <b>Only change this pool if you know what
+     * you're doing.</b>
      *
-     * <p>This is used mostly by the Rate-Limiter to execute the blocking HTTP requests at runtime.
+     * <p>
+     * This is used mostly by the Rate-Limiter to execute the blocking HTTP requests
+     * at runtime.
      *
-     * <p>Default: {@link Executors#newCachedThreadPool()}.
+     * <p>
+     * Default: {@link Executors#newCachedThreadPool()}.
      *
-     * @param  pool
-     *         The thread-pool to use for executing http requests
-     * @param  automaticShutdown
-     *         Whether {@link JDA#shutdown()} should shutdown this pool
+     * @param pool
+     *                          The thread-pool to use for executing http requests
+     * @param automaticShutdown
+     *                          Whether {@link JDA#shutdown()} should shutdown this
+     *                          pool
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -935,27 +1543,37 @@ public class JDABuilder {
 
     /**
      * Sets the {@link ScheduledExecutorService ScheduledExecutorService} used by
-     * the main WebSocket connection for workers. These workers spend most of their lifetime
+     * the main WebSocket connection for workers. These workers spend most of their
+     * lifetime
      * sleeping because they only activate for sending messages over the gateway.
-     * <br><b>Only change this pool if you know what you're doing.
-     * <br>This automatically disables the automatic shutdown of the main-ws pool, you can enable
-     * it using {@link #setGatewayPool(ScheduledExecutorService, boolean) setGatewayPool(pool, true)}</b>
+     * <br>
+     * <b>Only change this pool if you know what you're doing.
+     * <br>
+     * This automatically disables the automatic shutdown of the main-ws pool, you
+     * can enable
+     * it using {@link #setGatewayPool(ScheduledExecutorService, boolean)
+     * setGatewayPool(pool, true)}</b>
      *
-     * <p>This is used to send various forms of session updates such as:
+     * <p>
+     * This is used to send various forms of session updates such as:
      * <ul>
-     *     <li>Voice States - (Dis-)Connecting from channels</li>
-     *     <li>Presence - Changing current activity or online status</li>
-     *     <li>Guild Setup - Requesting Members of newly joined guilds</li>
-     *     <li>Heartbeats - Regular updates to keep the connection alive (usually once a minute)</li>
+     * <li>Voice States - (Dis-)Connecting from channels</li>
+     * <li>Presence - Changing current activity or online status</li>
+     * <li>Guild Setup - Requesting Members of newly joined guilds</li>
+     * <li>Heartbeats - Regular updates to keep the connection alive (usually once a
+     * minute)</li>
      * </ul>
-     * When nothing has to be sent the pool will only be used every 500 milliseconds to check the queue for new payloads.
-     * Once a new payload is sent we switch to "rapid mode" which means more tasks will be submitted until no more payloads
+     * When nothing has to be sent the pool will only be used every 500 milliseconds
+     * to check the queue for new payloads.
+     * Once a new payload is sent we switch to "rapid mode" which means more tasks
+     * will be submitted until no more payloads
      * have to be sent.
      *
-     * <p>Default: {@link ScheduledThreadPoolExecutor} with 1 thread
+     * <p>
+     * Default: {@link ScheduledThreadPoolExecutor} with 1 thread
      *
-     * @param  pool
-     *         The thread-pool to use for WebSocket workers
+     * @param pool
+     *             The thread-pool to use for WebSocket workers
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -966,27 +1584,35 @@ public class JDABuilder {
 
     /**
      * Sets the {@link ScheduledExecutorService ScheduledExecutorService} used by
-     * the main WebSocket connection for workers. These workers spend most of their lifetime
+     * the main WebSocket connection for workers. These workers spend most of their
+     * lifetime
      * sleeping because they only activate for sending messages over the gateway.
-     * <br><b>Only change this pool if you know what you're doing.</b>
+     * <br>
+     * <b>Only change this pool if you know what you're doing.</b>
      *
-     * <p>This is used to send various forms of session updates such as:
+     * <p>
+     * This is used to send various forms of session updates such as:
      * <ul>
-     *     <li>Voice States - (Dis-)Connecting from channels</li>
-     *     <li>Presence - Changing current activity or online status</li>
-     *     <li>Guild Setup - Requesting Members of newly joined guilds</li>
-     *     <li>Heartbeats - Regular updates to keep the connection alive (usually once a minute)</li>
+     * <li>Voice States - (Dis-)Connecting from channels</li>
+     * <li>Presence - Changing current activity or online status</li>
+     * <li>Guild Setup - Requesting Members of newly joined guilds</li>
+     * <li>Heartbeats - Regular updates to keep the connection alive (usually once a
+     * minute)</li>
      * </ul>
-     * When nothing has to be sent the pool will only be used every 500 milliseconds to check the queue for new payloads.
-     * Once a new payload is sent we switch to "rapid mode" which means more tasks will be submitted until no more payloads
+     * When nothing has to be sent the pool will only be used every 500 milliseconds
+     * to check the queue for new payloads.
+     * Once a new payload is sent we switch to "rapid mode" which means more tasks
+     * will be submitted until no more payloads
      * have to be sent.
      *
-     * <p>Default: {@link ScheduledThreadPoolExecutor} with 1 thread
+     * <p>
+     * Default: {@link ScheduledThreadPoolExecutor} with 1 thread
      *
-     * @param  pool
-     *         The thread-pool to use for WebSocket workers
-     * @param  automaticShutdown
-     *         Whether {@link JDA#shutdown()} should shutdown this pool
+     * @param pool
+     *                          The thread-pool to use for WebSocket workers
+     * @param automaticShutdown
+     *                          Whether {@link JDA#shutdown()} should shutdown this
+     *                          pool
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -999,19 +1625,28 @@ public class JDABuilder {
 
     /**
      * Sets the {@link ExecutorService ExecutorService} that should be used in
-     * the JDA callback handler which mostly consists of {@link net.dv8tion.jda.api.requests.RestAction RestAction} callbacks.
-     * By default JDA will use {@link ForkJoinPool#commonPool()}
-     * <br><b>Only change this pool if you know what you're doing.
-     * <br>This automatically disables the automatic shutdown of the callback pool, you can enable
-     * it using {@link #setCallbackPool(ExecutorService, boolean) setCallbackPool(executor, true)}</b>
+     * the JDA callback handler which mostly consists of
+     * {@link RestAction} callbacks.
+     * By default JDA will use a virtual thread-per-task executor
+     * <br>
+     * <b>Only change this pool if you know what you're doing.
+     * <br>
+     * This automatically disables the automatic shutdown of the callback pool, you
+     * can enable
+     * it using {@link #setCallbackPool(ExecutorService, boolean)
+     * setCallbackPool(executor, true)}</b>
      *
-     * <p>This is used to handle callbacks of {@link RestAction#queue()}, similarly it is used to
-     * finish {@link RestAction#submit()} and {@link RestAction#complete()} tasks which build on queue.
+     * <p>
+     * This is used to handle callbacks of {@link RestAction#queue()}, similarly it
+     * is used to
+     * finish {@link RestAction#submit()} and {@link RestAction#complete()} tasks
+     * which build on queue.
      *
-     * <p>Default: {@link ForkJoinPool#commonPool()}
+     * <p>
+     * Default: Virtual thread-per-task executor
      *
-     * @param  executor
-     *         The thread-pool to use for callback handling
+     * @param executor
+     *                 The thread-pool to use for callback handling
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1022,19 +1657,26 @@ public class JDABuilder {
 
     /**
      * Sets the {@link ExecutorService ExecutorService} that should be used in
-     * the JDA callback handler which mostly consists of {@link net.dv8tion.jda.api.requests.RestAction RestAction} callbacks.
-     * By default JDA will use {@link ForkJoinPool#commonPool()}
-     * <br><b>Only change this pool if you know what you're doing.</b>
+     * the JDA callback handler which mostly consists of
+     * {@link RestAction} callbacks.
+     * By default JDA will use a virtual thread-per-task executor
+     * <br>
+     * <b>Only change this pool if you know what you're doing.</b>
      *
-     * <p>This is used to handle callbacks of {@link RestAction#queue()}, similarly it is used to
-     * finish {@link RestAction#submit()} and {@link RestAction#complete()} tasks which build on queue.
+     * <p>
+     * This is used to handle callbacks of {@link RestAction#queue()}, similarly it
+     * is used to
+     * finish {@link RestAction#submit()} and {@link RestAction#complete()} tasks
+     * which build on queue.
      *
-     * <p>Default: {@link ForkJoinPool#commonPool()}
+     * <p>
+     * Default: Virtual thread-per-task executor
      *
-     * @param  executor
-     *         The thread-pool to use for callback handling
-     * @param  automaticShutdown
-     *         Whether {@link JDA#shutdown()} should shutdown this executor
+     * @param executor
+     *                          The thread-pool to use for callback handling
+     * @param automaticShutdown
+     *                          Whether {@link JDA#shutdown()} should shutdown this
+     *                          executor
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1047,13 +1689,17 @@ public class JDABuilder {
 
     /**
      * Sets the {@link ExecutorService ExecutorService} that should be used by the
-     * event proxy to schedule events. This will be done on the calling thread by default.
+     * event proxy to schedule events. This will be done on the calling thread by
+     * default.
      *
-     * <p>The executor will not be shutdown automatically when JDA is shutdown.
-     * To shut it down automatically use {@link #setEventPool(ExecutorService, boolean)}.
+     * <p>
+     * The executor will not be shutdown automatically when JDA is shutdown.
+     * To shut it down automatically use
+     * {@link #setEventPool(ExecutorService, boolean)}.
      *
-     * @param  executor
-     *         The executor for the event proxy, or null to use calling thread
+     * @param executor
+     *                 The executor for the event proxy, or null to use calling
+     *                 thread
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1064,12 +1710,15 @@ public class JDABuilder {
 
     /**
      * Sets the {@link ExecutorService ExecutorService} that should be used by the
-     * event proxy to schedule events. This will be done on the calling thread by default.
+     * event proxy to schedule events. This will be done on the calling thread by
+     * default.
      *
-     * @param  executor
-     *         The executor for the event proxy, or null to use calling thread
-     * @param  automaticShutdown
-     *         True, if the executor should be shutdown when JDA shuts down
+     * @param executor
+     *                          The executor for the event proxy, or null to use
+     *                          calling thread
+     * @param automaticShutdown
+     *                          True, if the executor should be shutdown when JDA
+     *                          shuts down
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1077,18 +1726,22 @@ public class JDABuilder {
     public JDABuilder setEventPool(@Nullable ExecutorService executor, boolean automaticShutdown) {
         this.eventPool = executor;
         this.shutdownEventPool = automaticShutdown;
+        this.explicitEventPool = true;
         return this;
     }
 
     /**
      * Sets the {@link ScheduledExecutorService ScheduledExecutorService} used by
-     * the audio WebSocket connection. Used for sending keepalives and closing the connection.
-     * <br><b>Only change this pool if you know what you're doing.</b>
+     * the audio WebSocket connection. Used for sending keepalives and closing the
+     * connection.
+     * <br>
+     * <b>Only change this pool if you know what you're doing.</b>
      *
-     * <p>Default: {@link ScheduledThreadPoolExecutor} with 1 thread
+     * <p>
+     * Default: {@link ScheduledThreadPoolExecutor} with 1 thread
      *
-     * @param  pool
-     *         The thread-pool to use for the audio WebSocket
+     * @param pool
+     *             The thread-pool to use for the audio WebSocket
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1099,15 +1752,19 @@ public class JDABuilder {
 
     /**
      * Sets the {@link ScheduledExecutorService ScheduledExecutorService} used by
-     * the audio WebSocket connection. Used for sending keepalives and closing the connection.
-     * <br><b>Only change this pool if you know what you're doing.</b>
+     * the audio WebSocket connection. Used for sending keepalives and closing the
+     * connection.
+     * <br>
+     * <b>Only change this pool if you know what you're doing.</b>
      *
-     * <p>Default: {@link ScheduledThreadPoolExecutor} with 1 thread
+     * <p>
+     * Default: {@link ScheduledThreadPoolExecutor} with 1 thread
      *
-     * @param  pool
-     *         The thread-pool to use for the audio WebSocket
-     * @param  automaticShutdown
-     *         Whether {@link JDA#shutdown()} should shutdown this pool
+     * @param pool
+     *                          The thread-pool to use for the audio WebSocket
+     * @param automaticShutdown
+     *                          Whether {@link JDA#shutdown()} should shutdown this
+     *                          pool
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1119,14 +1776,20 @@ public class JDABuilder {
     }
 
     /**
-     * If enabled, JDA will separate the bulk delete event into individual delete events, but this isn't as efficient as
-     * handling a single event would be. It is recommended that BulkDelete Splitting be disabled and that the developer
-     * should instead handle the {@link net.dv8tion.jda.api.events.message.MessageBulkDeleteEvent MessageBulkDeleteEvent}
+     * If enabled, JDA will separate the bulk delete event into individual delete
+     * events, but this isn't as efficient as
+     * handling a single event would be. It is recommended that BulkDelete Splitting
+     * be disabled and that the developer
+     * should instead handle the
+     * {@link MessageBulkDeleteEvent
+     * MessageBulkDeleteEvent}
      *
-     * <p>Default: <b>true (enabled)</b>
+     * <p>
+     * Default: <b>true (enabled)</b>
      *
-     * @param  enabled
-     *         True - The MESSAGE_DELETE_BULK will be split into multiple individual MessageDeleteEvents.
+     * @param enabled
+     *                True - The MESSAGE_DELETE_BULK will be split into multiple
+     *                individual MessageDeleteEvents.
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1137,15 +1800,20 @@ public class JDABuilder {
 
     /**
      * Enables/Disables the use of a Shutdown hook to clean up JDA.
-     * <br>When the Java program closes shutdown hooks are run. This is used as a last-second cleanup
+     * <br>
+     * When the Java program closes shutdown hooks are run. This is used as a
+     * last-second cleanup
      * attempt by JDA to properly close connections.
      *
-     * <p>Default: <b>true (enabled)</b>
+     * <p>
+     * Default: <b>true (enabled)</b>
      *
-     * @param  enable
-     *         True (default) - use shutdown hook to clean up JDA if the Java program is closed.
+     * @param enable
+     *               True (default) - use shutdown hook to clean up JDA if the Java
+     *               program is closed.
      *
-     * @return Return the {@link net.dv8tion.jda.api.JDABuilder JDABuilder } instance. Useful for chaining.
+     * @return Return the {@link JDABuilder}
+     *         instance. Useful for chaining.
      */
     @Nonnull
     public JDABuilder setEnableShutdownHook(boolean enable) {
@@ -1153,13 +1821,17 @@ public class JDABuilder {
     }
 
     /**
-     * Sets whether or not JDA should try to reconnect if a connection-error is encountered.
-     * <br>This will use an incremental reconnect (timeouts are increased each time an attempt fails).
+     * Sets whether or not JDA should try to reconnect if a connection-error is
+     * encountered.
+     * <br>
+     * This will use an incremental reconnect (timeouts are increased each time an
+     * attempt fails).
      *
-     * <p>Default: <b>true (enabled)</b>
+     * <p>
+     * Default: <b>true (enabled)</b>
      *
-     * @param  autoReconnect
-     *         If true - enables autoReconnect
+     * @param autoReconnect
+     *                      If true - enables autoReconnect
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1170,19 +1842,28 @@ public class JDABuilder {
 
     /**
      * Changes the internally used EventManager.
-     * <br>There are 2 provided Implementations:
+     * <br>
+     * There are 2 provided Implementations:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.hooks.InterfacedEventManager InterfacedEventManager} which uses the Interface
-     *     {@link net.dv8tion.jda.api.hooks.EventListener EventListener} (tip: use the {@link net.dv8tion.jda.api.hooks.ListenerAdapter ListenerAdapter}).
-     *     <br>This is the default EventManager.</li>
+     * <li>{@link InterfacedEventManager
+     * InterfacedEventManager} which uses the Interface
+     * {@link EventListener} (tip: use the
+     * {@link ListenerAdapter}).
+     * <br>
+     * This is the default EventManager.</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.hooks.AnnotatedEventManager AnnotatedEventManager} which uses the Annotation
-     *         {@link net.dv8tion.jda.api.hooks.SubscribeEvent @SubscribeEvent} to mark the methods that listen for events.</li>
+     * <li>{@link AnnotatedEventManager
+     * AnnotatedEventManager} which uses the Annotation
+     * {@link SubscribeEvent @SubscribeEvent} to mark the
+     * methods that listen for events.</li>
      * </ul>
-     * <br>You can also create your own EventManager (See {@link net.dv8tion.jda.api.hooks.IEventManager}).
+     * <br>
+     * You can also create your own EventManager (See
+     * {@link IEventManager}).
      *
-     * @param  manager
-     *         The new {@link net.dv8tion.jda.api.hooks.IEventManager} to use.
+     * @param manager
+     *                The new {@link IEventManager} to
+     *                use.
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1193,13 +1874,21 @@ public class JDABuilder {
     }
 
     /**
-     * Changes the factory used to create {@link net.dv8tion.jda.api.audio.factory.IAudioSendSystem IAudioSendSystem}
+     * Changes the factory used to create
+     * {@link IAudioSendSystem}
      * objects which handle the sending loop for audio packets.
-     * <br>By default, JDA uses {@link net.dv8tion.jda.api.audio.factory.DefaultSendFactory DefaultSendFactory}.
+     * <br>
+     * By default, JDA uses
+     * {@link DefaultSendFactory
+     * DefaultSendFactory}.
      *
-     * @param  factory
-     *         The new {@link net.dv8tion.jda.api.audio.factory.IAudioSendFactory IAudioSendFactory} to be used
-     *         when creating new {@link net.dv8tion.jda.api.audio.factory.IAudioSendSystem} objects.
+     * @param factory
+     *                The new
+     *                {@link IAudioSendFactory
+     *                IAudioSendFactory} to be used
+     *                when creating new
+     *                {@link IAudioSendSystem}
+     *                objects.
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
@@ -1221,10 +1910,11 @@ public class JDABuilder {
     /**
      * Configures the audio module in JDA.
      *
-     * <p>See {@link AudioModuleConfig} for details.
+     * <p>
+     * See {@link AudioModuleConfig} for details.
      *
-     * @param  config
-     *         The new audio module config, or {@code null} to use defaults
+     * @param config
+     *               The new audio module config, or {@code null} to use defaults
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1236,14 +1926,18 @@ public class JDABuilder {
 
     /**
      * Sets whether or not we should mark our session as afk
-     * <br>This value can be changed at any time in the {@link net.dv8tion.jda.api.managers.Presence Presence} from a JDA instance.
+     * <br>
+     * This value can be changed at any time in the
+     * {@link Presence} from a JDA instance.
      *
-     * @param  idle
-     *         boolean value that will be provided with our IDENTIFY package to mark our session as afk or not. <b>(default false)</b>
+     * @param idle
+     *             boolean value that will be provided with our IDENTIFY package to
+     *             mark our session as afk or not. <b>(default false)</b>
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    net.dv8tion.jda.api.managers.Presence#setIdle(boolean) Presence.setIdle(boolean)
+     * @see Presence#setIdle(boolean)
+     *      Presence.setIdle(boolean)
      */
     @Nonnull
     public JDABuilder setIdle(boolean idle) {
@@ -1252,18 +1946,26 @@ public class JDABuilder {
     }
 
     /**
-     * Sets the {@link net.dv8tion.jda.api.entities.Activity Activity} for our session.
-     * <br>This value can be changed at any time in the {@link net.dv8tion.jda.api.managers.Presence Presence} from a JDA instance.
+     * Sets the {@link Activity} for our
+     * session.
+     * <br>
+     * This value can be changed at any time in the
+     * {@link Presence} from a JDA instance.
      *
-     * <p><b>Hint:</b> You can create an {@link net.dv8tion.jda.api.entities.Activity Activity} object using
-     * {@link net.dv8tion.jda.api.entities.Activity#playing(String)} or {@link net.dv8tion.jda.api.entities.Activity#streaming(String, String)}.
+     * <p>
+     * <b>Hint:</b> You can create an {@link Activity
+     * Activity} object using
+     * {@link Activity#playing(String)} or
+     * {@link Activity#streaming(String, String)}.
      *
-     * @param  activity
-     *         An instance of {@link net.dv8tion.jda.api.entities.Activity Activity} (null allowed)
+     * @param activity
+     *                 An instance of {@link Activity
+     *                 Activity} (null allowed)
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    net.dv8tion.jda.api.managers.Presence#setActivity(net.dv8tion.jda.api.entities.Activity)  Presence.setActivity(Activity)
+     * @see Presence#setActivity(net.dv8tion.jda.api.entities.Activity)
+     *      Presence.setActivity(Activity)
      */
     @Nonnull
     public JDABuilder setActivity(@Nullable Activity activity) {
@@ -1272,18 +1974,24 @@ public class JDABuilder {
     }
 
     /**
-     * Sets the {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} our connection will display.
-     * <br>This value can be changed at any time in the {@link net.dv8tion.jda.api.managers.Presence Presence} from a JDA instance.
+     * Sets the {@link OnlineStatus} our connection
+     * will display.
+     * <br>
+     * This value can be changed at any time in the
+     * {@link Presence} from a JDA instance.
      *
-     * @param  status
-     *         Not-null OnlineStatus (default online)
+     * @param status
+     *               Not-null OnlineStatus (default online)
      *
      * @throws IllegalArgumentException
-     *         if the provided OnlineStatus is null or {@link net.dv8tion.jda.api.OnlineStatus#UNKNOWN UNKNOWN}
+     *                                  if the provided OnlineStatus is null or
+     *                                  {@link OnlineStatus#UNKNOWN
+     *                                  UNKNOWN}
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    net.dv8tion.jda.api.managers.Presence#setStatus(OnlineStatus) Presence.setStatus(OnlineStatus)
+     * @see Presence#setStatus(OnlineStatus)
+     *      Presence.setStatus(OnlineStatus)
      */
     @Nonnull
     @SuppressWarnings("ConstantConditions") // we have to enforce the nonnull at runtime
@@ -1296,23 +2004,35 @@ public class JDABuilder {
     }
 
     /**
-     * Adds all provided listeners to the list of listeners that will be used to populate the {@link net.dv8tion.jda.api.JDA JDA} object.
-     * <br>This uses the {@link net.dv8tion.jda.api.hooks.InterfacedEventManager InterfacedEventListener} by default.
-     * <br>To switch to the {@link net.dv8tion.jda.api.hooks.AnnotatedEventManager AnnotatedEventManager},
-     * use {@link #setEventManager(net.dv8tion.jda.api.hooks.IEventManager) setEventManager(new AnnotatedEventManager())}.
+     * Adds all provided listeners to the list of listeners that will be used to
+     * populate the {@link JDA} object.
+     * <br>
+     * This uses the {@link InterfacedEventManager
+     * InterfacedEventListener} by default.
+     * <br>
+     * To switch to the {@link AnnotatedEventManager
+     * AnnotatedEventManager},
+     * use {@link #setEventManager(net.dv8tion.jda.api.hooks.IEventManager)
+     * setEventManager(new AnnotatedEventManager())}.
      *
-     * <p><b>Note:</b> When using the {@link net.dv8tion.jda.api.hooks.InterfacedEventManager InterfacedEventListener} (default),
-     * given listener(s) <b>must</b> be instance of {@link net.dv8tion.jda.api.hooks.EventListener EventListener}!
+     * <p>
+     * <b>Note:</b> When using the
+     * {@link InterfacedEventManager
+     * InterfacedEventListener} (default),
+     * given listener(s) <b>must</b> be instance of
+     * {@link EventListener}!
      *
-     * @param   listeners
-     *          The listener(s) to add to the list.
+     * @param listeners
+     *                  The listener(s) to add to the list.
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If either listeners or one of it's objects is {@code null}.
+     * @throws IllegalArgumentException
+     *                                            If either listeners or one of it's
+     *                                            objects is {@code null}.
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    net.dv8tion.jda.api.JDA#addEventListener(Object...) JDA.addEventListener(Object...)
+     * @see JDA#addEventListener(Object...)
+     *      JDA.addEventListener(Object...)
      */
     @Nonnull
     public JDABuilder addEventListeners(@Nonnull Object... listeners) {
@@ -1325,15 +2045,17 @@ public class JDABuilder {
     /**
      * Removes all provided listeners from the list of listeners.
      *
-     * @param  listeners
-     *         The listener(s) to remove from the list.
+     * @param listeners
+     *                  The listener(s) to remove from the list.
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If either listeners or one of it's objects is {@code null}.
+     * @throws IllegalArgumentException
+     *                                            If either listeners or one of it's
+     *                                            objects is {@code null}.
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    net.dv8tion.jda.api.JDA#removeEventListener(Object...) JDA.removeEventListener(Object...)
+     * @see JDA#removeEventListener(Object...)
+     *      JDA.removeEventListener(Object...)
      */
     @Nonnull
     public JDABuilder removeEventListeners(@Nonnull Object... listeners) {
@@ -1344,16 +2066,22 @@ public class JDABuilder {
     }
 
     /**
-     * Sets the maximum amount of time that JDA will back off to wait when attempting to reconnect the MainWebsocket.
-     * <br>Provided value must be 32 or greater.
+     * Sets the maximum amount of time that JDA will back off to wait when
+     * attempting to reconnect the MainWebsocket.
+     * <br>
+     * Provided value must be 32 or greater.
      *
-     * <p>Default: {@code 900}
+     * <p>
+     * Default: {@code 900}
      *
-     * @param  maxReconnectDelay
-     *         The maximum amount of time that JDA will wait between reconnect attempts in seconds.
+     * @param maxReconnectDelay
+     *                          The maximum amount of time that JDA will wait
+     *                          between reconnect attempts in seconds.
      *
-     * @throws java.lang.IllegalArgumentException
-     *         Thrown if the provided {@code maxReconnectDelay} is less than 32.
+     * @throws IllegalArgumentException
+     *                                            Thrown if the provided
+     *                                            {@code maxReconnectDelay} is less
+     *                                            than 32.
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1370,25 +2098,34 @@ public class JDABuilder {
 
     /**
      * This will enable sharding mode for JDA.
-     * <br>In sharding mode, guilds are split up and assigned one of multiple shards (clients).
-     * <br>The shardId that receives all stuff related to given bot is calculated as follows: shardId == (guildId {@literal >>} 22) % shardTotal;
-     * <br><b>PMs are only sent to shard 0.</b>
+     * <br>
+     * In sharding mode, guilds are split up and assigned one of multiple shards
+     * (clients).
+     * <br>
+     * The shardId that receives all stuff related to given bot is calculated as
+     * follows: shardId == (guildId {@literal >>} 22) % shardTotal;
+     * <br>
+     * <b>PMs are only sent to shard 0.</b>
      *
-     * <p>Please note, that a shard will not know about guilds which are not assigned to it.
+     * <p>
+     * Please note, that a shard will not know about guilds which are not assigned
+     * to it.
      *
-     * @param  shardId
-     *         The id of this shard (starting at 0).
-     * @param  shardTotal
-     *         The number of overall shards.
+     * @param shardId
+     *                   The id of this shard (starting at 0).
+     * @param shardTotal
+     *                   The number of overall shards.
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If the provided shard configuration is invalid
-     *         ({@code 0 <= shardId < shardTotal} with {@code shardTotal > 0})
+     * @throws IllegalArgumentException
+     *                                            If the provided shard
+     *                                            configuration is invalid
+     *                                            ({@code 0 <= shardId < shardTotal}
+     *                                            with {@code shardTotal > 0})
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    net.dv8tion.jda.api.JDA#getShardInfo() JDA.getShardInfo()
-     * @see    net.dv8tion.jda.api.sharding.ShardManager ShardManager
+     * @see JDA#getShardInfo() JDA.getShardInfo()
+     * @see ShardManager ShardManager
      */
     @Nonnull
     public JDABuilder useSharding(int shardId, int shardTotal) {
@@ -1400,19 +2137,27 @@ public class JDABuilder {
     }
 
     /**
-     * Sets the {@link net.dv8tion.jda.api.utils.SessionController SessionController}
-     * for this JDABuilder instance. This can be used to sync behaviour and state between shards
-     * of a bot and should be one and the same instance on all builders for the shards.
-     * <br>When {@link #useSharding(int, int)} is enabled, this is set by default.
+     * Sets the {@link SessionController
+     * SessionController}
+     * for this JDABuilder instance. This can be used to sync behaviour and state
+     * between shards
+     * of a bot and should be one and the same instance on all builders for the
+     * shards.
+     * <br>
+     * When {@link #useSharding(int, int)} is enabled, this is set by default.
      *
-     * <p>When set, this allows the builder to build shards with respect to the login ratelimit automatically.
+     * <p>
+     * When set, this allows the builder to build shards with respect to the login
+     * ratelimit automatically.
      *
-     * @param  controller
-     *         The {@link net.dv8tion.jda.api.utils.SessionController SessionController} to use
+     * @param controller
+     *                   The {@link SessionController
+     *                   SessionController} to use
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    net.dv8tion.jda.api.utils.SessionControllerAdapter SessionControllerAdapter
+     * @see SessionControllerAdapter
+     *      SessionControllerAdapter
      */
     @Nonnull
     public JDABuilder setSessionController(@Nullable SessionController controller) {
@@ -1423,12 +2168,12 @@ public class JDABuilder {
     /**
      * Configures a custom voice dispatch handler which handles audio connections.
      *
-     * @param  interceptor
-     *         The new voice dispatch handler, or null to use the default
+     * @param interceptor
+     *                    The new voice dispatch handler, or null to use the default
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    VoiceDispatchInterceptor
+     * @see VoiceDispatchInterceptor
      */
     @Nonnull
     public JDABuilder setVoiceDispatchInterceptor(@Nullable VoiceDispatchInterceptor interceptor) {
@@ -1439,16 +2184,18 @@ public class JDABuilder {
     /**
      * The {@link ChunkingFilter} to filter which guilds should use member chunking.
      *
-     * <p>Use {@link #setMemberCachePolicy(MemberCachePolicy)} to configure which members to keep in cache from chunking.
+     * <p>
+     * Use {@link #setMemberCachePolicy(MemberCachePolicy)} to configure which
+     * members to keep in cache from chunking.
      *
-     * @param  filter
-     *         The filter to apply
+     * @param filter
+     *               The filter to apply
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    ChunkingFilter#NONE
-     * @see    ChunkingFilter#include(long...)
-     * @see    ChunkingFilter#exclude(long...)
+     * @see ChunkingFilter#NONE
+     * @see ChunkingFilter#include(long...)
+     * @see ChunkingFilter#exclude(long...)
      */
     @Nonnull
     public JDABuilder setChunkingFilter(@Nullable ChunkingFilter filter) {
@@ -1458,26 +2205,34 @@ public class JDABuilder {
 
     /**
      * Configures which events will be disabled.
-     * Bots which did not enable presence/member updates in the developer dashboard are required to disable {@link GatewayIntent#GUILD_PRESENCES} and {@link GatewayIntent#GUILD_MEMBERS}!
+     * Bots which did not enable presence/member updates in the developer dashboard
+     * are required to disable {@link GatewayIntent#GUILD_PRESENCES} and
+     * {@link GatewayIntent#GUILD_MEMBERS}!
      *
-     * <p>It is not recommended to disable {@link GatewayIntent#GUILD_MEMBERS GatewayIntent.GUILD_MEMBERS} when
-     * using {@link MemberCachePolicy#ALL MemberCachePolicy.ALL} as the members cannot be removed from cache by a leave event without this intent.
+     * <p>
+     * It is not recommended to disable {@link GatewayIntent#GUILD_MEMBERS
+     * GatewayIntent.GUILD_MEMBERS} when
+     * using {@link MemberCachePolicy#ALL MemberCachePolicy.ALL} as the members
+     * cannot be removed from cache by a leave event without this intent.
      *
-     * <p>If you disable certain intents you also have to disable related {@link CacheFlag CacheFlags}.
-     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}. The required intents for each
+     * <p>
+     * If you disable certain intents you also have to disable related
+     * {@link CacheFlag CacheFlags}.
+     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}.
+     * The required intents for each
      * flag are documented in the {@link CacheFlag} enum.
      *
-     * @param  intent
-     *         The first intent to disable
-     * @param  intents
-     *         Any other intents to disable
+     * @param intent
+     *                The first intent to disable
+     * @param intents
+     *                Any other intents to disable
      *
      * @throws IllegalArgumentException
-     *         If null is provided
+     *                                  If null is provided
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #setMemberCachePolicy(MemberCachePolicy)
+     * @see #setMemberCachePolicy(MemberCachePolicy)
      */
     @Nonnull
     public JDABuilder setDisabledIntents(@Nonnull GatewayIntent intent, @Nonnull GatewayIntent... intents) {
@@ -1488,21 +2243,29 @@ public class JDABuilder {
 
     /**
      * Configures which events will be disabled.
-     * Bots which did not enable presence/member updates in the developer dashboard are required to disable {@link GatewayIntent#GUILD_PRESENCES} and {@link GatewayIntent#GUILD_MEMBERS}!
+     * Bots which did not enable presence/member updates in the developer dashboard
+     * are required to disable {@link GatewayIntent#GUILD_PRESENCES} and
+     * {@link GatewayIntent#GUILD_MEMBERS}!
      *
-     * <p>It is not recommended to disable {@link GatewayIntent#GUILD_MEMBERS GatewayIntent.GUILD_MEMBERS} when
-     * using {@link MemberCachePolicy#ALL MemberCachePolicy.ALL} as the members cannot be removed from cache by a leave event without this intent.
+     * <p>
+     * It is not recommended to disable {@link GatewayIntent#GUILD_MEMBERS
+     * GatewayIntent.GUILD_MEMBERS} when
+     * using {@link MemberCachePolicy#ALL MemberCachePolicy.ALL} as the members
+     * cannot be removed from cache by a leave event without this intent.
      *
-     * <p>If you disable certain intents you also have to disable related {@link CacheFlag CacheFlags}.
-     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}. The required intents for each
+     * <p>
+     * If you disable certain intents you also have to disable related
+     * {@link CacheFlag CacheFlags}.
+     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}.
+     * The required intents for each
      * flag are documented in the {@link CacheFlag} enum.
      *
-     * @param  intents
-     *         The intents to disable (default: none)
+     * @param intents
+     *                The intents to disable (default: none)
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #setMemberCachePolicy(MemberCachePolicy)
+     * @see #setMemberCachePolicy(MemberCachePolicy)
      */
     @Nonnull
     public JDABuilder setDisabledIntents(@Nullable Collection<GatewayIntent> intents) {
@@ -1515,21 +2278,25 @@ public class JDABuilder {
 
     /**
      * Disable the specified {@link GatewayIntent GatewayIntents}.
-     * <br>This will not enable any currently unset intents.
+     * <br>
+     * This will not enable any currently unset intents.
      *
-     * <p>If you disable certain intents you also have to disable related {@link CacheFlag CacheFlags}.
-     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}. The required intents for each
+     * <p>
+     * If you disable certain intents you also have to disable related
+     * {@link CacheFlag CacheFlags}.
+     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}.
+     * The required intents for each
      * flag are documented in the {@link CacheFlag} enum.
      *
-     * @param  intents
-     *         The intents to disable
+     * @param intents
+     *                The intents to disable
      *
      * @throws IllegalArgumentException
-     *         If provided with null
+     *                                  If provided with null
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #enableIntents(Collection)
+     * @see #enableIntents(Collection)
      */
     @Nonnull
     public JDABuilder disableIntents(@Nonnull Collection<GatewayIntent> intents) {
@@ -1541,23 +2308,27 @@ public class JDABuilder {
 
     /**
      * Disable the specified {@link GatewayIntent GatewayIntents}.
-     * <br>This will not enable any currently unset intents.
+     * <br>
+     * This will not enable any currently unset intents.
      *
-     * <p>If you disable certain intents you also have to disable related {@link CacheFlag CacheFlags}.
-     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}. The required intents for each
+     * <p>
+     * If you disable certain intents you also have to disable related
+     * {@link CacheFlag CacheFlags}.
+     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}.
+     * The required intents for each
      * flag are documented in the {@link CacheFlag} enum.
      *
-     * @param  intent
-     *         The intent to disable
-     * @param  intents
-     *         Other intents to disable
+     * @param intent
+     *                The intent to disable
+     * @param intents
+     *                Other intents to disable
      *
      * @throws IllegalArgumentException
-     *         If provided with null
+     *                                  If provided with null
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #enableIntents(GatewayIntent, GatewayIntent...)
+     * @see #enableIntents(GatewayIntent, GatewayIntent...)
      */
     @Nonnull
     public JDABuilder disableIntents(@Nonnull GatewayIntent intent, @Nonnull GatewayIntent... intents) {
@@ -1570,26 +2341,34 @@ public class JDABuilder {
 
     /**
      * Configures which events will be enabled.
-     * Bots which did not enable presence/member updates in the developer dashboard are required to disable {@link GatewayIntent#GUILD_PRESENCES} and {@link GatewayIntent#GUILD_MEMBERS}!
+     * Bots which did not enable presence/member updates in the developer dashboard
+     * are required to disable {@link GatewayIntent#GUILD_PRESENCES} and
+     * {@link GatewayIntent#GUILD_MEMBERS}!
      *
-     * <p>It is not recommended to disable {@link GatewayIntent#GUILD_MEMBERS GatewayIntent.GUILD_MEMBERS} when
-     * using {@link MemberCachePolicy#ALL MemberCachePolicy.ALL} as the members cannot be removed from cache by a leave event without this intent.
+     * <p>
+     * It is not recommended to disable {@link GatewayIntent#GUILD_MEMBERS
+     * GatewayIntent.GUILD_MEMBERS} when
+     * using {@link MemberCachePolicy#ALL MemberCachePolicy.ALL} as the members
+     * cannot be removed from cache by a leave event without this intent.
      *
-     * <p>If you disable certain intents you also have to disable related {@link CacheFlag CacheFlags}.
-     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}. The required intents for each
+     * <p>
+     * If you disable certain intents you also have to disable related
+     * {@link CacheFlag CacheFlags}.
+     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}.
+     * The required intents for each
      * flag are documented in the {@link CacheFlag} enum.
      *
-     * @param  intent
-     *         The intent to enable
-     * @param  intents
-     *         Any other intents to enable
+     * @param intent
+     *                The intent to enable
+     * @param intents
+     *                Any other intents to enable
      *
      * @throws IllegalArgumentException
-     *         If null is provided
+     *                                  If null is provided
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #setMemberCachePolicy(MemberCachePolicy)
+     * @see #setMemberCachePolicy(MemberCachePolicy)
      */
     @Nonnull
     public JDABuilder setEnabledIntents(@Nonnull GatewayIntent intent, @Nonnull GatewayIntent... intents) {
@@ -1601,21 +2380,29 @@ public class JDABuilder {
 
     /**
      * Configures which events will be enabled.
-     * Bots which did not enable presence/member updates in the developer dashboard are required to disable {@link GatewayIntent#GUILD_PRESENCES} and {@link GatewayIntent#GUILD_MEMBERS}!
+     * Bots which did not enable presence/member updates in the developer dashboard
+     * are required to disable {@link GatewayIntent#GUILD_PRESENCES} and
+     * {@link GatewayIntent#GUILD_MEMBERS}!
      *
-     * <p>It is not recommended to disable {@link GatewayIntent#GUILD_MEMBERS GatewayIntent.GUILD_MEMBERS} when
-     * using {@link MemberCachePolicy#ALL MemberCachePolicy.ALL} as the members cannot be removed from cache by a leave event without this intent.
+     * <p>
+     * It is not recommended to disable {@link GatewayIntent#GUILD_MEMBERS
+     * GatewayIntent.GUILD_MEMBERS} when
+     * using {@link MemberCachePolicy#ALL MemberCachePolicy.ALL} as the members
+     * cannot be removed from cache by a leave event without this intent.
      *
-     * <p>If you disable certain intents you also have to disable related {@link CacheFlag CacheFlags}.
-     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}. The required intents for each
+     * <p>
+     * If you disable certain intents you also have to disable related
+     * {@link CacheFlag CacheFlags}.
+     * This can be achieved using {@link #disableCache(CacheFlag, CacheFlag...)}.
+     * The required intents for each
      * flag are documented in the {@link CacheFlag} enum.
      *
-     * @param  intents
-     *         The intents to enable (default: all)
+     * @param intents
+     *                The intents to enable (default: all)
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #setMemberCachePolicy(MemberCachePolicy)
+     * @see #setMemberCachePolicy(MemberCachePolicy)
      */
     @Nonnull
     public JDABuilder setEnabledIntents(@Nullable Collection<GatewayIntent> intents) {
@@ -1629,17 +2416,18 @@ public class JDABuilder {
 
     /**
      * Enable the specified {@link GatewayIntent GatewayIntents}.
-     * <br>This will not disable any currently set intents.
+     * <br>
+     * This will not disable any currently set intents.
      *
-     * @param  intents
-     *         The intents to enable
+     * @param intents
+     *                The intents to enable
      *
      * @throws IllegalArgumentException
-     *         If provided with null
+     *                                  If provided with null
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #disableIntents(Collection)
+     * @see #disableIntents(Collection)
      */
     @Nonnull
     public JDABuilder enableIntents(@Nonnull Collection<GatewayIntent> intents) {
@@ -1651,19 +2439,20 @@ public class JDABuilder {
 
     /**
      * Enable the specified {@link GatewayIntent GatewayIntents}.
-     * <br>This will not disable any currently set intents.
+     * <br>
+     * This will not disable any currently set intents.
      *
-     * @param  intent
-     *         The intent to enable
-     * @param  intents
-     *         Other intents to enable
+     * @param intent
+     *                The intent to enable
+     * @param intents
+     *                Other intents to enable
      *
      * @throws IllegalArgumentException
-     *         If provided with null
+     *                                  If provided with null
      *
      * @return The JDABuilder instance. Useful for chaining.
      *
-     * @see    #enableIntents(GatewayIntent, GatewayIntent...)
+     * @see #enableIntents(GatewayIntent, GatewayIntent...)
      */
     @Nonnull
     public JDABuilder enableIntents(@Nonnull GatewayIntent intent, @Nonnull GatewayIntent... intents) {
@@ -1675,35 +2464,47 @@ public class JDABuilder {
     }
 
     /**
-     * Decides the total number of members at which a guild should start to use lazy loading.
-     * <br>This is limited to a number between 50 and 250 (inclusive).
-     * If the {@link #setChunkingFilter(ChunkingFilter) chunking filter} is set to {@link ChunkingFilter#ALL}
-     * this should be set to {@code 250} (default) to minimize the amount of guilds that need to request members.
+     * Decides the total number of members at which a guild should start to use lazy
+     * loading.
+     * <br>
+     * This is limited to a number between 50 and 250 (inclusive).
+     * If the {@link #setChunkingFilter(ChunkingFilter) chunking filter} is set to
+     * {@link ChunkingFilter#ALL}
+     * this should be set to {@code 250} (default) to minimize the amount of guilds
+     * that need to request members.
      *
-     * @param  threshold
-     *         The threshold in {@code [50, 250]}
+     * @param threshold
+     *                  The threshold in {@code [50, 250]}
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
     @Nonnull
     public JDABuilder setLargeThreshold(int threshold) {
-        this.largeThreshold = Math.max(50, Math.min(250, threshold)); // enforce 50 <= t <= 250
+        this.largeThreshold = Math.clamp(threshold, 50, 250); // enforce 50 <= t <= 250
         return this;
     }
 
     /**
-     * The maximum size, in bytes, of the buffer used for decompressing discord payloads.
-     * <br>If the maximum buffer size is exceeded a new buffer will be allocated instead.
-     * <br>Setting this to {@link Integer#MAX_VALUE} would imply the buffer will never be resized unless memory starvation is imminent.
-     * <br>Setting this to {@code 0} would imply the buffer would need to be allocated again for every payload (not recommended).
+     * The maximum size, in bytes, of the buffer used for decompressing discord
+     * payloads.
+     * <br>
+     * If the maximum buffer size is exceeded a new buffer will be allocated
+     * instead.
+     * <br>
+     * Setting this to {@link Integer#MAX_VALUE} would imply the buffer will never
+     * be resized unless memory starvation is imminent.
+     * <br>
+     * Setting this to {@code 0} would imply the buffer would need to be allocated
+     * again for every payload (not recommended).
      *
-     * <p>Default: {@code 2048}
+     * <p>
+     * Default: {@code 2048}
      *
-     * @param  bufferSize
-     *         The maximum size the buffer should allow to retain
+     * @param bufferSize
+     *                   The maximum size the buffer should allow to retain
      *
      * @throws IllegalArgumentException
-     *         If the provided buffer size is negative
+     *                                  If the provided buffer size is negative
      *
      * @return The JDABuilder instance. Useful for chaining.
      */
@@ -1715,58 +2516,101 @@ public class JDABuilder {
     }
 
     /**
-     * Builds a new {@link net.dv8tion.jda.api.JDA} instance and uses the provided token to start the login process.
-     * <br>The login process runs in a different thread, so while this will return immediately, {@link net.dv8tion.jda.api.JDA} has not
-     * finished loading, thus many {@link net.dv8tion.jda.api.JDA} methods have the chance to return incorrect information.
-     * For example {@link JDA#getGuilds()} might return an empty list or {@link net.dv8tion.jda.api.JDA#getUserById(long)} might return null
+     * Whether to use lazy parsing for message sub-entities (such as attachments, embeds, reactions, components, stickers, and polls).
+     * <br>When enabled, message accessories will only be parsed from the raw payload when their respective getter methods are first called,
+     * significantly reducing CPU time and memory allocations on the WebSocket thread.
+     *
+     * <p>Default: {@code false}
+     *
+     * @param  lazy
+     *         True, if message sub-entities should be parsed lazily
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     */
+    @Nonnull
+    public JDABuilder setLazyMessageParsing(boolean lazy) {
+        if (lazy) {
+            this.flags.add(ConfigFlag.LAZY_MESSAGES);
+        } else {
+            this.flags.remove(ConfigFlag.LAZY_MESSAGES);
+        }
+        return this;
+    }
+
+    /**
+     * Builds a new {@link JDA} instance and uses the provided
+     * token to start the login process.
+     * <br>
+     * The login process runs in a different thread, so while this will return
+     * immediately, {@link JDA} has not
+     * finished loading, thus many {@link JDA} methods have the
+     * chance to return incorrect information.
+     * For example {@link JDA#getGuilds()} might return an empty list or
+     * {@link JDA#getUserById(long)} might return null
      * for arbitrary user IDs.
      *
-     * <p>If you wish to be sure that the {@link net.dv8tion.jda.api.JDA} information is correct, please use
-     * {@link net.dv8tion.jda.api.JDA#awaitReady() JDA.awaitReady()} or register an
-     * {@link net.dv8tion.jda.api.hooks.EventListener EventListener} to listen for the
+     * <p>
+     * If you wish to be sure that the {@link JDA} information
+     * is correct, please use
+     * {@link JDA#awaitReady() JDA.awaitReady()} or register an
+     * {@link EventListener} to listen for
+     * the
      * {@link ReadyEvent ReadyEvent}.
      *
      * @throws InvalidTokenException
-     *         If the provided token is invalid.
+     *                                  If the provided token is invalid.
      * @throws IllegalArgumentException
-     *         If the provided token is empty or null. Or the provided intents/cache configuration is not possible.
+     *                                  If the provided token is empty or null. Or
+     *                                  the provided intents/cache configuration is
+     *                                  not possible.
      *
-     * @return A {@link net.dv8tion.jda.api.JDA} instance that has started the login process. It is unknown as
+     * @return A {@link JDA} instance that has started the login
+     *         process. It is unknown as
      *         to whether or not loading has finished when this returns.
      *
-     * @see    net.dv8tion.jda.api.JDA#awaitReady()
+     * @see JDA#awaitReady()
      */
     @Nonnull
     public JDA build() {
         checkIntents();
-        OkHttpClient httpClient = this.httpClient;
-        if (httpClient == null) {
-            if (this.httpClientBuilder == null) {
-                this.httpClientBuilder = IOUtil.newHttpClientBuilder();
-            }
-            httpClient = this.httpClientBuilder.build();
-        }
-
-        WebSocketFactory wsFactory = this.wsFactory == null ? new WebSocketFactory() : this.wsFactory;
-
-        if (controller == null && shardInfo != null) {
-            controller = new ConcurrentSessionController();
-        }
-
         AuthorizationConfig authConfig = new AuthorizationConfig(token);
         ThreadingConfig threadingConfig = new ThreadingConfig();
         threadingConfig.setCallbackPool(callbackPool, shutdownCallbackPool);
         threadingConfig.setGatewayPool(mainWsPool, shutdownMainWsPool);
         threadingConfig.setRateLimitScheduler(rateLimitScheduler, shutdownRateLimitScheduler);
         threadingConfig.setRateLimitElastic(rateLimitElastic, shutdownRateLimitElastic);
-        threadingConfig.setEventPool(eventPool, shutdownEventPool);
+        if (explicitEventPool) {
+            threadingConfig.setEventPool(eventPool, shutdownEventPool);
+        }
         threadingConfig.setAudioPool(audioPool, shutdownAudioPool);
-        SessionConfig sessionConfig = new SessionConfig(
-                controller, httpClient, wsFactory, voiceDispatchInterceptor, flags, maxReconnectDelay, largeThreshold);
-        MetaConfig metaConfig = new MetaConfig(maxBufferSize, contextMap, cacheFlags, flags);
 
-        JDAImpl jda =
-                new JDAImpl(authConfig, sessionConfig, threadingConfig, metaConfig, restConfig, audioModuleConfig);
+        if (controller == null && shardInfo != null) {
+            controller = new ConcurrentSessionController();
+        }
+
+        SessionConfig sessionConfig =
+                new SessionConfig(controller, voiceDispatchInterceptor, flags, maxReconnectDelay, largeThreshold);
+        MetaConfig metaConfig = new MetaConfig(maxBufferSize, contextMap, cacheFlags, flags, jsonEngine);
+
+        NettyConfig nettyConfig = new NettyConfig(
+                this.byteBufAllocator,
+                this.useNativeTransport,
+                this.tcpNoDelay,
+                this.websocketEventLoopThreads,
+                this.httpClientEventLoopThreads,
+                this.audioEventLoopThreads,
+                this.connectTimeoutMillis,
+                this.maxFramePayloadLength,
+                this.httpAggregatorMaxContentLength,
+                this.websocketLoopGroup,
+                this.httpClientLoopGroup,
+                this.audioLoopGroup,
+                this.loopResources,
+                this.connectionProvider,
+                this.httpClient);
+
+        JDAImpl jda = new JDAImpl(
+                authConfig, sessionConfig, threadingConfig, metaConfig, restConfig, audioModuleConfig, nettyConfig);
         jda.setMemberCachePolicy(memberCachePolicy);
         // We can only do member chunking with the GUILD_MEMBERS intent
         if ((intents & GatewayIntent.GUILD_MEMBERS.getRawValue()) == 0) {

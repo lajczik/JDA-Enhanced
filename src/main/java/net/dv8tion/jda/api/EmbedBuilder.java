@@ -19,6 +19,8 @@ package net.dv8tion.jda.api;
 import net.dv8tion.jda.api.entities.EmbedType;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.exceptions.ParsingException;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.entities.EntityBuilder;
@@ -26,6 +28,7 @@ import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.awt.*;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
@@ -36,7 +39,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Builder system used to build {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbeds}.
+ * Builder system used to build {@link MessageEmbed MessageEmbeds}.
  *
  * <br>A visual breakdown of an Embed and how it relates to this class is available at
  * <a href="https://raw.githubusercontent.com/discord-jda/JDA/assets/assets/docs/embeds/01-Overview.png" target="_blank">Embed Overview</a>.
@@ -59,8 +62,8 @@ public class EmbedBuilder {
     private MessageEmbed.ImageInfo image;
 
     /**
-     * Constructs a new EmbedBuilder instance, which can be used to create {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbeds}.
-     * These can then be sent to a channel using {@link net.dv8tion.jda.api.entities.channel.middleman.MessageChannel#sendMessageEmbeds(MessageEmbed, MessageEmbed...)}.
+     * Constructs a new EmbedBuilder instance, which can be used to create {@link MessageEmbed MessageEmbeds}.
+     * These can then be sent to a channel using {@link MessageChannel#sendMessageEmbeds(MessageEmbed, MessageEmbed...)}.
      * <br>Every part of an embed can be removed or cleared by providing {@code null} to the setter method.
      */
     public EmbedBuilder() {}
@@ -95,7 +98,7 @@ public class EmbedBuilder {
      *
      * @throws IllegalArgumentException
      *         If the provided data is {@code null} or invalid
-     * @throws net.dv8tion.jda.api.exceptions.ParsingException
+     * @throws ParsingException
      *         If the provided data is malformed
      *
      * @return The new builder instance
@@ -135,21 +138,21 @@ public class EmbedBuilder {
     }
 
     /**
-     * Returns a {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbed}
+     * Returns a {@link MessageEmbed}
      * that has been checked as being valid for sending.
      *
-     * @throws java.lang.IllegalStateException
+     * @throws IllegalStateException
      *         <ul>
      *             <li>If the embed is empty. Can be checked with {@link #isEmpty()}.</li>
-     *             <li>If the character limit for {@code description}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#DESCRIPTION_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#DESCRIPTION_MAX_LENGTH},
+     *             <li>If the character limit for {@code description}, defined by {@link MessageEmbed#DESCRIPTION_MAX_LENGTH} as {@value MessageEmbed#DESCRIPTION_MAX_LENGTH},
      *             is exceeded.</li>
-     *             <li>If the embed's total length, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#EMBED_MAX_LENGTH_BOT} as {@value net.dv8tion.jda.api.entities.MessageEmbed#EMBED_MAX_LENGTH_BOT},
+     *             <li>If the embed's total length, defined by {@link MessageEmbed#EMBED_MAX_LENGTH_BOT} as {@value MessageEmbed#EMBED_MAX_LENGTH_BOT},
      *             is exceeded.</li>
-     *             <li>If the embed's number of embed fields, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#MAX_FIELD_AMOUNT} as {@value net.dv8tion.jda.api.entities.MessageEmbed#MAX_FIELD_AMOUNT},
+     *             <li>If the embed's number of embed fields, defined by {@link MessageEmbed#MAX_FIELD_AMOUNT} as {@value MessageEmbed#MAX_FIELD_AMOUNT},
      *             is exceeded.</li>
      *         </ul>
      *
-     * @return the built, sendable {@link net.dv8tion.jda.api.entities.MessageEmbed}
+     * @return the built, sendable {@link MessageEmbed}
      */
     @Nonnull
     public MessageEmbed build() {
@@ -168,7 +171,7 @@ public class EmbedBuilder {
             throw new IllegalStateException(Helpers.format(
                     "Cannot build an embed with more than %d embed fields set!", MessageEmbed.MAX_FIELD_AMOUNT));
         }
-        String description = this.description.length() < 1 ? null : this.description.toString();
+        String description = this.description.isEmpty() ? null : this.description.toString();
 
         return EntityBuilder.createMessageEmbed(
                 url,
@@ -271,7 +274,7 @@ public class EmbedBuilder {
 
     /**
      * The overall length of the current EmbedBuilder in displayed characters.
-     * <br>Represents the {@link net.dv8tion.jda.api.entities.MessageEmbed#getLength() MessageEmbed.getLength()} value.
+     * <br>Represents the {@link MessageEmbed#getLength() MessageEmbed.getLength()} value.
      *
      * @return length of the current builder state
      */
@@ -295,10 +298,10 @@ public class EmbedBuilder {
     }
 
     /**
-     * Checks whether the constructed {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbed}
+     * Checks whether the constructed {@link MessageEmbed}
      * is within the limits for a bot account.
      *
-     * @return True, if the {@link #length() length} is less or equal to {@value net.dv8tion.jda.api.entities.MessageEmbed#EMBED_MAX_LENGTH_BOT}
+     * @return True, if the {@link #length() length} is less or equal to {@value MessageEmbed#EMBED_MAX_LENGTH_BOT}
      *
      * @see    MessageEmbed#EMBED_MAX_LENGTH_BOT
      */
@@ -316,10 +319,10 @@ public class EmbedBuilder {
      * @param  title
      *         the title of the embed
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If the provided {@code title} is an empty String.</li>
-     *             <li>If the character limit for {@code title}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#TITLE_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#TITLE_MAX_LENGTH},
+     *             <li>If the character limit for {@code title}, defined by {@link MessageEmbed#TITLE_MAX_LENGTH} as {@value MessageEmbed#TITLE_MAX_LENGTH},
      *             is exceeded.</li>
      *         </ul>
      *
@@ -342,12 +345,12 @@ public class EmbedBuilder {
      * @param  url
      *         Makes the title into a hyperlink pointed at this url.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If the provided {@code title} is an empty String.</li>
-     *             <li>If the character limit for {@code title}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#TITLE_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#TITLE_MAX_LENGTH},
+     *             <li>If the character limit for {@code title}, defined by {@link MessageEmbed#TITLE_MAX_LENGTH} as {@value MessageEmbed#TITLE_MAX_LENGTH},
      *             is exceeded.</li>
-     *             <li>If the character limit for {@code url}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH},
+     *             <li>If the character limit for {@code url}, defined by {@link MessageEmbed#URL_MAX_LENGTH} as {@value MessageEmbed#URL_MAX_LENGTH},
      *             is exceeded.</li>
      *             <li>If the provided {@code url} is not a properly formatted http or https url.</li>
      *         </ul>
@@ -382,9 +385,9 @@ public class EmbedBuilder {
      *
      * <p>If multiple embeds in a message use the same URL, the Discord client will merge them into a single embed and aggregate images into a gallery view.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
-     *             <li>If the character limit for {@code url}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH},
+     *             <li>If the character limit for {@code url}, defined by {@link MessageEmbed#URL_MAX_LENGTH} as {@value MessageEmbed#URL_MAX_LENGTH},
      *             is exceeded.</li>
      *             <li>If the provided {@code url} is not a properly formatted http or https url.</li>
      *         </ul>
@@ -405,7 +408,7 @@ public class EmbedBuilder {
     }
 
     /**
-     * The {@link java.lang.StringBuilder StringBuilder} used to
+     * The {@link StringBuilder} used to
      * build the description for the embed.
      * <br>Note: To reset the description use {@link #setDescription(CharSequence) setDescription(null)}
      *
@@ -424,9 +427,9 @@ public class EmbedBuilder {
      * @param  description
      *         the description of the embed, {@code null} to reset
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If {@code description} is longer than {@value net.dv8tion.jda.api.entities.MessageEmbed#DESCRIPTION_MAX_LENGTH} characters,
-     *         as defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#DESCRIPTION_MAX_LENGTH}
+     * @throws IllegalArgumentException
+     *         If {@code description} is longer than {@value MessageEmbed#DESCRIPTION_MAX_LENGTH} characters,
+     *         as defined by {@link MessageEmbed#DESCRIPTION_MAX_LENGTH}
      *
      * @return the builder after the description has been set
      */
@@ -447,10 +450,10 @@ public class EmbedBuilder {
      * @param  description
      *         the string to append to the description of the embed
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If the provided {@code description} String is null.</li>
-     *             <li>If the character limit for {@code description}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#DESCRIPTION_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#DESCRIPTION_MAX_LENGTH},
+     *             <li>If the character limit for {@code description}, defined by {@link MessageEmbed#DESCRIPTION_MAX_LENGTH} as {@value MessageEmbed#DESCRIPTION_MAX_LENGTH},
      *             is exceeded.</li>
      *         </ul>
      *
@@ -472,8 +475,8 @@ public class EmbedBuilder {
      *
      * <p><b><a href="https://raw.githubusercontent.com/discord-jda/JDA/assets/assets/docs/embeds/13-setTimestamp.png">Example</a></b>
      *
-     * <p><b>Hint:</b> You can get the current time using {@link java.time.Instant#now() Instant.now()} or convert time from a
-     * millisecond representation by using {@link java.time.Instant#ofEpochMilli(long) Instant.ofEpochMilli(long)};
+     * <p><b>Hint:</b> You can get the current time using {@link Instant#now() Instant.now()} or convert time from a
+     * millisecond representation by using {@link Instant#ofEpochMilli(long) Instant.ofEpochMilli(long)};
      *
      * @param  temporal
      *         the temporal accessor of the timestamp
@@ -492,7 +495,7 @@ public class EmbedBuilder {
      * <p><b><a href="https://raw.githubusercontent.com/discord-jda/JDA/assets/assets/docs/embeds/02-setColor.png" target="_blank">Example</a></b>
      *
      * @param  color
-     *         The {@link java.awt.Color Color} of the embed
+     *         The {@link Color} of the embed
      *         or {@code null} to use no color
      *
      * @return the builder after the color has been set
@@ -530,7 +533,7 @@ public class EmbedBuilder {
      *
      * <p><b>Uploading images with Embeds</b>
      * <br>When uploading an <u>image</u>
-     * (using {@link net.dv8tion.jda.api.entities.channel.middleman.MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
+     * (using {@link MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
      * you can reference said image using the specified filename as URI {@code attachment://filename.ext}.
      *
      * <p><u>Example</u>
@@ -546,9 +549,9 @@ public class EmbedBuilder {
      * @param  url
      *         the url of the thumbnail of the embed
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
-     *             <li>If the character limit for {@code url}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH},
+     *             <li>If the character limit for {@code url}, defined by {@link MessageEmbed#URL_MAX_LENGTH} as {@value MessageEmbed#URL_MAX_LENGTH},
      *             is exceeded.</li>
      *             <li>If the provided {@code url} is not a properly formatted http or https url.</li>
      *         </ul>
@@ -573,7 +576,7 @@ public class EmbedBuilder {
      *
      * <p><b>Uploading images with Embeds</b>
      * <br>When uploading an <u>image</u>
-     * (using {@link net.dv8tion.jda.api.entities.channel.middleman.MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
+     * (using {@link MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
      * you can reference said image using the specified filename as URI {@code attachment://filename.ext}.
      *
      * <p><u>Example</u>
@@ -591,10 +594,10 @@ public class EmbedBuilder {
      * @param  description
      *         The description of the thumbnail, used as alt-text for accessibility
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If null is provided</li>
-     *             <li>If the character limit for {@code url}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH},
+     *             <li>If the character limit for {@code url}, defined by {@link MessageEmbed#URL_MAX_LENGTH} as {@value MessageEmbed#URL_MAX_LENGTH},
      *             is exceeded.</li>
      *             <li>If the provided {@code url} is not a properly formatted http or https url.</li>
      *         </ul>
@@ -617,7 +620,7 @@ public class EmbedBuilder {
      *
      * <p><b>Uploading images with Embeds</b>
      * <br>When uploading an <u>image</u>
-     * (using {@link net.dv8tion.jda.api.entities.channel.middleman.MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
+     * (using {@link MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
      * you can reference said image using the specified filename as URI {@code attachment://filename.ext}.
      *
      * <p><u>Example</u>
@@ -633,16 +636,16 @@ public class EmbedBuilder {
      * @param  url
      *         the url of the image of the embed
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
-     *             <li>If the character limit for {@code url}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH},
+     *             <li>If the character limit for {@code url}, defined by {@link MessageEmbed#URL_MAX_LENGTH} as {@value MessageEmbed#URL_MAX_LENGTH},
      *             is exceeded.</li>
      *             <li>If the provided {@code url} is not a properly formatted http or https url.</li>
      *         </ul>
      *
      * @return the builder after the image has been set
      *
-     * @see    net.dv8tion.jda.api.entities.channel.middleman.MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)
+     * @see    MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)
      */
     @Nonnull
     public EmbedBuilder setImage(@Nullable String url) {
@@ -662,7 +665,7 @@ public class EmbedBuilder {
      *
      * <p><b>Uploading images with Embeds</b>
      * <br>When uploading an <u>image</u>
-     * (using {@link net.dv8tion.jda.api.entities.channel.middleman.MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
+     * (using {@link MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
      * you can reference said image using the specified filename as URI {@code attachment://filename.ext}.
      *
      * <p><u>Example</u>
@@ -680,17 +683,17 @@ public class EmbedBuilder {
      * @param  description
      *         The description of the image, used as alt-text for accessibility
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If null is provided</li>
-     *             <li>If the character limit for {@code url}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH},
+     *             <li>If the character limit for {@code url}, defined by {@link MessageEmbed#URL_MAX_LENGTH} as {@value MessageEmbed#URL_MAX_LENGTH},
      *             is exceeded.</li>
      *             <li>If the provided {@code url} is not a properly formatted http or https url.</li>
      *         </ul>
      *
      * @return the builder after the image has been set
      *
-     * @see    net.dv8tion.jda.api.entities.channel.middleman.MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)
+     * @see    MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)
      */
     @Nonnull
     public EmbedBuilder setImage(@Nonnull String url, @Nonnull String description) {
@@ -711,9 +714,9 @@ public class EmbedBuilder {
      * @param  name
      *         the name of the author of the embed. If this is not set, the author will not appear in the embed
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If {@code name} is longer than {@value net.dv8tion.jda.api.entities.MessageEmbed#AUTHOR_MAX_LENGTH} characters,
-     *         as defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#AUTHOR_MAX_LENGTH}
+     * @throws IllegalArgumentException
+     *         If {@code name} is longer than {@value MessageEmbed#AUTHOR_MAX_LENGTH} characters,
+     *         as defined by {@link MessageEmbed#AUTHOR_MAX_LENGTH}
      *
      * @return the builder after the author has been set
      */
@@ -734,11 +737,11 @@ public class EmbedBuilder {
      * @param  url
      *         the url of the author of the embed
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
-     *             <li>If the character limit for {@code name}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#AUTHOR_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#AUTHOR_MAX_LENGTH},
+     *             <li>If the character limit for {@code name}, defined by {@link MessageEmbed#AUTHOR_MAX_LENGTH} as {@value MessageEmbed#AUTHOR_MAX_LENGTH},
      *             is exceeded.</li>
-     *             <li>If the character limit for {@code url}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH},
+     *             <li>If the character limit for {@code url}, defined by {@link MessageEmbed#URL_MAX_LENGTH} as {@value MessageEmbed#URL_MAX_LENGTH},
      *             is exceeded.</li>
      *             <li>If the provided {@code url} is not a properly formatted http or https url.</li>
      *         </ul>
@@ -758,7 +761,7 @@ public class EmbedBuilder {
      *
      * <p><b>Uploading images with Embeds</b>
      * <br>When uploading an <u>image</u>
-     * (using {@link net.dv8tion.jda.api.entities.channel.middleman.MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
+     * (using {@link MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
      * you can reference said image using the specified filename as URI {@code attachment://filename.ext}.
      *
      * <p><u>Example</u>
@@ -778,14 +781,14 @@ public class EmbedBuilder {
      * @param  iconUrl
      *         the url of the icon for the author
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
-     *             <li>If the character limit for {@code name}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#AUTHOR_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#AUTHOR_MAX_LENGTH},
+     *             <li>If the character limit for {@code name}, defined by {@link MessageEmbed#AUTHOR_MAX_LENGTH} as {@value MessageEmbed#AUTHOR_MAX_LENGTH},
      *             is exceeded.</li>
-     *             <li>If the character limit for {@code url}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH},
+     *             <li>If the character limit for {@code url}, defined by {@link MessageEmbed#URL_MAX_LENGTH} as {@value MessageEmbed#URL_MAX_LENGTH},
      *             is exceeded.</li>
      *             <li>If the provided {@code url} is not a properly formatted http or https url.</li>
-     *             <li>If the character limit for {@code iconUrl}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH},
+     *             <li>If the character limit for {@code iconUrl}, defined by {@link MessageEmbed#URL_MAX_LENGTH} as {@value MessageEmbed#URL_MAX_LENGTH},
      *             is exceeded.</li>
      *             <li>If the provided {@code iconUrl} is not a properly formatted http or https url.</li>
      *         </ul>
@@ -815,9 +818,9 @@ public class EmbedBuilder {
      * @param  text
      *         the text of the footer of the embed. If this is not set or set to null, the footer will not appear in the embed.
      *
-     * @throws java.lang.IllegalArgumentException
-     *         If {@code text} is longer than {@value net.dv8tion.jda.api.entities.MessageEmbed#TEXT_MAX_LENGTH} characters,
-     *         as defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#TEXT_MAX_LENGTH}
+     * @throws IllegalArgumentException
+     *         If {@code text} is longer than {@value MessageEmbed#TEXT_MAX_LENGTH} characters,
+     *         as defined by {@link MessageEmbed#TEXT_MAX_LENGTH}
      *
      * @return the builder after the footer has been set
      */
@@ -833,7 +836,7 @@ public class EmbedBuilder {
      *
      * <p><b>Uploading images with Embeds</b>
      * <br>When uploading an <u>image</u>
-     * (using {@link net.dv8tion.jda.api.entities.channel.middleman.MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
+     * (using {@link MessageChannel#sendFiles(net.dv8tion.jda.api.utils.FileUpload...) MessageChannel.sendFiles(...)})
      * you can reference said image using the specified filename as URI {@code attachment://filename.ext}.
      *
      * <p><u>Example</u>
@@ -855,11 +858,11 @@ public class EmbedBuilder {
      * @param  iconUrl
      *         the url of the icon for the footer
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
-     *             <li>If the character limit for {@code text}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#TEXT_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#TEXT_MAX_LENGTH},
+     *             <li>If the character limit for {@code text}, defined by {@link MessageEmbed#TEXT_MAX_LENGTH} as {@value MessageEmbed#TEXT_MAX_LENGTH},
      *             is exceeded.</li>
-     *             <li>If the character limit for {@code iconUrl}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#URL_MAX_LENGTH},
+     *             <li>If the character limit for {@code iconUrl}, defined by {@link MessageEmbed#URL_MAX_LENGTH} as {@value MessageEmbed#URL_MAX_LENGTH},
      *             is exceeded.</li>
      *             <li>If the provided {@code iconUrl} is not a properly formatted http or https url.</li>
      *         </ul>
@@ -898,7 +901,7 @@ public class EmbedBuilder {
      * Adds a Field to the embed.
      *
      * <p>Note: If a blank string is provided to either {@code name} or {@code value}, the blank string is replaced
-     * with {@link net.dv8tion.jda.api.EmbedBuilder#ZERO_WIDTH_SPACE}.
+     * with {@link EmbedBuilder#ZERO_WIDTH_SPACE}.
      *
      * <p><b><a href="https://raw.githubusercontent.com/discord-jda/JDA/assets/assets/docs/embeds/07-addField.png">Example of Inline</a></b>
      * <p><b><a href="https://raw.githubusercontent.com/discord-jda/JDA/assets/assets/docs/embeds/08-addField.png">Example of Non-inline</a></b>
@@ -910,12 +913,12 @@ public class EmbedBuilder {
      * @param  inline
      *         whether or not this field should display inline.
      *
-     * @throws java.lang.IllegalArgumentException
+     * @throws IllegalArgumentException
      *         <ul>
      *             <li>If {@code null} is provided</li>
-     *             <li>If the character limit for {@code name}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#TITLE_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#TITLE_MAX_LENGTH},
+     *             <li>If the character limit for {@code name}, defined by {@link MessageEmbed#TITLE_MAX_LENGTH} as {@value MessageEmbed#TITLE_MAX_LENGTH},
      *             is exceeded.</li>
-     *             <li>If the character limit for {@code value}, defined by {@link net.dv8tion.jda.api.entities.MessageEmbed#VALUE_MAX_LENGTH} as {@value net.dv8tion.jda.api.entities.MessageEmbed#VALUE_MAX_LENGTH},
+     *             <li>If the character limit for {@code value}, defined by {@link MessageEmbed#VALUE_MAX_LENGTH} as {@value MessageEmbed#VALUE_MAX_LENGTH},
      *             is exceeded.</li>
      *         </ul>
      *
@@ -948,9 +951,9 @@ public class EmbedBuilder {
 
     /**
      * Clears all fields from the embed, such as those created with the
-     * {@link net.dv8tion.jda.api.EmbedBuilder#EmbedBuilder(net.dv8tion.jda.api.entities.MessageEmbed) EmbedBuilder(MessageEmbed)}
+     * {@link EmbedBuilder#EmbedBuilder(net.dv8tion.jda.api.entities.MessageEmbed) EmbedBuilder(MessageEmbed)}
      * constructor or via the
-     * {@link net.dv8tion.jda.api.EmbedBuilder#addField(net.dv8tion.jda.api.entities.MessageEmbed.Field) addField} methods.
+     * {@link EmbedBuilder#addField(net.dv8tion.jda.api.entities.MessageEmbed.Field) addField} methods.
      *
      * @return the builder after the field has been added
      */
@@ -961,12 +964,12 @@ public class EmbedBuilder {
     }
 
     /**
-     * <b>Modifiable</b> list of {@link net.dv8tion.jda.api.entities.MessageEmbed MessageEmbed} Fields that the builder will
+     * <b>Modifiable</b> list of {@link MessageEmbed} Fields that the builder will
      * use for {@link #build()}.
-     * <br>You can add/remove Fields and restructure this {@link java.util.List List} and it will then be applied in the
-     * built MessageEmbed. These fields will be available again through {@link net.dv8tion.jda.api.entities.MessageEmbed#getFields() MessageEmbed.getFields()}.
+     * <br>You can add/remove Fields and restructure this {@link List} and it will then be applied in the
+     * built MessageEmbed. These fields will be available again through {@link MessageEmbed#getFields() MessageEmbed.getFields()}.
      *
-     * @return Mutable List of {@link net.dv8tion.jda.api.entities.MessageEmbed.Field Fields}
+     * @return Mutable List of {@link MessageEmbed.Field Fields}
      */
     @Nonnull
     public List<MessageEmbed.Field> getFields() {

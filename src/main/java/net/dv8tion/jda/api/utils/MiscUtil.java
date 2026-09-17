@@ -16,9 +16,9 @@
 
 package net.dv8tion.jda.api.utils;
 
-import gnu.trove.impl.sync.TSynchronizedLongObjectMap;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.dv8tion.jda.annotations.UnknownNullability;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.internal.utils.Checks;
@@ -75,7 +75,7 @@ public class MiscUtil {
     }
 
     /**
-     * Returns the shard id the given {@link net.dv8tion.jda.api.entities.Guild Guild} will be loaded on for the given amount of shards.
+     * Returns the shard id the given {@link Guild} will be loaded on for the given amount of shards.
      *
      * <p>Discord determines which guilds a shard is connect to using the following format:
      * {@code shardId == (guildId >>> 22) % totalShards}
@@ -93,16 +93,16 @@ public class MiscUtil {
     }
 
     /**
-     * Generates a new thread-safe {@link gnu.trove.map.TLongObjectMap TLongObjectMap}
+     * Generates a new thread-safe {@link Long2ObjectMap}
      *
      * @param  <T>
      *         The Object type
      *
-     * @return a new thread-safe {@link gnu.trove.map.TLongObjectMap TLongObjectMap}
+     * @return a new thread-safe {@link Long2ObjectMap}
      */
     @Nonnull
-    public static <T> TLongObjectMap<T> newLongMap() {
-        return new TSynchronizedLongObjectMap<>(new TLongObjectHashMap<T>(), new Object());
+    public static <T> Long2ObjectMap<T> newLongMap() {
+        return Long2ObjectMaps.synchronize(new Long2ObjectOpenHashMap<>());
     }
 
     public static long parseLong(@Nonnull String input) {
@@ -165,7 +165,7 @@ public class MiscUtil {
      * Can be used to append a String to a formatter.
      *
      * @param formatter
-     *        The {@link java.util.Formatter Formatter}
+     *        The {@link Formatter}
      * @param width
      *        Minimum width to meet, filled with space if needed
      * @param precision

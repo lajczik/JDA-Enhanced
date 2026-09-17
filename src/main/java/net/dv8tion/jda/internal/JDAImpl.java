@@ -16,8 +16,9 @@
 
 package net.dv8tion.jda.internal;
 
-import com.neovisionaries.ws.client.WebSocketFactory;
-import gnu.trove.set.TLongSet;
+import io.netty.channel.EventLoopGroup;
+import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.GatewayEncoding;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
@@ -87,11 +88,13 @@ import net.dv8tion.jda.internal.utils.config.AuthorizationConfig;
 import net.dv8tion.jda.internal.utils.config.MetaConfig;
 import net.dv8tion.jda.internal.utils.config.SessionConfig;
 import net.dv8tion.jda.internal.utils.config.ThreadingConfig;
-import okhttp3.OkHttpClient;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.JsonRequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 import org.jetbrains.annotations.Unmodifiable;
 import org.slf4j.Logger;
 import org.slf4j.MDC;
+import reactor.core.scheduler.Scheduler;
+import reactor.netty.http.client.HttpClient;
 
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -100,9 +103,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class JDAImpl implements JDA {
     public static final Logger LOG = JDALogger.getLog(JDA.class);
@@ -111,7 +114,7 @@ public class JDAImpl implements JDA {
     protected final SnowflakeCacheViewImpl<Guild> guildCache =
             new SnowflakeCacheViewImpl<>(Guild.class, Guild::getName);
     protected final ChannelCacheViewImpl<Channel> channelCache = new ChannelCacheViewImpl<>(Channel.class);
-    protected final ArrayDeque<Long> privateChannelLRU = new ArrayDeque<>();
+    protected final LongLinkedOpenHashSet privateChannelLRU = new LongLinkedOpenHashSet(10);
 
     protected final AbstractCacheView<AudioManager> audioManagers = new CacheView.SimpleCacheView<>(
             AudioManager.class, m -> m.getGuild().getName());
@@ -131,9 +134,14 @@ public class JDAImpl implements JDA {
     protected final MetaConfig metaConfig;
     protected final RestConfig restConfig;
     protected final AudioModuleConfig audioModuleConfig;
+    protected final NettyConfig nettyConfig;
+    protected final HttpClient httpClient;
+    protected final EventLoopGroup websocketEventLoopGroup;
+    protected final EventLoopGroup httpClientEventLoopGroup;
+    protected final EventLoopGroup audioEventLoopGroup;
 
-    public ShutdownReason shutdownReason =
-            ShutdownReason.USER_SHUTDOWN; // indicates why shutdown happened in awaitStatus / awaitReady
+    public ShutdownReason shutdownReason = ShutdownReason.USER_SHUTDOWN; // indicates why shutdown happened in
+    // awaitStatus / awaitReady
     protected WebSocketClient client;
     protected Requester requester;
     protected SelfUser selfUser;
@@ -153,23 +161,40 @@ public class JDAImpl implements JDA {
     protected final AtomicBoolean requesterShutdown = new AtomicBoolean(false);
     protected final AtomicReference<ShutdownEvent> shutdownEvent = new AtomicReference<>(null);
 
-    public JDAImpl(AuthorizationConfig authConfig) {
-        this(authConfig, null, null, null, null, null);
+    public JDAImpl(@Nonnull AuthorizationConfig authConfig) {
+        this(authConfig, null, null, null, null, null, null);
     }
 
     public JDAImpl(
-            AuthorizationConfig authConfig,
-            SessionConfig sessionConfig,
-            ThreadingConfig threadConfig,
-            MetaConfig metaConfig,
-            RestConfig restConfig,
-            AudioModuleConfig audioModuleConfig) {
+            @Nonnull AuthorizationConfig authConfig,
+            @Nullable SessionConfig sessionConfig,
+            @Nullable ThreadingConfig threadConfig,
+            @Nullable MetaConfig metaConfig,
+            @Nullable RestConfig restConfig,
+            @Nullable AudioModuleConfig audioModuleConfig) {
+        this(authConfig, sessionConfig, threadConfig, metaConfig, restConfig, audioModuleConfig, null);
+    }
+
+    public JDAImpl(
+            @Nonnull AuthorizationConfig authConfig,
+            @Nullable SessionConfig sessionConfig,
+            @Nullable ThreadingConfig threadConfig,
+            @Nullable MetaConfig metaConfig,
+            @Nullable RestConfig restConfig,
+            @Nullable AudioModuleConfig audioModuleConfig,
+            @Nullable NettyConfig nettyConfig) {
         this.authConfig = authConfig;
         this.threadConfig = threadConfig == null ? ThreadingConfig.getDefault() : threadConfig;
         this.sessionConfig = sessionConfig == null ? SessionConfig.getDefault() : sessionConfig;
         this.metaConfig = metaConfig == null ? MetaConfig.getDefault() : metaConfig;
         this.restConfig = restConfig == null ? new RestConfig() : restConfig;
         this.audioModuleConfig = audioModuleConfig == null ? new AudioModuleConfig() : audioModuleConfig;
+        this.nettyConfig = nettyConfig == null ? NettyConfig.getDefault() : nettyConfig;
+        this.websocketEventLoopGroup = this.nettyConfig.getWebsocketLoopGroup();
+        this.httpClientEventLoopGroup = this.nettyConfig.getHttpClientLoopGroup();
+        this.audioEventLoopGroup = this.nettyConfig.getAudioLoopGroup();
+        this.httpClient = this.nettyConfig.getHttpClient();
+
         this.shutdownHook =
                 this.metaConfig.isUseShutdownHook() ? new Thread(this::shutdownNow, "JDA Shutdown Hook") : null;
         this.presence = new PresenceImpl(this);
@@ -177,6 +202,12 @@ public class JDAImpl implements JDA {
         this.audioController = new DirectAudioControllerImpl(this);
         this.eventCache = new EventCache();
         this.eventManager = new EventManagerProxy(new InterfacedEventManager(), this.threadConfig.getEventPool());
+        FileProxy.setDefaultHttpClient(this.httpClient);
+        FileProxy.setDefaultScheduler(this.threadConfig.getCallbackScheduler());
+        NettyConfig.setGlobalAllocator(this.nettyConfig.getByteBufAllocator());
+        if (this.metaConfig.getJsonEngine() != null) {
+            SerializationUtil.setEngine(this.metaConfig.getJsonEngine());
+        }
     }
 
     public void handleEvent(@Nonnull GenericEvent event) {
@@ -189,6 +220,10 @@ public class JDAImpl implements JDA {
 
     public boolean isEventPassthrough() {
         return sessionConfig.isEventPassthrough();
+    }
+
+    public boolean isLazyMessages() {
+        return sessionConfig.isLazyMessages();
     }
 
     public boolean isCacheFlagSet(CacheFlag flag) {
@@ -251,11 +286,10 @@ public class JDAImpl implements JDA {
         synchronized (privateChannelLRU) {
             // We could probably make a special LRU cache view too,
             // might not be worth it though
-            privateChannelLRU.remove(id);
-            privateChannelLRU.addFirst(id);
+            privateChannelLRU.addAndMoveToFirst(id);
             // This could probably be a config option
             if (privateChannelLRU.size() > 10) {
-                long removed = privateChannelLRU.removeLast();
+                long removed = privateChannelLRU.removeLastLong();
                 channelCache.remove(ChannelType.PRIVATE, removed);
             }
         }
@@ -277,7 +311,7 @@ public class JDAImpl implements JDA {
     }
 
     public int login() {
-        return login(null, null, Compression.ZLIB, true, GatewayIntent.ALL_INTENTS, GatewayEncoding.JSON);
+        return login(null, null, Compression.NONE, true, GatewayIntent.ALL_INTENTS, GatewayEncoding.JSON);
     }
 
     public int login(
@@ -474,7 +508,8 @@ public class JDAImpl implements JDA {
             return false;
         }
 
-        // We avoid to lock both the guild cache and member cache to make a deadlock impossible
+        // We avoid to lock both the guild cache and member cache to make a deadlock
+        // impossible
         return getGuildCache().stream()
                         .filter(guild -> guild.unloadMember(userId)) // this also removes it from user cache
                         .count()
@@ -563,9 +598,48 @@ public class JDAImpl implements JDA {
 
     @Nonnull
     @Override
-    @SuppressWarnings("ConstantConditions") // this can't really happen unless you pass bad configs
-    public OkHttpClient getHttpClient() {
-        return sessionConfig.getHttpClient();
+    public Scheduler getCallbackScheduler() {
+        return threadConfig.getCallbackScheduler();
+    }
+
+    @Nullable
+    @Override
+    public ExecutorService getEventPool() {
+        return threadConfig.getEventPool();
+    }
+
+    @Nonnull
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public HttpClient getHttpClient() {
+        return this.httpClient;
+    }
+
+    @Nonnull
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public EventLoopGroup getWebsocketEventLoopGroup() {
+        return this.websocketEventLoopGroup;
+    }
+
+    @Nonnull
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public EventLoopGroup getHttpClientEventLoopGroup() {
+        return this.httpClientEventLoopGroup;
+    }
+
+    @Nonnull
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public EventLoopGroup getAudioEventLoopGroup() {
+        return this.audioEventLoopGroup;
+    }
+
+    @Nonnull
+    @Override
+    public NettyConfig getNettyConfig() {
+        return this.nettyConfig;
     }
 
     @Nonnull
@@ -593,7 +667,7 @@ public class JDAImpl implements JDA {
         }
         return getGuilds().stream()
                 .filter(guild -> users.stream().allMatch(guild::isMember))
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull
@@ -630,7 +704,7 @@ public class JDAImpl implements JDA {
     @Nonnull
     @Override
     public Set<String> getUnavailableGuilds() {
-        TLongSet unavailableGuilds = guildSetupController.getUnavailableGuilds();
+        LongSet unavailableGuilds = guildSetupController.getUnavailableGuilds();
         Set<String> copy = new HashSet<>();
         unavailableGuilds.forEach(id -> copy.add(Long.toUnsignedString(id)));
         return copy;
@@ -750,7 +824,7 @@ public class JDAImpl implements JDA {
                         response.getArray().stream(DataArray::getObject),
                         entityBuilder::createSoundboardSound,
                         "Failed to parse soundboard sound")
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     @Nonnull
@@ -959,6 +1033,12 @@ public class JDAImpl implements JDA {
     private void signalShutdown() {
         setStatus(Status.SHUTDOWN);
         handleEvent(shutdownEvent.get());
+        if (this.shardManager == null) {
+            NettyUtils.disposeHttpClient(this.httpClient);
+            FileProxy.resetDefaultHttpClient(this.httpClient);
+            FileProxy.resetDefaultScheduler(this.threadConfig.getCallbackScheduler());
+            this.nettyConfig.close();
+        }
     }
 
     private void closeAudioConnections() {
@@ -993,6 +1073,11 @@ public class JDAImpl implements JDA {
     @Override
     public IEventManager getEventManager() {
         return eventManager.getSubject();
+    }
+
+    @Nonnull
+    public SessionConfig getSessionConfig() {
+        return sessionConfig;
     }
 
     @Override
@@ -1038,8 +1123,8 @@ public class JDAImpl implements JDA {
                 .withQueryParams("with_localizations", String.valueOf(withLocalizations));
 
         return new RestActionImpl<>(this, route, (response, request) -> response.getArray().stream(DataArray::getObject)
-                .map(json -> new CommandImpl(this, null, json))
-                .collect(Collectors.toList()));
+                .<Command>map(json -> new CommandImpl(this, null, json))
+                .toList());
     }
 
     @Nonnull
@@ -1092,7 +1177,7 @@ public class JDAImpl implements JDA {
                 getSelfUser().getApplicationId());
         return new RestActionImpl<>(this, route, (response, request) -> response.getArray().stream(DataArray::getObject)
                 .map(RoleConnectionMetadata::fromData)
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     @Nonnull
@@ -1109,12 +1194,12 @@ public class JDAImpl implements JDA {
                 getSelfUser().getApplicationId());
 
         DataArray array = DataArray.fromCollection(records);
-        RequestBody body = RequestBody.create(array.toJson(), Requester.MEDIA_TYPE_JSON);
+        RequestBody body = new JsonRequestBody(array.toList());
 
         return new RestActionImpl<>(
                 this, route, body, (response, request) -> response.getArray().stream(DataArray::getObject)
                         .map(RoleConnectionMetadata::fromData)
-                        .collect(Helpers.toUnmodifiableList()));
+                        .toList());
     }
 
     @Nonnull
@@ -1157,7 +1242,7 @@ public class JDAImpl implements JDA {
                         response.getArray().stream(DataArray::getObject),
                         EntityBuilder::createSKU,
                         "Failed to parse SKU")
-                .collect(Helpers.toUnmodifiableList()));
+                .toList());
     }
 
     @Nonnull
@@ -1267,10 +1352,6 @@ public class JDAImpl implements JDA {
 
     public Requester getRequester() {
         return requester;
-    }
-
-    public WebSocketFactory getWebSocketFactory() {
-        return sessionConfig.getWebSocketFactory();
     }
 
     public WebSocketClient getClient() {

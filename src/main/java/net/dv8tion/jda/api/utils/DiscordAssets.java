@@ -17,7 +17,6 @@
 package net.dv8tion.jda.api.utils;
 
 import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.HttpUrl;
 import org.jetbrains.annotations.Contract;
 
 import javax.annotation.Nonnull;
@@ -27,6 +26,8 @@ import javax.annotation.Nullable;
  * Utility class to retrieve an {@link ImageProxy} of most Discord assets.
  */
 public final class DiscordAssets {
+    private static final String CDN_URL = "https://cdn.discordapp.com/";
+
     private DiscordAssets() {}
 
     /**
@@ -61,8 +62,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("app-icons").addPathSegment(applicationId);
-        return format.finishProxy(builder, iconId);
+        return format.finishProxy(CDN_URL + "app-icons/" + applicationId, iconId);
     }
 
     /**
@@ -97,8 +97,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("application").addPathSegment(applicationId);
-        return format.finishProxy(builder, coverId);
+        return format.finishProxy(CDN_URL + "application/" + applicationId, coverId);
     }
 
     /**
@@ -133,8 +132,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("team-icons").addPathSegment(teamId);
-        return format.finishProxy(builder, iconId);
+        return format.finishProxy(CDN_URL + "team-icons/" + teamId, iconId);
     }
 
     /**
@@ -169,9 +167,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder =
-                newUrl().addEncodedPathSegment("channel-icons").addPathSegment(channelId);
-        return format.finishProxy(builder, iconId);
+        return format.finishProxy(CDN_URL + "channel-icons/" + channelId, iconId);
     }
 
     /**
@@ -202,8 +198,7 @@ public final class DiscordAssets {
         Checks.notNull(format, "Format");
         Checks.isSnowflake(id, "ID");
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("emojis");
-        return format.finishProxy(builder, id);
+        return format.finishProxy(CDN_URL + "emojis", id);
     }
 
     /**
@@ -239,8 +234,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("icons").addPathSegment(guildId);
-        return format.finishProxy(builder, iconId);
+        return format.finishProxy(CDN_URL + "icons/" + guildId, iconId);
     }
 
     /**
@@ -275,8 +269,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("splashes").addPathSegment(guildId);
-        return format.finishProxy(builder, splashId);
+        return format.finishProxy(CDN_URL + "splashes/" + guildId, splashId);
     }
 
     /**
@@ -313,8 +306,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("banners").addPathSegment(guildId);
-        return format.finishProxy(builder, bannerId);
+        return format.finishProxy(CDN_URL + "banners/" + guildId, bannerId);
     }
 
     /**
@@ -354,12 +346,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("guilds")
-                .addPathSegment(guildId)
-                .addEncodedPathSegment("users")
-                .addPathSegment(userId)
-                .addEncodedPathSegment("avatars");
-        return format.finishProxy(builder, avatarId);
+        return format.finishProxy(CDN_URL + "guilds/" + guildId + "/users/" + userId + "/avatars", avatarId);
     }
 
     /**
@@ -393,8 +380,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("role-icons").addPathSegment(roleId);
-        return format.finishProxy(builder, iconId);
+        return format.finishProxy(CDN_URL + "role-icons/" + roleId, iconId);
     }
 
     /**
@@ -429,8 +415,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("guild-events").addPathSegment(eventId);
-        return format.finishProxy(builder, imageId);
+        return format.finishProxy(CDN_URL + "guild-events/" + eventId, imageId);
     }
 
     /**
@@ -461,10 +446,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("app-assets")
-                .addEncodedPathSegment("710982414301790216")
-                .addEncodedPathSegment("store");
-        return format.finishProxy(builder, bannerId);
+        return format.finishProxy(CDN_URL + "app-assets/710982414301790216/store", bannerId);
     }
 
     /**
@@ -501,8 +483,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("avatars").addPathSegment(userId);
-        return format.finishProxy(builder, avatarId);
+        return format.finishProxy(CDN_URL + "avatars/" + userId, avatarId);
     }
 
     /**
@@ -539,8 +520,7 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("banners").addPathSegment(userId);
-        return format.finishProxy(builder, bannerId);
+        return format.finishProxy(CDN_URL + "banners/" + userId, bannerId);
     }
 
     /**
@@ -563,8 +543,7 @@ public final class DiscordAssets {
         Checks.notNull(format, "Format");
         Checks.notNull(avatarId, "Avatar ID");
 
-        HttpUrl.Builder builder = newUrl().addEncodedPathSegment("embed").addEncodedPathSegment("avatars");
-        return format.finishProxy(builder, avatarId);
+        return format.finishProxy(CDN_URL + "embed/avatars", avatarId);
     }
 
     /**
@@ -599,12 +578,6 @@ public final class DiscordAssets {
             return null;
         }
 
-        HttpUrl.Builder builder =
-                newUrl().addEncodedPathSegment("guild-tag-badges").addPathSegment(guildId);
-        return format.finishProxy(builder, badgeId);
-    }
-
-    private static HttpUrl.Builder newUrl() {
-        return new HttpUrl.Builder().scheme("https").host("cdn.discordapp.com");
+        return format.finishProxy(CDN_URL + "guild-tag-badges/" + guildId, badgeId);
     }
 }

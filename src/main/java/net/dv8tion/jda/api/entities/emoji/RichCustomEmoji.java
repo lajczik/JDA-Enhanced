@@ -17,19 +17,22 @@
 package net.dv8tion.jda.api.entities.emoji;
 
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.managers.CustomEmojiManager;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
 import net.dv8tion.jda.api.requests.restaction.CacheRestAction;
 import net.dv8tion.jda.internal.utils.PermissionUtil;
 import org.jetbrains.annotations.Unmodifiable;
 
-import java.util.List;
+import java.util.Set;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -52,7 +55,7 @@ import javax.annotation.Nullable;
  */
 public interface RichCustomEmoji extends CustomEmoji {
     /**
-     * The {@link net.dv8tion.jda.api.entities.Guild Guild} this emoji is attached to.
+     * The {@link Guild} this emoji is attached to.
      *
      * @return Guild of this emoji
      */
@@ -67,7 +70,7 @@ public interface RichCustomEmoji extends CustomEmoji {
      */
     @Nonnull
     @Unmodifiable
-    List<Role> getRoles();
+    Set<Role> getRoles();
 
     /**
      * Whether this emoji is managed. A managed emoji is controlled by Discord, not the Guild administrator, typical
@@ -80,11 +83,11 @@ public interface RichCustomEmoji extends CustomEmoji {
 
     /**
      * Whether this emoji is available. When an emoji becomes unavailable, it cannot be used in messages. An emoji becomes
-     * unavailable when the {@link net.dv8tion.jda.api.entities.Guild.BoostTier BoostTier} of the guild drops such that
+     * unavailable when the {@link Guild.BoostTier BoostTier} of the guild drops such that
      * the maximum allowed emojis is lower than the total amount of emojis added to the guild.
      *
      * <p>If an emoji is added to the guild when the boost tier allows for more than 50 normal and 50 animated emojis
-     * (BoostTier is at least {@link net.dv8tion.jda.api.entities.Guild.BoostTier#TIER_1 TIER_1}) and the emoji is at least
+     * (BoostTier is at least {@link Guild.BoostTier#TIER_1 TIER_1}) and the emoji is at least
      * the 51st one added, then the emoji becomes unavailable when the BoostTier drops below a level that allows those emojis
      * to be used.
      * <br>emojis that where added as part of a lower BoostTier (i.e. the 51st emoji on BoostTier 2) will remain available,
@@ -95,7 +98,7 @@ public interface RichCustomEmoji extends CustomEmoji {
     boolean isAvailable();
 
     /**
-     * The {@link net.dv8tion.jda.api.JDA JDA} instance of this emoji
+     * The {@link JDA} instance of this emoji
      *
      * @return The JDA instance of this emoji
      */
@@ -107,7 +110,7 @@ public interface RichCustomEmoji extends CustomEmoji {
      *
      * <p>This is only available for manually retrieved emojis from {@link Guild#retrieveEmojis()}
      * and {@link Guild#retrieveEmojiById(long)}.
-     * <br>Requires {@link net.dv8tion.jda.api.Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}.
+     * <br>Requires {@link Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}.
      *
      * @throws IllegalStateException
      *         If this emoji does not have user information
@@ -124,9 +127,9 @@ public interface RichCustomEmoji extends CustomEmoji {
      * <br>If {@link #getOwner()} is present, this will directly return the owner in a completed {@link RestAction} without making a request.
      * The user information might be outdated, you can use {@link CacheRestAction#useCache(boolean) action.useCache(false)} to force an update.
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the currently logged in account does not have {@link net.dv8tion.jda.api.Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}
-     *         nor {@link net.dv8tion.jda.api.Permission#CREATE_GUILD_EXPRESSIONS Permission.CREATE_GUILD_EXPRESSIONS} in this guild
+     * @throws InsufficientPermissionException
+     *         If the currently logged in account does not have {@link Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}
+     *         nor {@link Permission#CREATE_GUILD_EXPRESSIONS Permission.CREATE_GUILD_EXPRESSIONS} in this guild
      *
      * @return {@link RestAction} - Type: {@link User}
      *
@@ -141,31 +144,31 @@ public interface RichCustomEmoji extends CustomEmoji {
      *
      * <p>Possible ErrorResponses include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
+     *     <li>{@link ErrorResponse#UNKNOWN_EMOJI UNKNOWN_EMOJI}
      *     <br>If this emoji was already removed</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_GUILD UNKNOWN_GUILD}
+     *     <li>{@link ErrorResponse#UNKNOWN_GUILD UNKNOWN_GUILD}
      *     <br>If the Guild of this emoji was deleted</li>
      *
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
+     *     <li>{@link ErrorResponse#MISSING_ACCESS MISSING_ACCESS}
      *     <br>If we were removed from the Guild</li>
      * </ul>
      *
-     * @throws java.lang.UnsupportedOperationException
+     * @throws UnsupportedOperationException
      *         If this emoji is managed by discord ({@link #isManaged()})
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         <ul>
      *             <li>If the currently logged in account created the emoji,
-     *                 and does not have {@link net.dv8tion.jda.api.Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}
-     *                 nor {@link net.dv8tion.jda.api.Permission#CREATE_GUILD_EXPRESSIONS Permission.CREATE_GUILD_EXPRESSIONS}
+     *                 and does not have {@link Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}
+     *                 nor {@link Permission#CREATE_GUILD_EXPRESSIONS Permission.CREATE_GUILD_EXPRESSIONS}
      *             </li>
      *             <li>
      *                 If the currently logged in account did not create the emoji,
-     *                 and does not have {@link net.dv8tion.jda.api.Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}
+     *                 and does not have {@link Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}
      *             </li>
      *         </ul>
      *
-     * @return {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}
+     * @return {@link AuditableRestAction}
      *         The RestAction to delete this emoji.
      */
     @Nonnull
@@ -175,17 +178,17 @@ public interface RichCustomEmoji extends CustomEmoji {
     /**
      * The {@link CustomEmojiManager Manager} for this emoji, used to modify
      * properties of the emoji like name and role restrictions.
-     * <br>You modify multiple fields in one request by chaining setters before calling {@link net.dv8tion.jda.api.requests.RestAction#queue() RestAction.queue()}.
+     * <br>You modify multiple fields in one request by chaining setters before calling {@link RestAction#queue() RestAction.queue()}.
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         <ul>
      *             <li>If the currently logged in account created the emoji,
-     *                 and does not have {@link net.dv8tion.jda.api.Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}
-     *                 nor {@link net.dv8tion.jda.api.Permission#CREATE_GUILD_EXPRESSIONS Permission.CREATE_GUILD_EXPRESSIONS}
+     *                 and does not have {@link Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}
+     *                 nor {@link Permission#CREATE_GUILD_EXPRESSIONS Permission.CREATE_GUILD_EXPRESSIONS}
      *             </li>
      *             <li>
      *                 If the currently logged in account did not create the emoji,
-     *                 and does not have {@link net.dv8tion.jda.api.Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}
+     *                 and does not have {@link Permission#MANAGE_GUILD_EXPRESSIONS Permission.MANAGE_GUILD_EXPRESSIONS}
      *             </li>
      *         </ul>
      *

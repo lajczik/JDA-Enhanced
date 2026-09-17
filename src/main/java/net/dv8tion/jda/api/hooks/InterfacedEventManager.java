@@ -16,31 +16,30 @@
 
 package net.dv8tion.jda.api.hooks;
 
+import net.dv8tion.jda.api.events.Event;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.utils.JDALogger;
 import org.jetbrains.annotations.Unmodifiable;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.annotation.Nonnull;
 
 /**
- * An {@link net.dv8tion.jda.api.hooks.IEventManager IEventManager} implementation
- * that uses the {@link net.dv8tion.jda.api.hooks.EventListener EventListener} interface for
+ * An {@link IEventManager} implementation
+ * that uses the {@link EventListener} interface for
  * event listeners.
  *
- * <p>This only accepts listeners that implement {@link net.dv8tion.jda.api.hooks.EventListener EventListener}
- * <br>An adapter implementation is {@link net.dv8tion.jda.api.hooks.ListenerAdapter ListenerAdapter} which
- * provides methods for each individual {@link net.dv8tion.jda.api.events.Event}.
+ * <p>This only accepts listeners that implement {@link EventListener}
+ * <br>An adapter implementation is {@link ListenerAdapter} which
+ * provides methods for each individual {@link Event}.
  *
  * <p><b>This is the default IEventManager used by JDA</b>
  *
- * @see net.dv8tion.jda.api.hooks.AnnotatedEventManager
- * @see net.dv8tion.jda.api.hooks.IEventManager
+ * @see AnnotatedEventManager
+ * @see IEventManager
  */
 public class InterfacedEventManager implements IEventManager {
     private final CopyOnWriteArrayList<EventListener> listeners = new CopyOnWriteArrayList<>();
@@ -51,7 +50,7 @@ public class InterfacedEventManager implements IEventManager {
      * {@inheritDoc}
      *
      * @throws IllegalArgumentException
-     *         If the provided listener does not implement {@link net.dv8tion.jda.api.hooks.EventListener EventListener}
+     *         If the provided listener does not implement {@link EventListener}
      */
     @Override
     public void register(@Nonnull Object listener) {
@@ -79,7 +78,7 @@ public class InterfacedEventManager implements IEventManager {
     @Override
     @Unmodifiable
     public List<Object> getRegisteredListeners() {
-        return Collections.unmodifiableList(new ArrayList<>(listeners));
+        return List.copyOf(listeners);
     }
 
     @Override

@@ -17,9 +17,10 @@
 package net.dv8tion.jda.api.entities;
 
 import net.dv8tion.jda.api.entities.channel.concrete.StageChannel;
+import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.managers.StageInstanceManager;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.requests.RestAction;
-import net.dv8tion.jda.internal.utils.Helpers;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
@@ -42,9 +43,9 @@ public interface StageInstance extends ISnowflake {
     Guild getGuild();
 
     /**
-     * The {@link net.dv8tion.jda.api.entities.channel.concrete.StageChannel} for this stage instance
+     * The {@link StageChannel} for this stage instance
      *
-     * @return The {@link net.dv8tion.jda.api.entities.channel.concrete.StageChannel}
+     * @return The {@link StageChannel}
      */
     @Nonnull
     StageChannel getChannel();
@@ -84,7 +85,7 @@ public interface StageInstance extends ISnowflake {
                 // voice states should not be null
                 // since getMembers() checks only for connected members in the channel
                 .filter(member -> !member.getVoiceState().isSuppressed())
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     /**
@@ -106,21 +107,21 @@ public interface StageInstance extends ISnowflake {
                 // voice states should not be null
                 // since getMembers() checks only for connected members in the channel
                 .filter(member -> member.getVoiceState().isSuppressed())
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     /**
      * Deletes this stage instance
      *
-     * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
+     * <p>Possible {@link ErrorResponse ErrorResponses} include:
      * <ul>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_STAGE_INSTANCE UNKNOWN_STAGE_INSTANCE}
+     *     <li>{@link ErrorResponse#UNKNOWN_STAGE_INSTANCE UNKNOWN_STAGE_INSTANCE}
      *     <br>If this stage instance is already deleted</li>
-     *     <li>{@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
+     *     <li>{@link ErrorResponse#UNKNOWN_CHANNEL UNKNOWN_CHANNEL}
      *     <br>If the channel was deleted</li>
      * </ul>
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If the self member is not a {@link StageChannel#isModerator(Member) stage moderator}
      *
      * @return {@link RestAction}
@@ -133,9 +134,9 @@ public interface StageInstance extends ISnowflake {
      * The {@link StageInstanceManager} used to update this stage instance.
      * <p>This can be used to update multiple fields such as topic and privacy level in one request
      *
-     * <p>If this stage instance is already deleted, this will fail with {@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_STAGE_INSTANCE ErrorResponse.UNKNOWN_STAGE_INSTANCE}.
+     * <p>If this stage instance is already deleted, this will fail with {@link ErrorResponse#UNKNOWN_STAGE_INSTANCE ErrorResponse.UNKNOWN_STAGE_INSTANCE}.
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws InsufficientPermissionException
      *         If the self member is not a {@link StageChannel#isModerator(Member) stage moderator}
      *
      * @return The {@link StageInstanceManager}

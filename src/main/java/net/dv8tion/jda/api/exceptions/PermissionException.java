@@ -22,7 +22,7 @@ import net.dv8tion.jda.internal.utils.Checks;
 import javax.annotation.Nonnull;
 
 /**
- * Indicates that the currently logged in account does not meet the specified {@link net.dv8tion.jda.api.Permission Permission}
+ * Indicates that the currently logged in account does not meet the specified {@link Permission}
  * from {@link #getPermission()}
  */
 public class PermissionException extends RuntimeException {
@@ -42,19 +42,17 @@ public class PermissionException extends RuntimeException {
      * Creates a new PermissionException instance
      *
      * @param permission
-     *        The required {@link net.dv8tion.jda.api.Permission Permission}
+     *        The required {@link Permission}
      */
     protected PermissionException(@Nonnull Permission permission) {
-        this(
-                permission,
-                "Cannot perform action due to a lack of Permission. Missing permission: " + permission.toString());
+        this(permission, "Cannot perform action due to a lack of Permission. Missing permission: " + permission);
     }
 
     /**
      * Creates a new PermissionException
      *
      * @param permission
-     *        The required {@link net.dv8tion.jda.api.Permission Permission}
+     *        The required {@link Permission}
      * @param reason
      *        The reason for this Exception
      */
@@ -65,12 +63,12 @@ public class PermissionException extends RuntimeException {
     }
 
     /**
-     * The {@link net.dv8tion.jda.api.Permission Permission} that is required for the operation
+     * The {@link Permission} that is required for the operation
      *
-     * <p><b>If this is a {@link net.dv8tion.jda.api.exceptions.HierarchyException HierarchyException}
-     * this will always be {@link net.dv8tion.jda.api.Permission#UNKNOWN Permission.UNKNOWN}!</b>
+     * <p><b>If this is a {@link HierarchyException}
+     * this will always be {@link Permission#UNKNOWN Permission.UNKNOWN}!</b>
      *
-     * @return The required {@link net.dv8tion.jda.api.Permission Permission}
+     * @return The required {@link Permission}
      */
     @Nonnull
     public Permission getPermission() {
