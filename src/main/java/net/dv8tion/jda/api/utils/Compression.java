@@ -16,19 +16,24 @@
 
 package net.dv8tion.jda.api.utils;
 
+import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
+
 import javax.annotation.Nonnull;
 
 /**
  * Compression algorithms that can be used with JDA.
  *
- * @see net.dv8tion.jda.api.JDABuilder#setCompression(Compression)
- * @see net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder#setCompression(Compression)
+ * @see JDABuilder#setCompression(Compression)
+ * @see DefaultShardManagerBuilder#setCompression(Compression)
  */
 public enum Compression {
     /** Don't use any compression */
     NONE(""),
     /** Use ZLIB transport compression */
-    ZLIB("zlib-stream");
+    ZLIB("zlib-stream"),
+    /** Use Zstandard streaming compression */
+    ZSTD("zstd-stream");
 
     private final String key;
 
@@ -44,5 +49,31 @@ public enum Compression {
     @Nonnull
     public String getKey() {
         return key;
+    }
+
+    /**
+     * Whether this compression algorithm is supported on the current classpath/runtime.
+     *
+     * @return True if supported, false otherwise
+     */
+    public boolean isSupported() {
+        switch (this) {
+            case NONE:
+            case ZLIB:
+                return true;
+            case ZSTD:
+                return isZstdSupported();
+            default:
+                return false;
+        }
+    }
+
+    private static boolean isZstdSupported() {
+        try {
+            Class.forName("com.github.luben.zstd.ZstdDecompressCtx");
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 }
