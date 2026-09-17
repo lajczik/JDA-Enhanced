@@ -58,7 +58,7 @@ public class CheckboxGroupImpl extends AbstractComponentImpl implements Checkbox
         this.customId = data.getString("custom_id");
         this.options = data.getArray("options").stream(DataArray::getObject)
                 .map(CheckboxGroupOption::fromData)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
         this.minValues = data.getInt("min_values", -1);
         this.maxValues = data.getInt("max_values", -1);
         this.required = data.getBoolean("required", true);

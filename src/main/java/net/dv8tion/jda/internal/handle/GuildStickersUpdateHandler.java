@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.handle;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.sticker.GuildSticker;
 import net.dv8tion.jda.api.events.sticker.GuildStickerAddedEvent;
@@ -35,7 +35,6 @@ import net.dv8tion.jda.internal.entities.sticker.GuildStickerImpl;
 import net.dv8tion.jda.internal.utils.Helpers;
 import net.dv8tion.jda.internal.utils.UnlockHook;
 import net.dv8tion.jda.internal.utils.cache.SnowflakeCacheViewImpl;
-import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -67,8 +66,8 @@ public class GuildStickersUpdateHandler extends SocketHandler {
         SnowflakeCacheViewImpl<GuildSticker> stickersView = guild.getStickersView();
         EntityBuilder builder = api.getEntityBuilder();
         try (UnlockHook hook = stickersView.writeLock()) {
-            TLongObjectMap<GuildSticker> stickersMap = stickersView.getMap();
-            oldStickers = new ArrayList<>(stickersMap.valueCollection()); // snapshot of sticker cache
+            Long2ObjectMap<GuildSticker> stickersMap = stickersView.getMap();
+            oldStickers = new ArrayList<>(stickersMap.values()); // snapshot of sticker cache
             newStickers = new ArrayList<>();
             for (int i = 0; i < array.length(); i++) {
                 DataObject current = array.getObject(i);
@@ -132,7 +131,7 @@ public class GuildStickersUpdateHandler extends SocketHandler {
                     getJDA(), responseNumber, guild, newSticker, oldSticker.isAvailable()));
         }
 
-        if (!CollectionUtils.isEqualCollection(oldSticker.getTags(), newSticker.getTags())) {
+        if (!Objects.equals(oldSticker.getTags(), newSticker.getTags())) {
             getJDA().handleEvent(new GuildStickerUpdateTagsEvent(
                     getJDA(), responseNumber, guild, newSticker, oldSticker.getTags()));
         }

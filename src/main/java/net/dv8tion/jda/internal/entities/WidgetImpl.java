@@ -16,8 +16,8 @@
 
 package net.dv8tion.jda.internal.entities;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Widget;
@@ -30,7 +30,6 @@ import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.utils.EntityString;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -41,8 +40,8 @@ public class WidgetImpl implements Widget {
     private final long id;
     private final String name;
     private final String invite;
-    private final TLongObjectMap<VoiceChannelImpl> channels;
-    private final TLongObjectMap<Member> members;
+    private final Long2ObjectMap<VoiceChannelImpl> channels;
+    private final Long2ObjectMap<Member> members;
 
     /**
      * Constructs an unavailable Widget
@@ -52,15 +51,15 @@ public class WidgetImpl implements Widget {
         id = guildId;
         name = null;
         invite = null;
-        channels = new TLongObjectHashMap<>();
-        members = new TLongObjectHashMap<>();
+        channels = new Long2ObjectOpenHashMap<>();
+        members = new Long2ObjectOpenHashMap<>();
     }
 
     /**
      * Constructs an available Widget
      *
      * @param json
-     *        The {@link net.dv8tion.jda.api.utils.data.DataObject DataObject} to construct the Widget from
+     *        The {@link DataObject} to construct the Widget from
      */
     public WidgetImpl(@Nonnull DataObject json) {
         String inviteCode = json.getString("instant_invite", null);
@@ -134,7 +133,7 @@ public class WidgetImpl implements Widget {
     public List<VoiceChannel> getVoiceChannels() {
         checkAvailable();
 
-        return Collections.unmodifiableList(new ArrayList<>(channels.valueCollection()));
+        return List.copyOf(channels.values());
     }
 
     @Override
@@ -158,7 +157,7 @@ public class WidgetImpl implements Widget {
     public List<Member> getMembers() {
         checkAvailable();
 
-        return Collections.unmodifiableList(new ArrayList<>(members.valueCollection()));
+        return List.copyOf(members.values());
     }
 
     @Override

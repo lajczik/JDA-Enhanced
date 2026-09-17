@@ -28,7 +28,6 @@ import net.dv8tion.jda.internal.utils.message.MessageUtil;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -93,7 +92,7 @@ public class ComponentSerializer {
         return components.stream()
                 .map(SerializableData.class::cast)
                 .map(SerializableData::toData)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

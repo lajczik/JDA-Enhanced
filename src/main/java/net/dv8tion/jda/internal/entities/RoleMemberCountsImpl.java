@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.entities;
 
-import gnu.trove.map.TLongIntMap;
+import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.RoleMemberCount;
 import net.dv8tion.jda.api.entities.RoleMemberCounts;
@@ -28,9 +28,9 @@ import javax.annotation.Nonnull;
 
 public class RoleMemberCountsImpl implements RoleMemberCounts {
     private final Guild guild;
-    private final TLongIntMap roleMemberCounts;
+    private final Long2IntMap roleMemberCounts;
 
-    public RoleMemberCountsImpl(Guild guild, TLongIntMap roleMemberCounts) {
+    public RoleMemberCountsImpl(Guild guild, Long2IntMap roleMemberCounts) {
         this.guild = guild;
         this.roleMemberCounts = roleMemberCounts;
     }
@@ -51,9 +51,8 @@ public class RoleMemberCountsImpl implements RoleMemberCounts {
     @Unmodifiable
     public List<RoleMemberCount> asList() {
         List<RoleMemberCount> map = new ArrayList<>(roleMemberCounts.size());
-        roleMemberCounts.forEachEntry((roleId, count) -> {
+        roleMemberCounts.forEach((roleId, count) -> {
             map.add(new RoleMemberCountImpl(guild, roleId, count));
-            return true;
         });
         return Collections.unmodifiableList(map);
     }

@@ -32,7 +32,7 @@ import java.util.ServiceLoader;
 
 /**
  * This class serves as a LoggerFactory for JDA's internals.
- * <br>It will either return a Logger from a SLF4J implementation via {@link org.slf4j.LoggerFactory} if present,
+ * <br>It will either return a Logger from a SLF4J implementation via {@link LoggerFactory} if present,
  * or an instance of a custom {@link FallbackLogger}.
  * <p>
  * It also has the utility method {@link #getLazyString(LazyEvaluation)} which is used to lazily construct Strings for Logging.
@@ -102,7 +102,7 @@ public class JDALogger {
     }
 
     /**
-     * Will get the {@link org.slf4j.Logger} with the given log-name
+     * Will get the {@link Logger} with the given log-name
      * or create and cache a fallback logger if there is no SLF4J implementation present.
      * <p>
      * The fallback logger uses a constant logging configuration and prints directly to {@link System#err}.
@@ -113,16 +113,16 @@ public class JDALogger {
      * @return Logger with given log name
      */
     public static Logger getLog(String name) {
+        if (SLF4J_ENABLED || disableFallback) {
+            return LoggerFactory.getLogger(name);
+        }
         synchronized (LOGS) {
-            if (SLF4J_ENABLED || disableFallback) {
-                return LoggerFactory.getLogger(name);
-            }
             return newFallbackLogger(name);
         }
     }
 
     /**
-     * Will get the {@link org.slf4j.Logger} for the given Class
+     * Will get the {@link Logger} for the given Class
      * or create and cache a fallback logger if there is no SLF4J implementation present.
      * <p>
      * The fallback logger uses a constant logging configuration and prints directly to {@link System#err}.
@@ -133,10 +133,10 @@ public class JDALogger {
      * @return Logger for given Class
      */
     public static Logger getLog(Class<?> clazz) {
+        if (SLF4J_ENABLED || disableFallback) {
+            return LoggerFactory.getLogger(clazz);
+        }
         synchronized (LOGS) {
-            if (SLF4J_ENABLED || disableFallback) {
-                return LoggerFactory.getLogger(clazz);
-            }
             return newFallbackLogger(clazz.getSimpleName());
         }
     }

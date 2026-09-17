@@ -26,7 +26,6 @@ import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.requests.WebSocketClient;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class MessageBulkDeleteHandler extends SocketHandler {
     public MessageBulkDeleteHandler(JDAImpl api) {
@@ -90,7 +89,7 @@ public class MessageBulkDeleteHandler extends SocketHandler {
             }
 
             DataArray array = content.getArray("ids");
-            List<String> messages = array.stream(DataArray::getString).collect(Collectors.toList());
+            List<String> messages = array.stream(DataArray::getString).toList();
             getJDA().handleEvent(new MessageBulkDeleteEvent(getJDA(), responseNumber, channel, messages));
         }
         return null;

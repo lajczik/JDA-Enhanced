@@ -38,13 +38,11 @@ import net.dv8tion.jda.internal.utils.EntityString;
 import net.dv8tion.jda.internal.utils.Helpers;
 import net.dv8tion.jda.internal.utils.localization.LocalizationUtils;
 
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -127,8 +125,8 @@ public class CommandImpl implements Command {
                 .map(arr -> arr.stream(DataArray::getObject)
                         .filter(test)
                         .map(transform)
-                        .collect(Collectors.toList()))
-                .orElse(Collections.emptyList());
+                        .toList())
+                .orElse(List.of());
     }
 
     @Nonnull

@@ -37,11 +37,9 @@ import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.requests.restaction.AuditableRestActionImpl;
 import net.dv8tion.jda.internal.utils.EntityString;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 
@@ -61,7 +59,7 @@ public class RichCustomEmojiImpl implements RichCustomEmoji, EmojiUnion {
         this.id = id;
         this.api = guild.getJDA();
         this.guild = guild;
-        this.roles = ConcurrentHashMap.newKeySet();
+        this.roles = Collections.synchronizedSet(new HashSet<>());
     }
 
     @Nonnull
@@ -94,8 +92,8 @@ public class RichCustomEmojiImpl implements RichCustomEmoji, EmojiUnion {
 
     @Nonnull
     @Override
-    public List<Role> getRoles() {
-        return Collections.unmodifiableList(new ArrayList<>(roles));
+    public Set<Role> getRoles() {
+        return Collections.unmodifiableSet(this.roles);
     }
 
     @Nonnull
@@ -244,11 +242,9 @@ public class RichCustomEmojiImpl implements RichCustomEmoji, EmojiUnion {
         if (obj == this) {
             return true;
         }
-        if (!(obj instanceof CustomEmoji)) {
+        if (!(obj instanceof CustomEmoji other)) {
             return false;
         }
-
-        CustomEmoji other = (CustomEmoji) obj;
         return this.id == other.getIdLong();
     }
 

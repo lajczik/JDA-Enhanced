@@ -111,10 +111,9 @@ public class GuildUpdateHandler extends SocketHandler {
 
         if (!content.isNull("features")) {
             DataArray featureArr = content.getArray("features");
-            features =
-                    featureArr.stream(DataArray::getString).map(String::intern).collect(Collectors.toSet());
+            features = featureArr.stream(DataArray::getString).collect(Collectors.toSet());
         } else {
-            features = Collections.emptySet();
+            features = Set.of();
         }
 
         if (ownerId != guild.getOwnerIdLong()) {

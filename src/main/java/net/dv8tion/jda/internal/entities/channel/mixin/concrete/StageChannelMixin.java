@@ -54,7 +54,7 @@ public interface StageChannelMixin<T extends StageChannelMixin<T>>
             if (parent != null) {
                 action.setParent(parent);
             }
-            for (PermissionOverride o : getPermissionOverrideMap().valueCollection()) {
+            for (PermissionOverride o : getPermissionOverrideMap().values()) {
                 if (o.isMemberOverride()) {
                     action.addMemberPermissionOverride(o.getIdLong(), o.getAllowedRaw(), o.getDeniedRaw());
                 } else {

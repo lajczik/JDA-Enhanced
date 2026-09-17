@@ -16,8 +16,8 @@
 
 package net.dv8tion.jda.internal.entities.channel.concrete;
 
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
@@ -49,7 +49,6 @@ import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.time.OffsetDateTime;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.LongStream;
@@ -63,7 +62,7 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     private final CacheView.SimpleCacheView<ThreadMember> threadMembers =
             new CacheView.SimpleCacheView<>(ThreadMember.class, null);
 
-    private TLongSet appliedTags = new TLongHashSet(ForumChannel.MAX_POST_TAGS);
+    private LongSet appliedTags = new LongOpenHashSet(ForumChannel.MAX_POST_TAGS);
     private AutoArchiveDuration autoArchiveDuration;
     private IThreadContainerUnion parentChannel;
     private boolean locked;
@@ -145,7 +144,7 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     @Nonnull
     @Override
     public List<Member> getMembers() {
-        return Collections.emptyList();
+        return List.of();
     }
 
     @Nonnull
@@ -163,11 +162,11 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     public List<ForumTag> getAppliedTags() {
         IThreadContainerUnion parent = getParentChannel();
         if (parent.getType() != ChannelType.FORUM) {
-            return Collections.emptyList();
+            return List.of();
         }
         return parent.asForumChannel().getAvailableTagCache().stream()
                 .filter(tag -> this.appliedTags.contains(tag.getIdLong()))
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull
@@ -402,7 +401,7 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     }
 
     public ThreadChannelImpl setAppliedTags(LongStream tags) {
-        TLongSet set = new TLongHashSet(ForumChannel.MAX_POST_TAGS);
+        LongSet set = new LongOpenHashSet(ForumChannel.MAX_POST_TAGS);
         tags.forEach(set::add);
         this.appliedTags = set;
         return this;
@@ -418,7 +417,7 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
         return archiveTimestamp;
     }
 
-    public TLongSet getAppliedTagsSet() {
+    public LongSet getAppliedTagsSet() {
         return appliedTags;
     }
 

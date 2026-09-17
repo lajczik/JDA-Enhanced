@@ -26,7 +26,6 @@ import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.requests.WebSocketClient;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ApplicationCommandPermissionsUpdateHandler extends SocketHandler {
     public ApplicationCommandPermissionsUpdateHandler(JDAImpl api) {
@@ -60,7 +59,7 @@ public class ApplicationCommandPermissionsUpdateHandler extends SocketHandler {
                         IntegrationPrivilege.Type.fromKey(obj.getInt("type")),
                         obj.getBoolean("permission"),
                         obj.getUnsignedLong("id")))
-                .collect(Collectors.toList());
+                .toList();
 
         if (id != applicationId) {
             api.handleEvent(new ApplicationCommandUpdatePrivilegesEvent(

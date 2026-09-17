@@ -24,11 +24,9 @@ import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.utils.Helpers;
 
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -45,13 +43,13 @@ public class EntitySelectMenuImpl extends SelectMenuImpl implements EntitySelect
                 data.optArray("channel_types")
                         .map(arr -> arr.stream(DataArray::getInt)
                                 .map(ChannelType::fromId)
-                                .collect(Collectors.toList()))
+                                .toList())
                         .orElse(null));
         this.defaultValues = data.optArray("default_values")
                 .map(array -> array.stream(DataArray::getObject)
                         .map(DefaultValue::fromData)
-                        .collect(Helpers.toUnmodifiableList()))
-                .orElse(Collections.emptyList());
+                        .toList())
+                .orElse(List.of());
     }
 
     public EntitySelectMenuImpl(
@@ -121,7 +119,7 @@ public class EntitySelectMenuImpl extends SelectMenuImpl implements EntitySelect
             json.put(
                     "channel_types",
                     DataArray.fromCollection(
-                            channelTypes.stream().map(ChannelType::getId).collect(Collectors.toList())));
+                            channelTypes.stream().map(ChannelType::getId).toList()));
         }
         if (!defaultValues.isEmpty()) {
             json.put("default_values", DataArray.fromCollection(defaultValues));
@@ -139,10 +137,9 @@ public class EntitySelectMenuImpl extends SelectMenuImpl implements EntitySelect
         if (obj == this) {
             return true;
         }
-        if (!(obj instanceof EntitySelectMenu)) {
+        if (!(obj instanceof EntitySelectMenu other)) {
             return false;
         }
-        EntitySelectMenu other = (EntitySelectMenu) obj;
         return Objects.equals(id, other.getCustomId())
                 && Objects.equals(placeholder, other.getPlaceholder())
                 && minValues == other.getMinValues()

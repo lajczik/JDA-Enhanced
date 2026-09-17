@@ -31,11 +31,9 @@ import net.dv8tion.jda.internal.utils.Helpers;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -50,7 +48,7 @@ public class SectionImpl extends AbstractComponentImpl
                 data.getInt("id", -1),
                 deserializer
                         .deserializeAs(SectionContentComponentUnion.class, data.getArray("components"))
-                        .collect(Collectors.toList()),
+                        .toList(),
                 deserializer.deserializeAs(SectionAccessoryComponentUnion.class, data.getObject("accessory")));
     }
 
@@ -136,7 +134,7 @@ public class SectionImpl extends AbstractComponentImpl
 
         SectionAccessoryComponentUnion newAccessory = ComponentsUtil.doReplace(
                 SectionAccessoryComponent.class,
-                Collections.singletonList(accessory),
+                List.of(accessory),
                 replacer,
                 newAccessories -> newAccessories.isEmpty() ? null : newAccessories.get(0));
 
@@ -179,10 +177,9 @@ public class SectionImpl extends AbstractComponentImpl
         if (o == this) {
             return true;
         }
-        if (!(o instanceof SectionImpl)) {
+        if (!(o instanceof SectionImpl that)) {
             return false;
         }
-        SectionImpl that = (SectionImpl) o;
         return uniqueId == that.uniqueId
                 && Objects.equals(components, that.components)
                 && Objects.equals(accessory, that.accessory);

@@ -16,6 +16,7 @@
 
 package net.dv8tion.jda.api.interactions.commands.build;
 
+import net.dv8tion.jda.api.exceptions.ParsingException;
 import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
@@ -24,7 +25,6 @@ import net.dv8tion.jda.internal.utils.Checks;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -132,7 +132,7 @@ public class Commands {
      * @param  array
      *         Array of serialized {@link DataObject} representing the commands
      *
-     * @throws net.dv8tion.jda.api.exceptions.ParsingException
+     * @throws ParsingException
      *         If the serialized object is missing required fields
      * @throws IllegalArgumentException
      *         If any of the values are failing the respective checks such as length
@@ -145,7 +145,7 @@ public class Commands {
     @Nonnull
     public static List<CommandData> fromList(@Nonnull DataArray array) {
         Checks.notNull(array, "DataArray");
-        return array.stream(DataArray::getObject).map(CommandData::fromData).collect(Collectors.toList());
+        return array.stream(DataArray::getObject).map(CommandData::fromData).toList();
     }
 
     /**
@@ -155,7 +155,7 @@ public class Commands {
      * @param  collection
      *         Collection of serialized {@link DataObject} representing the commands
      *
-     * @throws net.dv8tion.jda.api.exceptions.ParsingException
+     * @throws ParsingException
      *         If the serialized object is missing required fields
      * @throws IllegalArgumentException
      *         If any of the values are failing the respective checks such as length

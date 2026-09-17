@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.handle;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
 import net.dv8tion.jda.api.events.emoji.EmojiAddedEvent;
@@ -31,7 +31,6 @@ import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.entities.emoji.RichCustomEmojiImpl;
 import net.dv8tion.jda.internal.utils.UnlockHook;
 import net.dv8tion.jda.internal.utils.cache.SnowflakeCacheViewImpl;
-import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.*;
 
@@ -60,8 +59,8 @@ public class GuildEmojisUpdateHandler extends SocketHandler {
         List<RichCustomEmoji> oldEmojis, newEmojis;
         SnowflakeCacheViewImpl<RichCustomEmoji> emojiView = guild.getEmojisView();
         try (UnlockHook hook = emojiView.writeLock()) {
-            TLongObjectMap<RichCustomEmoji> emojiMap = emojiView.getMap();
-            oldEmojis = new ArrayList<>(emojiMap.valueCollection()); // snapshot of emoji cache
+            Long2ObjectMap<RichCustomEmoji> emojiMap = emojiView.getMap();
+            oldEmojis = new ArrayList<>(emojiMap.values()); // snapshot of emoji cache
             newEmojis = new ArrayList<>();
             for (int i = 0; i < array.length(); i++) {
                 DataObject current = array.getObject(i);
@@ -130,8 +129,10 @@ public class GuildEmojisUpdateHandler extends SocketHandler {
             getJDA().handleEvent(new EmojiUpdateNameEvent(getJDA(), responseNumber, newEmoji, oldEmoji.getName()));
         }
 
-        if (!CollectionUtils.isEqualCollection(oldEmoji.getRoles(), newEmoji.getRoles())) {
-            getJDA().handleEvent(new EmojiUpdateRolesEvent(getJDA(), responseNumber, newEmoji, oldEmoji.getRoles()));
+        Set<Role> oldRoles = oldEmoji.getRoles();
+        Set<Role> newRoles = newEmoji.getRoles();
+        if (oldRoles.size() != newRoles.size() || !oldRoles.containsAll(newRoles)) {
+            getJDA().handleEvent(new EmojiUpdateRolesEvent(getJDA(), responseNumber, newEmoji, oldRoles));
         }
     }
 }

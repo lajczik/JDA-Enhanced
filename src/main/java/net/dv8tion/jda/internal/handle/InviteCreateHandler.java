@@ -76,31 +76,27 @@ public class InviteCreateHandler extends SocketHandler {
         InviteImpl.GuildImpl guild = new InviteImpl.GuildImpl(realGuild);
 
         Invite.TargetType targetType = Invite.TargetType.fromId(content.getInt("target_type", 0));
-        Invite.InviteTarget target;
-
-        switch (targetType) {
-            case STREAM:
-                DataObject targetUserObject = content.getObject("target_user");
-                target = new InviteImpl.InviteTargetImpl(
-                        targetType, null, getJDA().getEntityBuilder().createUser(targetUserObject));
-                break;
-            case EMBEDDED_APPLICATION:
-                DataObject applicationObject = content.getObject("target_application");
-                Invite.EmbeddedApplication application = new InviteImpl.EmbeddedApplicationImpl(
-                        applicationObject.getString("icon", null),
-                        applicationObject.getString("name"),
-                        applicationObject.getString("description"),
-                        applicationObject.getString("summary"),
-                        applicationObject.getLong("id"),
-                        applicationObject.getInt("max_participants", -1));
-                target = new InviteImpl.InviteTargetImpl(targetType, application, null);
-                break;
-            case NONE:
-                target = null;
-                break;
-            default:
-                target = new InviteImpl.InviteTargetImpl(targetType, null, null);
-        }
+        Invite.InviteTarget target =
+                switch (targetType) {
+                    case STREAM -> {
+                        DataObject targetUserObject = content.getObject("target_user");
+                        yield new InviteImpl.InviteTargetImpl(
+                                targetType, null, getJDA().getEntityBuilder().createUser(targetUserObject));
+                    }
+                    case EMBEDDED_APPLICATION -> {
+                        DataObject applicationObject = content.getObject("target_application");
+                        Invite.EmbeddedApplication application = new InviteImpl.EmbeddedApplicationImpl(
+                                applicationObject.getString("icon", null),
+                                applicationObject.getString("name"),
+                                applicationObject.getString("description"),
+                                applicationObject.getString("summary"),
+                                applicationObject.getLong("id"),
+                                applicationObject.getInt("max_participants", -1));
+                        yield new InviteImpl.InviteTargetImpl(targetType, application, null);
+                    }
+                    case NONE -> null;
+                    default -> new InviteImpl.InviteTargetImpl(targetType, null, null);
+                };
 
         Invite invite = new InviteImpl(
                 getJDA(),

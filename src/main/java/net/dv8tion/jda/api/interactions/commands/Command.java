@@ -20,12 +20,15 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.ISnowflake;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.exceptions.ParsingException;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.IntegrationType;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.localization.LocalizationMap;
 import net.dv8tion.jda.api.interactions.commands.privileges.IntegrationPrivilege;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.restaction.CommandEditAction;
 import net.dv8tion.jda.api.utils.TimeUtil;
@@ -86,7 +89,7 @@ public interface Command extends ISnowflake, ICommandReference {
      * <p>Moderators of a guild can modify these privileges through the Integrations Menu
      *
      * <p>If there is no command with the provided ID,
-     * this RestAction fails with {@link net.dv8tion.jda.api.requests.ErrorResponse#UNKNOWN_COMMAND ErrorResponse.UNKNOWN_COMMAND}
+     * this RestAction fails with {@link ErrorResponse#UNKNOWN_COMMAND ErrorResponse.UNKNOWN_COMMAND}
      *
      * @param  guild
      *         The target guild from which to retrieve the privileges
@@ -296,8 +299,8 @@ public interface Command extends ISnowflake, ICommandReference {
     /**
      * Predefined choice used for options.
      *
-     * @see net.dv8tion.jda.api.interactions.commands.build.OptionData#addChoices(Command.Choice...)
-     * @see net.dv8tion.jda.api.interactions.commands.build.OptionData#addChoices(Collection)
+     * @see OptionData#addChoices(Command.Choice...)
+     * @see OptionData#addChoices(Collection)
      */
     class Choice {
         /**
@@ -380,7 +383,7 @@ public interface Command extends ISnowflake, ICommandReference {
          *
          * @throws IllegalArgumentException
          *         If null is provided
-         * @throws net.dv8tion.jda.api.exceptions.ParsingException
+         * @throws ParsingException
          *         If the data is not formatted correctly or missing required parameters
          */
         public Choice(@Nonnull DataObject json) {
@@ -620,10 +623,10 @@ public interface Command extends ISnowflake, ICommandReference {
                     .map(it -> it.stream(DataArray::getInt)
                             .map(ChannelType::fromId)
                             .collect(Collectors.toSet()))
-                    .orElse(Collections.emptySet()));
+                    .orElse(Set.of()));
             this.choices = json.optArray("choices")
-                    .map(it -> it.stream(DataArray::getObject).map(Choice::new).collect(Collectors.toList()))
-                    .orElse(Collections.emptyList());
+                    .map(it -> it.stream(DataArray::getObject).map(Choice::new).toList())
+                    .orElse(List.of());
             if (!json.isNull("min_value")) {
                 this.minValue = json.getDouble("min_value");
             }

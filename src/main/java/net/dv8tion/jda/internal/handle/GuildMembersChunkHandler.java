@@ -16,8 +16,8 @@
 
 package net.dv8tion.jda.internal.handle;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
@@ -49,9 +49,10 @@ public class GuildMembersChunkHandler extends SocketHandler {
                     content.getInt("chunk_count"));
             // Chunk handling
             EntityBuilder builder = getJDA().getEntityBuilder();
-            TLongObjectMap<DataObject> presences = content.optArray("presences")
-                    .map(it -> Helpers.convertToMap(o -> o.getObject("user").getUnsignedLong("id"), it))
-                    .orElseGet(TLongObjectHashMap::new);
+            Long2ObjectMap<DataObject> presences = content.optArray("presences")
+                    .<Long2ObjectMap<DataObject>>map(
+                            it -> Helpers.convertToMap(o -> o.getObject("user").getUnsignedLong("id"), it))
+                    .orElse(Long2ObjectMaps.emptyMap());
             for (int i = 0; i < members.length(); i++) {
                 DataObject object = members.getObject(i);
                 long userId = object.getObject("user").getUnsignedLong("id");

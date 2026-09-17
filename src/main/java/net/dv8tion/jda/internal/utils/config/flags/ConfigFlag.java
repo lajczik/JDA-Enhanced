@@ -26,7 +26,9 @@ public enum ConfigFlag {
     BULK_DELETE_SPLIT(true),
     SHUTDOWN_HOOK(true),
     MDC_CONTEXT(true),
-    AUTO_RECONNECT(true);
+    AUTO_RECONNECT(true),
+    LAZY_MESSAGES(false),
+    STRING_DEDUPLICATION(true);
 
     private final boolean isDefault;
 

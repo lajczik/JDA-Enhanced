@@ -78,8 +78,10 @@ public class MessageUpdateHandler extends SocketHandler {
                 throw new IllegalArgumentException(EntityBuilder.MISSING_CHANNEL);
             }
         } catch (IllegalArgumentException e) {
-            switch (e.getMessage()) {
-                case EntityBuilder.MISSING_CHANNEL: {
+            String msg = e.getMessage();
+            if (msg == null) throw e;
+            return switch (msg) {
+                case EntityBuilder.MISSING_CHANNEL -> {
                     long channelId = content.getUnsignedLong("channel_id");
 
                     // If discord adds message support for unexpected types in the future,
@@ -89,7 +91,7 @@ public class MessageUpdateHandler extends SocketHandler {
                         if (actual != null) {
                             WebSocketClient.LOG.debug(
                                     "Dropping MESSAGE_UPDATE for unexpected channel of type {}", actual.getType());
-                            return null;
+                            yield null;
                         }
                     }
 
@@ -97,19 +99,18 @@ public class MessageUpdateHandler extends SocketHandler {
                             .cache(EventCache.Type.CHANNEL, channelId, responseNumber, allContent, this::handle);
                     EventCache.LOG.debug(
                             "Received a message update for a channel that JDA does not currently have cached");
-                    return null;
+                    yield null;
                 }
-                case EntityBuilder.MISSING_USER: {
+                case EntityBuilder.MISSING_USER -> {
                     long authorId = content.getObject("author").getLong("id");
                     getJDA().getEventCache()
                             .cache(EventCache.Type.USER, authorId, responseNumber, allContent, this::handle);
                     EventCache.LOG.debug(
                             "Received a message update for a user that JDA does not currently have cached");
-                    return null;
+                    yield null;
                 }
-                default:
-                    throw e;
-            }
+                default -> throw e;
+            };
         }
 
         if (message.getChannelType() == ChannelType.PRIVATE) {

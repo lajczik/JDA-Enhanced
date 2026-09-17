@@ -56,7 +56,7 @@ public class GuildRoleUpdateHandler extends SocketHandler {
         }
 
         String name = rolejson.getString("name");
-        RoleColors colors = AbstractEntityBuilder.createRoleColors(rolejson.getObject("colors"));
+        RoleColors colors = AbstractEntityBuilder.createRoleColors(rolejson);
 
         int position = rolejson.getInt("position");
         long permissions = rolejson.getLong("permissions");

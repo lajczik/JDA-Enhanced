@@ -16,8 +16,8 @@
 
 package net.dv8tion.jda.internal.entities.automod;
 
-import gnu.trove.list.TLongList;
-import gnu.trove.list.array.TLongArrayList;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongList;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.automod.AutoModEventType;
@@ -46,13 +46,13 @@ public class AutoModRuleImpl implements AutoModRule {
     private AutoModEventType eventType = AutoModEventType.UNKNOWN;
     private AutoModTriggerType triggerType = AutoModTriggerType.UNKNOWN;
     private boolean enabled = false;
-    private TLongList exemptRoles = new TLongArrayList();
-    private TLongList exemptChannels = new TLongArrayList();
-    private List<AutoModResponse> actions = Collections.emptyList();
-    private List<String> filteredKeywords = Collections.emptyList();
-    private List<String> filteredRegex = Collections.emptyList();
+    private LongList exemptRoles = new LongArrayList();
+    private LongList exemptChannels = new LongArrayList();
+    private List<AutoModResponse> actions = List.of();
+    private List<String> filteredKeywords = List.of();
+    private List<String> filteredRegex = List.of();
     private EnumSet<KeywordPreset> filteredPresets = EnumSet.noneOf(KeywordPreset.class);
-    private List<String> allowlist = Collections.emptyList();
+    private List<String> allowlist = List.of();
     private int mentionLimit = -1;
     private boolean isMentionRaidProtectionEnabled = false;
 
@@ -109,7 +109,7 @@ public class AutoModRuleImpl implements AutoModRule {
     public List<Role> getExemptRoles() {
         List<Role> roles = new ArrayList<>(exemptRoles.size());
         for (int i = 0; i < exemptRoles.size(); i++) {
-            long roleId = exemptRoles.get(i);
+            long roleId = exemptRoles.getLong(i);
             Role role = guild.getRoleById(roleId);
             if (role != null) {
                 roles.add(role);
@@ -123,7 +123,7 @@ public class AutoModRuleImpl implements AutoModRule {
     public List<GuildChannel> getExemptChannels() {
         List<GuildChannel> channels = new ArrayList<>(exemptChannels.size());
         for (int i = 0; i < exemptChannels.size(); i++) {
-            long channelId = exemptChannels.get(i);
+            long channelId = exemptChannels.getLong(i);
             GuildChannel channel = guild.getGuildChannelById(channelId);
             if (channel != null) {
                 channels.add(channel);
@@ -197,12 +197,12 @@ public class AutoModRuleImpl implements AutoModRule {
         return this;
     }
 
-    public AutoModRuleImpl setExemptRoles(TLongList exemptRoles) {
+    public AutoModRuleImpl setExemptRoles(LongList exemptRoles) {
         this.exemptRoles = exemptRoles;
         return this;
     }
 
-    public AutoModRuleImpl setExemptChannels(TLongList exemptChannels) {
+    public AutoModRuleImpl setExemptChannels(LongList exemptChannels) {
         this.exemptChannels = exemptChannels;
         return this;
     }
@@ -278,26 +278,26 @@ public class AutoModRuleImpl implements AutoModRule {
                 .setEventType(AutoModEventType.fromKey(data.getInt("event_type", -1)))
                 .setTriggerType(AutoModTriggerType.fromKey(data.getInt("trigger_type", -1)));
 
-        data.optArray("exempt_roles").ifPresent(array -> rule.setExemptRoles(parseList(array)));
-        data.optArray("exempt_channels").ifPresent(array -> rule.setExemptChannels(parseList(array)));
+        data.optArray("exempt_roles").ifPresent(array -> rule.setExemptRoles(array.toLongList()));
+        data.optArray("exempt_channels").ifPresent(array -> rule.setExemptChannels(array.toLongList()));
 
         data.optArray("actions")
                 .ifPresent(array -> rule.setActions(array.stream(DataArray::getObject)
-                        .map(obj -> new AutoModResponseImpl(guild, obj))
-                        .collect(Helpers.toUnmodifiableList())));
+                        .<AutoModResponse>map(obj -> new AutoModResponseImpl(guild, obj))
+                        .toList()));
 
         data.optObject("trigger_metadata").ifPresent(metadata -> {
             // Only for KEYWORD type
             metadata.optArray("keyword_filter")
                     .ifPresent(array -> rule.setFilteredKeywords(
-                            array.stream(DataArray::getString).collect(Helpers.toUnmodifiableList())));
+                            array.stream(DataArray::getString).toList()));
             metadata.optArray("regex_patterns")
                     .ifPresent(array -> rule.setFilteredRegex(
-                            array.stream(DataArray::getString).collect(Helpers.toUnmodifiableList())));
+                            array.stream(DataArray::getString).toList()));
             // Both KEYWORD and KEYWORD_PRESET
             metadata.optArray("allow_list")
-                    .ifPresent(array -> rule.setAllowlist(
-                            array.stream(DataArray::getString).collect(Helpers.toUnmodifiableList())));
+                    .ifPresent(array ->
+                            rule.setAllowlist(array.stream(DataArray::getString).toList()));
             // Only KEYWORD_PRESET
             metadata.optArray("presets")
                     .ifPresent(array -> rule.setFilteredPresets(array.stream(DataArray::getInt)
@@ -309,13 +309,5 @@ public class AutoModRuleImpl implements AutoModRule {
         });
 
         return rule;
-    }
-
-    private static TLongList parseList(DataArray array) {
-        TLongList list = new TLongArrayList(array.length());
-        for (int i = 0; i < array.length(); i++) {
-            list.add(array.getUnsignedLong(i));
-        }
-        return list;
     }
 }

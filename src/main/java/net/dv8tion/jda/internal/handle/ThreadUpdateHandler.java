@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.handle;
 
-import gnu.trove.set.TLongSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.ChannelFlag;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
@@ -144,14 +144,16 @@ public class ThreadUpdateHandler extends SocketHandler {
         }
 
         if (api.isCacheFlagSet(CacheFlag.FORUM_TAGS) && !content.isNull("applied_tags")) {
-            TLongSet oldTags = thread.getAppliedTagsSet();
+            LongSet oldTags = thread.getAppliedTagsSet();
             thread.setAppliedTags(content.getArray("applied_tags").stream(DataArray::getUnsignedLong)
                     .mapToLong(Long::longValue));
-            TLongSet tags = thread.getAppliedTagsSet();
+            LongSet tags = thread.getAppliedTagsSet();
 
             if (!oldTags.equals(tags)) {
-                List<Long> oldTagList = LongStream.of(oldTags.toArray()).boxed().collect(Helpers.toUnmodifiableList());
-                List<Long> newTagList = LongStream.of(tags.toArray()).boxed().collect(Helpers.toUnmodifiableList());
+                List<Long> oldTagList =
+                        LongStream.of(oldTags.toLongArray()).boxed().toList();
+                List<Long> newTagList =
+                        LongStream.of(tags.toLongArray()).boxed().toList();
                 api.handleEvent(new ChannelUpdateAppliedTagsEvent(api, responseNumber, thread, oldTagList, newTagList));
             }
         }

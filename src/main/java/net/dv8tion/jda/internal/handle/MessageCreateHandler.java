@@ -71,8 +71,10 @@ public class MessageCreateHandler extends SocketHandler {
                 throw new IllegalArgumentException(EntityBuilder.MISSING_CHANNEL);
             }
         } catch (IllegalArgumentException e) {
-            switch (e.getMessage()) {
-                case EntityBuilder.MISSING_CHANNEL: {
+            String msg = e.getMessage();
+            if (msg == null) throw e;
+            return switch (msg) {
+                case EntityBuilder.MISSING_CHANNEL -> {
                     long channelId = content.getLong("channel_id");
 
                     // If discord adds message support for unexpected types in the future,
@@ -82,28 +84,27 @@ public class MessageCreateHandler extends SocketHandler {
                         if (actual != null) {
                             WebSocketClient.LOG.debug(
                                     "Dropping MESSAGE_CREATE for unexpected channel of type {}", actual.getType());
-                            return null;
+                            yield null;
                         }
                     }
 
                     jda.getEventCache()
                             .cache(EventCache.Type.CHANNEL, channelId, responseNumber, allContent, this::handle);
                     EventCache.LOG.debug("Received a message for a channel that JDA does not currently have cached");
-                    return null;
+                    yield null;
                 }
-                case EntityBuilder.MISSING_USER: {
+                case EntityBuilder.MISSING_USER -> {
                     long authorId = content.getObject("author").getLong("id");
                     jda.getEventCache().cache(EventCache.Type.USER, authorId, responseNumber, allContent, this::handle);
                     EventCache.LOG.debug("Received a message for a user that JDA does not currently have cached");
-                    return null;
+                    yield null;
                 }
-                case EntityBuilder.UNKNOWN_MESSAGE_TYPE: {
+                case EntityBuilder.UNKNOWN_MESSAGE_TYPE -> {
                     WebSocketClient.LOG.debug("Ignoring message with unknown type: {}", content);
-                    return null;
+                    yield null;
                 }
-                default:
-                    throw e;
-            }
+                default -> throw e;
+            };
         }
 
         MessageChannel channel = message.getChannel();

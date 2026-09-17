@@ -56,24 +56,15 @@ public class ChannelCreateHandler extends SocketHandler {
 
     private Channel buildChannel(ChannelType type, DataObject content, long guildId) {
         EntityBuilder builder = getJDA().getEntityBuilder();
-        switch (type) {
-            case TEXT:
-                return builder.createTextChannel(content, guildId);
-            case NEWS:
-                return builder.createNewsChannel(content, guildId);
-            case VOICE:
-                return builder.createVoiceChannel(content, guildId);
-            case STAGE:
-                return builder.createStageChannel(content, guildId);
-            case CATEGORY:
-                return builder.createCategory(content, guildId);
-            case FORUM:
-                return builder.createForumChannel(content, guildId);
-            case MEDIA:
-                return builder.createMediaChannel(content, guildId);
-
-            default:
-                return null;
-        }
+        return switch (type) {
+            case TEXT -> builder.createTextChannel(content, guildId);
+            case NEWS -> builder.createNewsChannel(content, guildId);
+            case VOICE -> builder.createVoiceChannel(content, guildId);
+            case STAGE -> builder.createStageChannel(content, guildId);
+            case CATEGORY -> builder.createCategory(content, guildId);
+            case FORUM -> builder.createForumChannel(content, guildId);
+            case MEDIA -> builder.createMediaChannel(content, guildId);
+            default -> null;
+        };
     }
 }

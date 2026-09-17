@@ -49,15 +49,9 @@ public class AutoModRuleHandler extends SocketHandler {
 
         AutoModRule rule = AutoModRuleImpl.fromData(guild, content);
         switch (type) {
-            case "CREATE":
-                api.handleEvent(new AutoModRuleCreateEvent(api, responseNumber, rule));
-                break;
-            case "UPDATE":
-                api.handleEvent(new AutoModRuleUpdateEvent(api, responseNumber, rule));
-                break;
-            case "DELETE":
-                api.handleEvent(new AutoModRuleDeleteEvent(api, responseNumber, rule));
-                break;
+            case "CREATE" -> api.handleEvent(new AutoModRuleCreateEvent(api, responseNumber, rule));
+            case "UPDATE" -> api.handleEvent(new AutoModRuleUpdateEvent(api, responseNumber, rule));
+            case "DELETE" -> api.handleEvent(new AutoModRuleDeleteEvent(api, responseNumber, rule));
         }
         return null;
     }

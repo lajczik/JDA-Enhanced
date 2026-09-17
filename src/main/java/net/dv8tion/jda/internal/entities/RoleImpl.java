@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.entities;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
@@ -212,7 +212,7 @@ public class RoleImpl implements Role, RoleMixin<RoleImpl> {
             return true;
         }
 
-        TLongObjectMap<PermissionOverride> existingOverrides =
+        Long2ObjectMap<PermissionOverride> existingOverrides =
                 ((IPermissionContainerMixin<?>) targetChannel).getPermissionOverrideMap();
         for (PermissionOverride override : syncSource.getPermissionOverrides()) {
             PermissionOverride existing = existingOverrides.get(override.getIdLong());

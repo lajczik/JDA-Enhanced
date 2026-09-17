@@ -58,10 +58,11 @@ public class GuildRoleDeleteHandler extends SocketHandler {
         removedRole.freezePosition();
         guild.getRolesView().remove(roleId);
 
-        // Now that the role is removed from the Guild, remove it from all users and emojis.
+        // Now that the role is removed from the Guild, remove it from all users and
+        // emojis.
         guild.getMembersView().forEach(m -> {
             MemberImpl member = (MemberImpl) m;
-            member.getRoleSet().remove(removedRole);
+            member.getRoleMap().remove(roleId);
         });
 
         for (RichCustomEmoji emoji : guild.getEmojiCache()) {

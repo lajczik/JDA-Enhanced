@@ -34,7 +34,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -134,7 +133,7 @@ public interface Modal extends SerializableData {
     @Nonnull
     default Modal.Builder createCopy() {
         List<ModalTopLevelComponent> c =
-                getComponents().stream().map(c2 -> (ModalTopLevelComponent) c2).collect(Collectors.toList());
+                getComponents().stream().map(c2 -> (ModalTopLevelComponent) c2).toList();
         return new Builder(getId(), getTitle()).addComponents(c);
     }
 

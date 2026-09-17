@@ -17,6 +17,12 @@
 package net.dv8tion.jda.api.interactions.modals;
 
 import net.dv8tion.jda.api.components.Component;
+import net.dv8tion.jda.api.components.checkbox.Checkbox;
+import net.dv8tion.jda.api.components.checkboxgroup.CheckboxGroup;
+import net.dv8tion.jda.api.components.radiogroup.RadioGroup;
+import net.dv8tion.jda.api.components.selections.EntitySelectMenu;
+import net.dv8tion.jda.api.components.selections.StringSelectMenu;
+import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.entities.Mentions;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
@@ -26,9 +32,7 @@ import net.dv8tion.jda.internal.entities.EntityBuilder;
 import net.dv8tion.jda.internal.entities.SelectMenuMentions;
 import net.dv8tion.jda.internal.interactions.InteractionImpl;
 import net.dv8tion.jda.internal.utils.EntityString;
-import net.dv8tion.jda.internal.utils.Helpers;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -36,7 +40,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * ID/Value pair for a {@link net.dv8tion.jda.api.events.interaction.ModalInteractionEvent ModalInteractionEvent}.
+ * ID/Value pair for a {@link ModalInteractionEvent}.
  *
  * @see    ModalInteractionEvent#getValue(String)
  * @see    ModalInteractionEvent#getValues()
@@ -93,11 +97,11 @@ public class ModalMapping {
      * <p>Return values include:
      * <ul>
      *     <li>
-     *         For {@link net.dv8tion.jda.api.components.textinput.TextInput TextInputs},
+     *         For {@link TextInput TextInputs},
      *         this returns what the User typed in it
      *     </li>
      *     <li>
-     *         For <b>required</b> {@link net.dv8tion.jda.api.components.radiogroup.RadioGroup RadioGroups},
+     *         For <b>required</b> {@link RadioGroup RadioGroups},
      *         this returns the value of the option chosen by the User
      *     </li>
      * </ul>
@@ -108,7 +112,7 @@ public class ModalMapping {
      *         <ul>
      *             <li>If this ModalMapping cannot be represented as a String</li>
      *             <li>
-     *                 If this ModalMapping is for a {@link net.dv8tion.jda.api.components.radiogroup.RadioGroup RadioGroup}
+     *                 If this ModalMapping is for a {@link RadioGroup}
      *                 and it contains no value, use {@link #getAsOptionalString()} instead
      *             </li>
      *         </ul>
@@ -140,11 +144,11 @@ public class ModalMapping {
      * <p>Return values include:
      * <ul>
      *     <li>
-     *         For {@link net.dv8tion.jda.api.components.textinput.TextInput TextInputs},
+     *         For {@link TextInput TextInputs},
      *         this returns what the User typed in it, or {@code null} if left empty
      *     </li>
      *     <li>
-     *         For {@link net.dv8tion.jda.api.components.radiogroup.RadioGroup RadioGroups},
+     *         For {@link RadioGroup RadioGroups},
      *         this returns the value of the option chosen by the User, or {@code null} if no option was chosen
      *     </li>
      * </ul>
@@ -182,7 +186,7 @@ public class ModalMapping {
     /**
      * The boolean representation of this component.
      *
-     * <p>For {@link net.dv8tion.jda.api.components.checkbox.Checkbox Checkboxes}, this returns {@code true} if it was checked.
+     * <p>For {@link Checkbox Checkboxes}, this returns {@code true} if it was checked.
      *
      * <p>Use {@link #getType()} to check if this method can be used safely!
      *
@@ -205,15 +209,15 @@ public class ModalMapping {
      * <p>Return values include:
      * <ul>
      *     <li>
-     *         For {@link net.dv8tion.jda.api.components.selections.StringSelectMenu StringSelectMenus},
+     *         For {@link StringSelectMenu StringSelectMenus},
      *         this returns the values chosen by the User.
      *     </li>
      *     <li>
-     *         For {@link net.dv8tion.jda.api.components.selections.EntitySelectMenu EntitySelectMenus},
+     *         For {@link EntitySelectMenu EntitySelectMenus},
      *         this returns the entity IDs chosen by the User.
      *     </li>
      *     <li>
-     *         For {@link net.dv8tion.jda.api.components.checkboxgroup.CheckboxGroup CheckboxGroups},
+     *         For {@link CheckboxGroup CheckboxGroups},
      *         this returns the values chosen by the User.
      *     </li>
      * </ul>
@@ -233,13 +237,13 @@ public class ModalMapping {
             typeError("List<String>");
         }
 
-        return value.getArray("values").stream(DataArray::getString).collect(Helpers.toUnmodifiableList());
+        return value.getArray("values").stream(DataArray::getString).toList();
     }
 
     /**
      * Returns this component's value as a list of Longs.
      *
-     * <p>This is available if the component was an {@link net.dv8tion.jda.api.components.selections.EntitySelectMenu EntitySelectMenu}.
+     * <p>This is available if the component was an {@link EntitySelectMenu}.
      *
      * <p>You can use {@link #getType()} and {@link Component.Type#isEntitySelectMenu()} to check if this method can be used safely.
      *
@@ -254,13 +258,13 @@ public class ModalMapping {
             typeError("List<Long>");
         }
 
-        return value.getArray("values").stream(DataArray::getLong).collect(Helpers.toUnmodifiableList());
+        return value.getArray("values").stream(DataArray::getLong).toList();
     }
 
     /**
      * Returns this component's value as a {@link Mentions} object.
      *
-     * <p>This is available if the component was an {@link net.dv8tion.jda.api.components.selections.EntitySelectMenu EntitySelectMenu}.
+     * <p>This is available if the component was an {@link EntitySelectMenu}.
      *
      * <p>You can use {@link #getType()} and {@link Component.Type#isEntitySelectMenu()} to check if this method can be used safely.
      *
@@ -284,14 +288,14 @@ public class ModalMapping {
     }
 
     /**
-     * Returns this component's value as a list of {@link net.dv8tion.jda.api.entities.Message.Attachment Attachment} objects.
+     * Returns this component's value as a list of {@link Message.Attachment Attachment} objects.
      *
      * <p>You can check if {@link #getType()} is equal to {@link Component.Type#FILE_UPLOAD FILE_UPLOAD} to see if this method can be used safely!
      *
      * @throws IllegalStateException
      *         If this ModalMapping cannot be represented as such.
      *
-     * @return This component's value as a list of {@link net.dv8tion.jda.api.entities.Message.Attachment Attachment} objects
+     * @return This component's value as a list of {@link Message.Attachment Attachment} objects
      */
     @Nonnull
     public List<Message.Attachment> getAsAttachmentList() {
@@ -300,14 +304,14 @@ public class ModalMapping {
         }
 
         if (resolved.isNull("attachments")) {
-            return Collections.emptyList();
+            return List.of();
         }
 
         DataObject attachments = resolved.getObject("attachments");
         EntityBuilder entityBuilder = interaction.getJDA().getEntityBuilder();
         return value.getArray("values").stream(DataArray::getString)
                 .map(id -> entityBuilder.createMessageAttachment(attachments.getObject(id)))
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Override
@@ -323,10 +327,9 @@ public class ModalMapping {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ModalMapping)) {
+        if (!(o instanceof ModalMapping that)) {
             return false;
         }
-        ModalMapping that = (ModalMapping) o;
         return type == that.type
                 && Objects.equals(customId, that.customId)
                 && uniqueId == that.uniqueId

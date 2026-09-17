@@ -17,6 +17,7 @@
 package net.dv8tion.jda.api.components.checkboxgroup;
 
 import net.dv8tion.jda.api.components.attribute.ICustomId;
+import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.label.LabelChildComponent;
 import net.dv8tion.jda.internal.components.checkboxgroup.CheckboxGroupImpl;
 import net.dv8tion.jda.internal.utils.Checks;
@@ -24,7 +25,6 @@ import net.dv8tion.jda.internal.utils.Helpers;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
 /**
  * A component displaying a group of up to {@value #OPTIONS_MAX_AMOUNT} checkboxes which can be checked independently.
  *
- * <p>Must be used inside {@link net.dv8tion.jda.api.components.label.Label Labels} only!
+ * <p>Must be used inside {@link Label Labels} only!
  *
  * @see #create(String)
  */
@@ -475,7 +475,7 @@ public interface CheckboxGroup extends ICustomId, LabelChildComponent {
         public Builder setSelectedOptions(@Nonnull CheckboxGroupOption... options) {
             Checks.noneNull(options, "Options");
             return setSelectedValues(
-                    Arrays.stream(options).map(CheckboxGroupOption::getValue).collect(Collectors.toList()));
+                    Arrays.stream(options).map(CheckboxGroupOption::getValue).toList());
         }
 
         /**
@@ -493,7 +493,7 @@ public interface CheckboxGroup extends ICustomId, LabelChildComponent {
         public Builder setSelectedOptions(@Nonnull Collection<CheckboxGroupOption> options) {
             Checks.noneNull(options, "Options");
             return setSelectedValues(
-                    options.stream().map(CheckboxGroupOption::getValue).collect(Collectors.toList()));
+                    options.stream().map(CheckboxGroupOption::getValue).toList());
         }
 
         /**

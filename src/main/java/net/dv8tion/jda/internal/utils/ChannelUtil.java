@@ -61,8 +61,8 @@ public class ChannelUtil {
         Checks.notNull(b, "Channel");
 
         // Check thread positions
-        ThreadChannel thisThread = a instanceof ThreadChannel ? (ThreadChannel) a : null;
-        ThreadChannel otherThread = b instanceof ThreadChannel ? (ThreadChannel) b : null;
+        ThreadChannel thisThread = a instanceof ThreadChannel thread ? thread : null;
+        ThreadChannel otherThread = b instanceof ThreadChannel thread ? thread : null;
 
         if (thisThread != null && otherThread == null) {
             // Thread should be below its parent
@@ -91,10 +91,8 @@ public class ChannelUtil {
         }
 
         // Check category positions
-        Category thisParent =
-                a instanceof ICategorizableChannel ? ((ICategorizableChannel) a).getParentCategory() : null;
-        Category otherParent =
-                b instanceof ICategorizableChannel ? ((ICategorizableChannel) b).getParentCategory() : null;
+        Category thisParent = a instanceof ICategorizableChannel cat ? cat.getParentCategory() : null;
+        Category otherParent = b instanceof ICategorizableChannel cat ? cat.getParentCategory() : null;
 
         if (thisParent != null && otherParent == null) {
             if (b instanceof Category) {
@@ -129,10 +127,8 @@ public class ChannelUtil {
         }
 
         // Check actual position
-        if (b instanceof IPositionableChannel && a instanceof IPositionableChannel) {
-            IPositionableChannel oPositionableChannel = (IPositionableChannel) b;
-            IPositionableChannel thisPositionableChannel = (IPositionableChannel) a;
-
+        if (b instanceof IPositionableChannel oPositionableChannel
+                && a instanceof IPositionableChannel thisPositionableChannel) {
             if (thisPositionableChannel.getPositionRaw() != oPositionableChannel.getPositionRaw()) {
                 return Integer.compare(thisPositionableChannel.getPositionRaw(), oPositionableChannel.getPositionRaw());
             }

@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
@@ -82,7 +81,7 @@ public class ComponentsUtil {
      */
     public static <TUnion extends IComponentUnion> List<TUnion> membersToUnion(
             Collection<? extends Component> members, Class<TUnion> clazz) {
-        return members.stream().map(c -> safeUnionCast("component", c, clazz)).collect(Collectors.toList());
+        return members.stream().map(c -> safeUnionCast("component", c, clazz)).toList();
     }
 
     /**
@@ -95,7 +94,7 @@ public class ComponentsUtil {
             Collection<? extends Component> members, Class<T> clazz) {
         return members.stream()
                 .map(c -> safeUnionCastWithUnknownType("component", c, clazz))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @SuppressWarnings({"unchecked", "ReferenceEquality"})
@@ -114,8 +113,8 @@ public class ComponentsUtil {
             // If it returned a different component, then use it and don't try to recurse
             if (newComponent != component) {
                 Checks.checkComponentType(expectedChildrenType, component, newComponent);
-            } else if (component instanceof IReplaceable) {
-                newComponent = ((IReplaceable) component).replace(replacer);
+            } else if (component instanceof IReplaceable replaceable) {
+                newComponent = replaceable.replace(replacer);
                 Checks.checkComponentType(expectedChildrenType, component, newComponent);
             }
             newComponents.add((E) newComponent);
@@ -131,7 +130,7 @@ public class ComponentsUtil {
     @Nonnull
     public static List<? extends Component> getIllegalV1Components(
             @Nonnull Collection<? extends Component> components) {
-        return components.stream().filter(c -> !(c instanceof ActionRow)).collect(Collectors.toList());
+        return components.stream().filter(c -> !(c instanceof ActionRow)).toList();
     }
 
     public static boolean hasIllegalV1Components(@Nonnull Collection<? extends Component> components) {

@@ -16,8 +16,8 @@
 
 package net.dv8tion.jda.internal.handle;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
@@ -37,7 +37,7 @@ public class ReadyHandler extends SocketHandler {
 
         DataArray guilds = content.getArray("guilds");
         // Make sure we don't have any duplicates here!
-        TLongObjectMap<DataObject> distinctGuilds = new TLongObjectHashMap<>();
+        Long2ObjectMap<DataObject> distinctGuilds = new Long2ObjectOpenHashMap<>(guilds.length());
         for (int i = 0; i < guilds.length(); i++) {
             DataObject guild = guilds.getObject(i);
             long id = guild.getUnsignedLong("id");
@@ -59,10 +59,8 @@ public class ReadyHandler extends SocketHandler {
         builder.createSelfUser(selfJson);
 
         if (getJDA().getGuildSetupController().setIncompleteCount(distinctGuilds.size())) {
-            distinctGuilds.forEachEntry((id, guild) -> {
-                getJDA().getGuildSetupController().onReady(id, guild);
-                return true;
-            });
+            distinctGuilds.forEach((long id, DataObject guild) ->
+                    getJDA().getGuildSetupController().onReady(id, guild));
         }
 
         handleReady(content);
@@ -79,10 +77,8 @@ public class ReadyHandler extends SocketHandler {
 
             //noinspection SwitchStatementWithTooFewBranches
             switch (type) {
-                case PRIVATE:
-                    builder.createPrivateChannel(chan);
-                    break;
-                default:
+                case PRIVATE -> builder.createPrivateChannel(chan);
+                default ->
                     WebSocketClient.LOG.warn(
                             "Received a Channel in the private_channels array in READY of an unknown type! Type: {}",
                             type);

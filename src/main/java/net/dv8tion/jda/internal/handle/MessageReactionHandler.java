@@ -38,7 +38,6 @@ import net.dv8tion.jda.internal.requests.WebSocketClient;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 public class MessageReactionHandler extends SocketHandler {
 
@@ -89,7 +88,7 @@ public class MessageReactionHandler extends SocketHandler {
                     List<Role> roles = json.getArray("roles").stream(DataArray::getUnsignedLong)
                             .map(guild::getRoleById)
                             .filter(Objects::nonNull)
-                            .collect(Collectors.toList());
+                            .toList();
                     api.getEntityBuilder().updateMember((GuildImpl) guild, member, json, roles);
                 }
                 // update internal references

@@ -16,12 +16,12 @@
 
 package net.dv8tion.jda.internal.handle;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongList;
 import net.dv8tion.jda.api.entities.ThreadMember;
 import net.dv8tion.jda.api.events.thread.member.ThreadMemberJoinEvent;
 import net.dv8tion.jda.api.events.thread.member.ThreadMemberLeaveEvent;
-import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.api.utils.cache.CacheView;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
@@ -32,7 +32,6 @@ import net.dv8tion.jda.internal.utils.UnlockHook;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ThreadMembersUpdateHandler extends SocketHandler {
     public ThreadMembersUpdateHandler(JDAImpl api) {
@@ -61,10 +60,8 @@ public class ThreadMembersUpdateHandler extends SocketHandler {
         }
 
         if (!content.isNull("removed_member_ids")) {
-            List<Long> removedMemberIds = content.getArray("removed_member_ids").stream(DataArray::getString)
-                    .map(MiscUtil::parseSnowflake)
-                    .collect(Collectors.toList());
-            handleRemovedThreadMembers(thread, removedMemberIds);
+            handleRemovedThreadMembers(
+                    thread, content.getArray("removed_member_ids").toLongList());
         }
 
         return null;
@@ -100,20 +97,22 @@ public class ThreadMembersUpdateHandler extends SocketHandler {
         }
     }
 
-    private void handleRemovedThreadMembers(ThreadChannelImpl thread, List<Long> removedMemberIds) {
+    private void handleRemovedThreadMembers(ThreadChannelImpl thread, LongList removedMemberIds) {
         CacheView.SimpleCacheView<ThreadMember> view = thread.getThreadMemberView();
 
         // Store the removed threads into a map so that we can provide them in the events later.
         // We don't want to dispatch the events from inside the writeLock
-        TLongObjectMap<ThreadMember> removedThreadMembers = new TLongObjectHashMap<>();
+        Long2ObjectMap<ThreadMember> removedThreadMembers = new Long2ObjectOpenHashMap<>();
         try (UnlockHook lock = view.writeLock()) {
-            for (long threadMemberId : removedMemberIds) {
+            for (int i = 0; i < removedMemberIds.size(); i++) {
+                long threadMemberId = removedMemberIds.getLong(i);
                 ThreadMember threadMember = view.getMap().remove(threadMemberId);
                 removedThreadMembers.put(threadMemberId, threadMember);
             }
         }
 
-        for (long threadMemberId : removedMemberIds) {
+        for (int i = 0; i < removedMemberIds.size(); i++) {
+            long threadMemberId = removedMemberIds.getLong(i);
             api.handleEvent(new ThreadMemberLeaveEvent(
                     api, responseNumber, thread, threadMemberId, removedThreadMembers.remove(threadMemberId)));
         }

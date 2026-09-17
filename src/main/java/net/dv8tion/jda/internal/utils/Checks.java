@@ -196,7 +196,14 @@ public class Checks {
 
     public static void isLowercase(String input, String name) {
         notNull(input, name);
-        check(input.toLowerCase(Locale.ROOT).equals(input), "%s must be lowercase only! Provided: \"%s\"", name, input);
+        int len = input.length();
+        for (int i = 0; i < len; i++) {
+            char c = input.charAt(i);
+            if (Character.toLowerCase(c) != c) {
+                throw new IllegalArgumentException(
+                        Helpers.format("%s must be lowercase only! Provided: \"%s\"", name, input));
+            }
+        }
     }
 
     public static void positive(int n, String name) {
@@ -254,7 +261,7 @@ public class Checks {
                 .filter(c -> !predicate.test(c.getComponent()))
                 .forEach(c -> sb.append(" - ").append(c.getPath()).append("\n"));
 
-        if (sb.length() > 0) {
+        if (!sb.isEmpty()) {
             throw new IllegalArgumentException(
                     errorMessage + "\n" + sb.toString().trim());
         }

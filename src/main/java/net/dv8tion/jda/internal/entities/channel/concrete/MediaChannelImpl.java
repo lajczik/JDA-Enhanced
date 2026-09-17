@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.entities.channel.concrete;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.PermissionOverride;
@@ -34,7 +34,6 @@ import net.dv8tion.jda.internal.entities.channel.middleman.AbstractGuildChannelI
 import net.dv8tion.jda.internal.entities.channel.mixin.concrete.MediaChannelMixin;
 import net.dv8tion.jda.internal.entities.emoji.CustomEmojiImpl;
 import net.dv8tion.jda.internal.managers.channel.concrete.MediaChannelManagerImpl;
-import net.dv8tion.jda.internal.utils.Helpers;
 import net.dv8tion.jda.internal.utils.cache.SortedSnowflakeCacheViewImpl;
 
 import java.util.Comparator;
@@ -45,7 +44,7 @@ import javax.annotation.Nonnull;
 
 public class MediaChannelImpl extends AbstractGuildChannelImpl<MediaChannelImpl>
         implements MediaChannel, GuildChannelUnion, MediaChannelMixin<MediaChannelImpl> {
-    private final TLongObjectMap<PermissionOverride> overrides = MiscUtil.newLongMap();
+    private final Long2ObjectMap<PermissionOverride> overrides = MiscUtil.newLongMap();
     private final SortedSnowflakeCacheViewImpl<ForumTag> tagCache =
             new SortedSnowflakeCacheViewImpl<>(ForumTag.class, ForumTag::getName, Comparator.naturalOrder());
 
@@ -85,7 +84,7 @@ public class MediaChannelImpl extends AbstractGuildChannelImpl<MediaChannelImpl>
     public List<Member> getMembers() {
         return getGuild().getMembers().stream()
                 .filter(m -> m.hasPermission(this, Permission.VIEW_CHANNEL))
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull
@@ -101,7 +100,7 @@ public class MediaChannelImpl extends AbstractGuildChannelImpl<MediaChannelImpl>
     }
 
     @Override
-    public TLongObjectMap<PermissionOverride> getPermissionOverrideMap() {
+    public Long2ObjectMap<PermissionOverride> getPermissionOverrideMap() {
         return overrides;
     }
 

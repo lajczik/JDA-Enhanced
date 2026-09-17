@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.entities.channel.mixin.attribute;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.entities.PermissionOverride;
 import net.dv8tion.jda.api.entities.channel.attribute.ICategorizableChannel;
 import net.dv8tion.jda.internal.entities.channel.mixin.middleman.GuildChannelMixin;
@@ -32,14 +32,14 @@ public interface ICategorizableChannelMixin<T extends ICategorizableChannelMixin
             // Also the case for categories.
             return true;
         }
-        TLongObjectMap<PermissionOverride> parentOverrides = parent.getPermissionOverrideMap();
-        TLongObjectMap<PermissionOverride> overrides = getPermissionOverrideMap();
+        Long2ObjectMap<PermissionOverride> parentOverrides = parent.getPermissionOverrideMap();
+        Long2ObjectMap<PermissionOverride> overrides = getPermissionOverrideMap();
         if (parentOverrides.size() != overrides.size()) {
             return false;
         }
 
         // Check that each override matches with the parent override
-        for (PermissionOverride override : parentOverrides.valueCollection()) {
+        for (PermissionOverride override : parentOverrides.values()) {
             PermissionOverride ourOverride = overrides.get(override.getIdLong());
             // this means we don't have the parent override => not synced
             if (ourOverride == null) {

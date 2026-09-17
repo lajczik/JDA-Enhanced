@@ -26,7 +26,6 @@ import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.entities.channel.middleman.AbstractStandardGuildMessageChannelImpl;
 import net.dv8tion.jda.internal.entities.channel.mixin.concrete.TextChannelMixin;
 import net.dv8tion.jda.internal.managers.channel.concrete.TextChannelManagerImpl;
-import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.util.List;
 
@@ -62,7 +61,7 @@ public class TextChannelImpl extends AbstractStandardGuildMessageChannelImpl<Tex
     public List<Member> getMembers() {
         return getGuild().getMembersView().stream()
                 .filter(m -> m.hasPermission(this, Permission.VIEW_CHANNEL))
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Override

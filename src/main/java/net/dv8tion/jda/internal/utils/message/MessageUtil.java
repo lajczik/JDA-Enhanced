@@ -25,7 +25,6 @@ import net.dv8tion.jda.internal.entities.FileContainerMixin;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -33,10 +32,12 @@ public class MessageUtil {
     @Nonnull
     public static List<FileUpload> getIndirectFiles(@Nonnull Collection<? extends Component> components) {
         return ComponentIterator.createStream(components)
-                .filter(FileContainerMixin.class::isInstance)
-                .map(FileContainerMixin.class::cast)
-                .flatMap(FileContainerMixin::getFiles)
-                .collect(Collectors.toList());
+                .<FileUpload>mapMulti((component, consumer) -> {
+                    if (component instanceof FileContainerMixin mixin) {
+                        mixin.getFiles().forEach(consumer);
+                    }
+                })
+                .toList();
     }
 
     public static DataArray getAttachmentsData(@Nonnull Collection<? extends AttachedFile> files) {

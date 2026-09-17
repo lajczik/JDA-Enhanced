@@ -73,20 +73,16 @@ public class InteractionCreateHandler extends SocketHandler {
         }
 
         switch (InteractionType.fromKey(type)) {
-            case COMMAND: // slash commands
+            case COMMAND -> // slash commands
                 handleCommand(content);
-                break;
-            case COMPONENT: // buttons/components
+            case COMPONENT -> // buttons/components
                 handleAction(content);
-                break;
-            case COMMAND_AUTOCOMPLETE:
+            case COMMAND_AUTOCOMPLETE ->
                 api.handleEvent(new CommandAutoCompleteInteractionEvent(
                         api, responseNumber, new CommandAutoCompleteInteractionImpl(api, content)));
-                break;
-            case MODAL_SUBMIT:
+            case MODAL_SUBMIT ->
                 api.handleEvent(new ModalInteractionEvent(api, responseNumber, new ModalInteractionImpl(api, content)));
-                break;
-            default:
+            default ->
                 api.handleEvent(
                         new GenericInteractionCreateEvent(api, responseNumber, new InteractionImpl(api, content)));
         }
@@ -97,44 +93,32 @@ public class InteractionCreateHandler extends SocketHandler {
     private void handleCommand(DataObject content) {
         int type = content.getObject("data").getInt("type");
         switch (Command.Type.fromId(type)) {
-            case SLASH:
+            case SLASH ->
                 api.handleEvent(new SlashCommandInteractionEvent(
                         api, responseNumber, new SlashCommandInteractionImpl(api, content)));
-                break;
-            case MESSAGE:
+            case MESSAGE ->
                 api.handleEvent(new MessageContextInteractionEvent(
                         api, responseNumber, new MessageContextInteractionImpl(api, content)));
-                break;
-            case USER:
+            case USER ->
                 api.handleEvent(new UserContextInteractionEvent(
                         api, responseNumber, new UserContextInteractionImpl(api, content)));
-                break;
-            case UNKNOWN:
-                WebSocketClient.LOG.debug("Received interaction with unknown command type {}", type);
-                break;
+            case UNKNOWN -> WebSocketClient.LOG.debug("Received interaction with unknown command type {}", type);
         }
     }
 
     private void handleAction(DataObject content) {
         int type = content.getObject("data").getInt("component_type");
         switch (Component.Type.fromKey(type)) {
-            case BUTTON:
+            case BUTTON ->
                 api.handleEvent(
                         new ButtonInteractionEvent(api, responseNumber, new ButtonInteractionImpl(api, content)));
-                break;
-            case STRING_SELECT:
+            case STRING_SELECT ->
                 api.handleEvent(new StringSelectInteractionEvent(
                         api, responseNumber, new StringSelectInteractionImpl(api, content)));
-                break;
-            case USER_SELECT:
-            case ROLE_SELECT:
-            case MENTIONABLE_SELECT:
-            case CHANNEL_SELECT:
+            case USER_SELECT, ROLE_SELECT, MENTIONABLE_SELECT, CHANNEL_SELECT ->
                 api.handleEvent(new EntitySelectInteractionEvent(
                         api, responseNumber, new EntitySelectInteractionImpl(api, content)));
-                break;
-            default:
-                WebSocketClient.LOG.debug("Received interaction with unknown component type {}", type);
+            default -> WebSocketClient.LOG.debug("Received interaction with unknown component type {}", type);
         }
     }
 }

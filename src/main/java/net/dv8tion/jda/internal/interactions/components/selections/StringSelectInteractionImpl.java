@@ -22,9 +22,7 @@ import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -34,13 +32,13 @@ public class StringSelectInteractionImpl extends SelectMenuInteractionImpl<Strin
 
     public StringSelectInteractionImpl(JDAImpl jda, DataObject data) {
         super(jda, StringSelectMenu.class, data);
-        this.values = Collections.unmodifiableList(parseValues(data.getObject("data")));
+        this.values = List.copyOf(parseValues(data.getObject("data")));
     }
 
     protected List<String> parseValues(DataObject data) {
         return data.optArray("values")
-                .map(arr -> arr.stream(DataArray::getString).collect(Collectors.toList()))
-                .orElse(Collections.emptyList());
+                .map(arr -> arr.stream(DataArray::getString).toList())
+                .orElse(List.of());
     }
 
     @Nonnull

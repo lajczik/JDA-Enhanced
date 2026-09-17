@@ -16,10 +16,10 @@
 
 package net.dv8tion.jda.internal.handle;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.Region;
 import net.dv8tion.jda.api.entities.Guild;
@@ -117,42 +117,42 @@ public class ChannelUpdateHandler extends SocketHandler {
             getJDA().handleEvent(new ChannelUpdateNameEvent(getJDA(), responseNumber, channel, oldName, name));
         }
 
-        if (channel instanceof ITopicChannelMixin<?>) {
-            handleTopic((ITopicChannelMixin<?>) channel, content.getString("topic", null));
+        if (channel instanceof ITopicChannelMixin<?> topicChannel) {
+            handleTopic(topicChannel, content.getString("topic", null));
         }
 
-        if (channel instanceof ISlowmodeChannelMixin<?>) {
-            handleSlowmode((ISlowmodeChannelMixin<?>) channel, content.getInt("rate_limit_per_user", 0));
+        if (channel instanceof ISlowmodeChannelMixin<?> slowmodeChannel) {
+            handleSlowmode(slowmodeChannel, content.getInt("rate_limit_per_user", 0));
         }
 
-        if (channel instanceof IAgeRestrictedChannelMixin<?>) {
-            handleNsfw((IAgeRestrictedChannelMixin<?>) channel, content.getBoolean("nsfw"));
+        if (channel instanceof IAgeRestrictedChannelMixin<?> ageRestrictedChannel) {
+            handleNsfw(ageRestrictedChannel, content.getBoolean("nsfw"));
         }
 
-        if (channel instanceof ICategorizableChannelMixin<?>) {
-            handleParentCategory((ICategorizableChannelMixin<?>) channel, content.getUnsignedLong("parent_id", 0));
+        if (channel instanceof ICategorizableChannelMixin<?> categorizableChannel) {
+            handleParentCategory(categorizableChannel, content.getUnsignedLong("parent_id", 0));
         }
 
-        if (channel instanceof IPositionableChannelMixin<?>) {
-            handlePosition((IPositionableChannelMixin<?>) channel, content.getInt("position", 0));
+        if (channel instanceof IPositionableChannelMixin<?> positionableChannel) {
+            handlePosition(positionableChannel, content.getInt("position", 0));
         }
 
-        if (channel instanceof IThreadContainerMixin<?>) {
-            handleThreadContainer((IThreadContainerMixin<?>) channel, content);
+        if (channel instanceof IThreadContainerMixin<?> threadContainer) {
+            handleThreadContainer(threadContainer, content);
         }
 
-        if (channel instanceof AudioChannelMixin<?>) {
-            handleAudioChannel((AudioChannelMixin<?>) channel, content);
+        if (channel instanceof AudioChannelMixin<?> audioChannel) {
+            handleAudioChannel(audioChannel, content);
         }
 
-        if (channel instanceof IPostContainerMixin<?>) {
-            handlePostContainer((IPostContainerMixin<?>) channel, content);
+        if (channel instanceof IPostContainerMixin<?> postContainer) {
+            handlePostContainer(postContainer, content);
         }
 
         // Handle concrete type specific properties
 
         switch (type) {
-            case FORUM:
+            case FORUM -> {
                 ForumChannelImpl forumChannel = (ForumChannelImpl) channel;
 
                 int layout = content.getInt("default_forum_layout", ((ForumChannelImpl) channel).getRawLayout());
@@ -167,14 +167,9 @@ public class ChannelUpdateHandler extends SocketHandler {
                             ForumChannel.Layout.fromKey(oldLayout),
                             ForumChannel.Layout.fromKey(layout)));
                 }
-                break;
-            case VOICE:
-            case TEXT:
-            case NEWS:
-            case STAGE:
-            case CATEGORY:
-                break;
-            default:
+            }
+            case VOICE, TEXT, NEWS, STAGE, CATEGORY -> {}
+            default ->
                 WebSocketClient.LOG.debug("CHANNEL_UPDATE provided an unrecognized channel type JSON: {}", content);
         }
 
@@ -244,8 +239,8 @@ public class ChannelUpdateHandler extends SocketHandler {
     }
 
     private void applyPermissions(IPermissionContainerMixin<?> channel, DataArray permOverwrites) {
-        TLongObjectMap<PermissionOverride> currentOverrides =
-                new TLongObjectHashMap<>(channel.getPermissionOverrideMap());
+        Long2ObjectMap<PermissionOverride> currentOverrides =
+                new Long2ObjectOpenHashMap<>(channel.getPermissionOverrideMap());
         List<IPermissionHolder> changed = new ArrayList<>(currentOverrides.size());
         Guild guild = channel.getGuild();
         for (int i = 0; i < permOverwrites.length(); i++) {
@@ -256,13 +251,12 @@ public class ChannelUpdateHandler extends SocketHandler {
             }
         }
 
-        currentOverrides.forEachValue(override -> {
+        currentOverrides.values().forEach(override -> {
             channel.getPermissionOverrideMap().remove(override.getIdLong());
             addPermissionHolder(changed, guild, override.getIdLong());
             api.handleEvent(new PermissionOverrideDeleteEvent(
                     api, responseNumber,
                     channel, override));
-            return true;
         });
     }
 
@@ -371,8 +365,8 @@ public class ChannelUpdateHandler extends SocketHandler {
         SortedSnowflakeCacheViewImpl<ForumTag> view = channel.getAvailableTagCache();
 
         try (UnlockHook hook = view.writeLock()) {
-            TLongObjectMap<ForumTag> cache = view.getMap();
-            TLongSet removedTags = new TLongHashSet(cache.keySet());
+            Long2ObjectMap<ForumTag> cache = view.getMap();
+            LongSet removedTags = new LongOpenHashSet(cache.keySet());
 
             for (int i = 0; i < tags.length(); i++) {
                 DataObject tagJson = tags.getObject(i);
@@ -411,12 +405,11 @@ public class ChannelUpdateHandler extends SocketHandler {
                 }
             }
 
-            removedTags.forEach(id -> {
+            removedTags.forEach((long id) -> {
                 ForumTag tag = cache.remove(id);
                 if (tag != null) {
                     api.handleEvent(new ForumTagRemoveEvent(api, responseNumber, channel, tag));
                 }
-                return true;
             });
         }
     }

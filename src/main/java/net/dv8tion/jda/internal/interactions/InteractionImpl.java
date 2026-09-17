@@ -34,7 +34,6 @@ import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.entities.InteractionEntityBuilder;
 import net.dv8tion.jda.internal.entities.MemberImpl;
 import net.dv8tion.jda.internal.entities.detached.DetachedGuildImpl;
-import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.util.List;
 
@@ -133,7 +132,7 @@ public class InteractionImpl implements Interaction {
 
         this.entitlements = data.optArray("entitlements").orElseGet(DataArray::empty).stream(DataArray::getObject)
                 .map(jda.getEntityBuilder()::createEntitlement)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     // Used to allow interaction hook to send messages after acknowledgements

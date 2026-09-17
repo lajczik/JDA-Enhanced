@@ -20,6 +20,7 @@ import net.dv8tion.jda.api.components.Component;
 import net.dv8tion.jda.api.components.IComponentUnion;
 import net.dv8tion.jda.api.components.MessageTopLevelComponent;
 import net.dv8tion.jda.api.components.ModalTopLevelComponent;
+import net.dv8tion.jda.api.components.attribute.IDisableable;
 import net.dv8tion.jda.api.components.replacer.ComponentReplacer;
 import net.dv8tion.jda.api.components.utils.ComponentIterator;
 import net.dv8tion.jda.internal.components.tree.ComponentTreeImpl;
@@ -31,7 +32,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
@@ -176,7 +176,7 @@ public interface ComponentTree<E extends Component> {
                 .filter(type::isInstance)
                 .map(type::cast)
                 .filter(filter)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -223,7 +223,7 @@ public interface ComponentTree<E extends Component> {
     ComponentTree<E> replace(@Nonnull ComponentReplacer replacer);
 
     /**
-     * Enables or disables all components which {@linkplain net.dv8tion.jda.api.components.attribute.IDisableable can be enabled/disabled},
+     * Enables or disables all components which {@linkplain IDisableable can be enabled/disabled},
      * and constructs a new tree from the result.
      *
      * @return A new tree with all components enabled/disabled.
@@ -233,7 +233,7 @@ public interface ComponentTree<E extends Component> {
     ComponentTree<E> withDisabled(boolean disabled);
 
     /**
-     * Disables all components which {@linkplain net.dv8tion.jda.api.components.attribute.IDisableable can be disabled},
+     * Disables all components which {@linkplain IDisableable can be disabled},
      * and constructs a new tree from the result.
      *
      * @return A new tree with all components disabled.
@@ -245,7 +245,7 @@ public interface ComponentTree<E extends Component> {
     }
 
     /**
-     * Enables all components which {@linkplain net.dv8tion.jda.api.components.attribute.IDisableable can be enabled},
+     * Enables all components which {@linkplain IDisableable can be enabled},
      * and constructs a new tree from the result.
      *
      * @return A new tree with all components enabled.
@@ -275,6 +275,5 @@ public interface ComponentTree<E extends Component> {
          * Represents a {@link ModalComponentTree}.
          */
         MODAL,
-        ;
     }
 }

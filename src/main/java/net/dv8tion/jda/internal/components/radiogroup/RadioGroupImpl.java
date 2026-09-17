@@ -49,7 +49,7 @@ public class RadioGroupImpl extends AbstractComponentImpl implements RadioGroup,
         this.customId = data.getString("custom_id");
         this.options = data.getArray("options").stream(DataArray::getObject)
                 .map(RadioGroupOption::fromData)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
         this.required = data.getBoolean("required", true);
     }
 

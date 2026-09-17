@@ -19,7 +19,7 @@ package net.dv8tion.jda.test.assertions.checks;
 import org.junit.jupiter.api.function.ThrowingConsumer;
 
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 
 import static net.dv8tion.jda.test.ChecksHelper.isEmptyError;
 import static net.dv8tion.jda.test.ChecksHelper.isNullError;
@@ -37,7 +37,7 @@ public class CollectionChecksAssertions<T>
     }
 
     public CollectionChecksAssertions<T> checksNotEmpty() {
-        throwsFor(Collections.emptyList(), isEmptyError(name));
+        throwsFor(List.of(), isEmptyError(name));
         return this;
     }
 }

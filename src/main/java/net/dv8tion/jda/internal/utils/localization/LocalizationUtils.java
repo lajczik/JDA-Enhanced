@@ -24,8 +24,7 @@ import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.JDALogger;
 import org.slf4j.Logger;
 
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -37,7 +36,7 @@ public class LocalizationUtils {
     public static Map<DiscordLocale, String> mapFromData(@Nonnull DataObject data) {
         Checks.notNull(data, "Data");
 
-        Map<DiscordLocale, String> map = new HashMap<>();
+        Map<DiscordLocale, String> map = new EnumMap<>(DiscordLocale.class);
 
         for (String key : data.keys()) {
             DiscordLocale locale = DiscordLocale.from(key);
@@ -57,7 +56,7 @@ public class LocalizationUtils {
             @Nonnull DataObject json, @Nonnull String localizationProperty) {
         return json.optObject(localizationProperty)
                 .map(LocalizationUtils::mapFromData)
-                .orElse(Collections.emptyMap());
+                .orElse(Map.of());
     }
 
     @Nonnull

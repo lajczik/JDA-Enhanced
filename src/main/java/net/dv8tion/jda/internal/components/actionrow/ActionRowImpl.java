@@ -49,7 +49,7 @@ public class ActionRowImpl extends AbstractComponentImpl
         this(
                 deserializer
                         .deserializeAs(ActionRowChildComponentUnion.class, data.getArray("components"))
-                        .collect(Collectors.toList()),
+                        .toList(),
                 data.getInt("id", -1));
     }
 
@@ -200,10 +200,10 @@ public class ActionRowImpl extends AbstractComponentImpl
         if (obj == this) {
             return true;
         }
-        if (!(obj instanceof ActionRowImpl)) {
+        if (!(obj instanceof ActionRowImpl other)) {
             return false;
         }
 
-        return components.equals(((ActionRowImpl) obj).components);
+        return components.equals(other.components);
     }
 }

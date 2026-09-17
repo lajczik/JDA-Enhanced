@@ -25,7 +25,6 @@ import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -43,7 +42,7 @@ import static net.dv8tion.jda.internal.entities.EntityBuilder.DEFAULT_COMPONENT_
 public class Components {
     /**
      * Converts the provided {@link DataObject} into a component of type {@link T}.
-     * <br>Note that any unsupported component will be represented as an {@link net.dv8tion.jda.api.components.UnknownComponent UnknownComponent}.
+     * <br>Note that any unsupported component will be represented as an {@link UnknownComponent}.
      *
      * @param  data
      *         The {@link DataArray} to create the component tree from
@@ -62,7 +61,7 @@ public class Components {
 
     /**
      * Converts the provided {@link DataArray} into a {@link List} of components.
-     * <br>Note that any unsupported component will be represented as an {@link net.dv8tion.jda.api.components.UnknownComponent UnknownComponent}.
+     * <br>Note that any unsupported component will be represented as an {@link UnknownComponent}.
      *
      * @param  data
      *         The {@link DataArray} to create the components from
@@ -77,12 +76,12 @@ public class Components {
     @Nonnull
     public static <T extends Component> List<T> parseComponents(
             @Nonnull Class<T> componentType, @Nonnull DataArray data) {
-        return DEFAULT_COMPONENT_DESERIALIZER.deserializeAs(componentType, data).collect(Collectors.toList());
+        return DEFAULT_COMPONENT_DESERIALIZER.deserializeAs(componentType, data).toList();
     }
 
     /**
      * Converts the provided {@link DataArray} into a {@link ComponentTree}.
-     * <br>Note that any unsupported component will be represented as an {@link net.dv8tion.jda.api.components.UnknownComponent UnknownComponent}.
+     * <br>Note that any unsupported component will be represented as an {@link UnknownComponent}.
      *
      * @param  data
      *         The {@link DataArray} to create the component tree from

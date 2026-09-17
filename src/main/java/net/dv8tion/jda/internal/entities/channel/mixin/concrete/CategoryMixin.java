@@ -34,7 +34,7 @@ public interface CategoryMixin<T extends CategoryMixin<T>>
         Checks.notNull(guild, "Guild");
         ChannelAction<Category> action = guild.createCategory(getName());
         if (guild.equals(getGuild())) {
-            for (PermissionOverride o : getPermissionOverrideMap().valueCollection()) {
+            for (PermissionOverride o : getPermissionOverrideMap().values()) {
                 if (o.isMemberOverride()) {
                     action.addMemberPermissionOverride(o.getIdLong(), o.getAllowedRaw(), o.getDeniedRaw());
                 } else {

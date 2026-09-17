@@ -278,10 +278,9 @@ public class InviteImpl implements Invite {
         if (obj == this) {
             return true;
         }
-        if (!(obj instanceof InviteImpl)) {
+        if (!(obj instanceof InviteImpl impl)) {
             return false;
         }
-        InviteImpl impl = (InviteImpl) obj;
         return impl.code.equals(this.code);
     }
 

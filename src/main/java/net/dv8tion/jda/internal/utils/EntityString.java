@@ -63,14 +63,12 @@ public class EntityString {
     @Nonnull
     @Override
     public String toString() {
-        String entityName;
-        if (this.entity instanceof String) {
-            entityName = (String) this.entity;
-        } else if (this.entity instanceof Class<?>) {
-            entityName = getCleanedClassName((Class<?>) this.entity);
-        } else {
-            entityName = getCleanedClassName(this.entity.getClass());
-        }
+        String entityName =
+                switch (this.entity) {
+                    case String str -> str;
+                    case Class<?> clazz -> getCleanedClassName(clazz);
+                    default -> getCleanedClassName(this.entity.getClass());
+                };
 
         StringBuilder sb = new StringBuilder(entityName);
         if (this.type != null) {
@@ -83,8 +81,8 @@ public class EntityString {
         boolean isSnowflake = entity instanceof ISnowflake;
         if (isSnowflake || this.metadata != null) {
             StringJoiner metadataJoiner = new StringJoiner(", ", "(", ")");
-            if (isSnowflake) {
-                metadataJoiner.add("id=" + ((ISnowflake) entity).getId());
+            if (entity instanceof ISnowflake snowflake) {
+                metadataJoiner.add("id=" + snowflake.getId());
             }
             if (this.metadata != null) {
                 for (Object metadataItem : this.metadata) {
@@ -105,7 +103,7 @@ public class EntityString {
         String simpleName = fullName.substring(packageName.length() + 1);
 
         return simpleName
-                .replace("$", ".") // Clean up nested classes
+                .replace('$', '.') // Clean up nested classes
                 .replace("Impl", ""); // Don't expose Impl
     }
 }

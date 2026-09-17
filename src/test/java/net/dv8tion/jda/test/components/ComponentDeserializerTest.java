@@ -41,7 +41,6 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import java.io.InputStream;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -55,7 +54,7 @@ class ComponentDeserializerTest extends AbstractComponentTest {
 
     @Test
     void testDeserializeMessageComponentTree() throws Exception {
-        ComponentDeserializer deserializer = new ComponentDeserializer(Collections.emptyList());
+        ComponentDeserializer deserializer = new ComponentDeserializer(List.of());
         ComponentSerializer serializer = new ComponentSerializer();
         try (InputStream sample = loadSample("exampleMessageTree.json")) {
             DataArray data = DataArray.fromJson(sample);
@@ -73,7 +72,7 @@ class ComponentDeserializerTest extends AbstractComponentTest {
     @ParameterizedTest
     @SuppressWarnings("rawtypes")
     void testParseTreeIsUpdated(ComponentTree.Type type) {
-        ComponentDeserializer deserializer = new ComponentDeserializer(Collections.emptyList());
+        ComponentDeserializer deserializer = new ComponentDeserializer(List.of());
 
         Class<? extends ComponentTree> treeClass = getTreeClass(type);
 

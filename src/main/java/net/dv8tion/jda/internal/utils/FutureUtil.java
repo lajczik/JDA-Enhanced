@@ -16,6 +16,9 @@
 
 package net.dv8tion.jda.internal.utils;
 
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.ReferenceCounted;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -26,12 +29,29 @@ public class FutureUtil {
     @Nonnull
     public static <T, U> CompletableFuture<U> thenApplyCancellable(
             @Nonnull CompletableFuture<T> future, @Nonnull Function<T, U> applyFunction, @Nullable Runnable onCancel) {
-        CompletableFuture<U> cf = new CompletableFuture<>();
+        CompletableFuture<U> cf = future.newIncompleteFuture();
 
-        future.thenAccept(t -> cf.complete(applyFunction.apply(t))).exceptionally(throwable -> {
-            cf.completeExceptionally(throwable);
-            return null;
-        });
+        future.thenAccept(t -> {
+                    if (cf.isCancelled()) {
+                        releaseIfPossible(t);
+                        return;
+                    }
+                    U u;
+                    try {
+                        u = applyFunction.apply(t);
+                    } catch (Throwable ex) {
+                        releaseIfPossible(t);
+                        cf.completeExceptionally(ex);
+                        return;
+                    }
+                    if (!cf.complete(u)) {
+                        releaseIfPossible(u);
+                    }
+                })
+                .exceptionally(throwable -> {
+                    cf.completeExceptionally(throwable);
+                    return null;
+                });
 
         cf.whenComplete((u, throwable) -> {
             if (cf.isCancelled()) {
@@ -43,6 +63,19 @@ public class FutureUtil {
         });
 
         return cf;
+    }
+
+    private static void releaseIfPossible(Object obj) {
+        if (obj instanceof ReferenceCounted refCounted) {
+            if (refCounted.refCnt() > 0) {
+                ReferenceCountUtil.safeRelease(refCounted);
+            }
+        } else if (obj instanceof AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     @Nonnull

@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.entities.channel.middleman;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.PermissionOverride;
 import net.dv8tion.jda.api.utils.MiscUtil;
@@ -25,7 +25,7 @@ import net.dv8tion.jda.internal.entities.channel.mixin.middleman.StandardGuildCh
 
 public abstract class AbstractStandardGuildChannelImpl<T extends AbstractStandardGuildChannelImpl<T>>
         extends AbstractGuildChannelImpl<T> implements StandardGuildChannelMixin<T> {
-    protected final TLongObjectMap<PermissionOverride> overrides = MiscUtil.newLongMap();
+    protected final Long2ObjectMap<PermissionOverride> overrides = MiscUtil.newLongMap();
 
     protected long parentCategoryId;
     protected int position;
@@ -45,7 +45,7 @@ public abstract class AbstractStandardGuildChannelImpl<T extends AbstractStandar
     }
 
     @Override
-    public TLongObjectMap<PermissionOverride> getPermissionOverrideMap() {
+    public Long2ObjectMap<PermissionOverride> getPermissionOverrideMap() {
         return overrides;
     }
 

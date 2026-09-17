@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.entities;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.utils.MiscUtil;
@@ -28,9 +28,9 @@ import java.util.regex.Matcher;
 import javax.annotation.Nullable;
 
 public class InteractionMentions extends AbstractMentions {
-    protected final TLongObjectMap<Object> resolved;
+    protected final Long2ObjectMap<Object> resolved;
 
-    public InteractionMentions(String content, TLongObjectMap<Object> resolved, JDAImpl jda, @Nullable Guild guild) {
+    public InteractionMentions(String content, Long2ObjectMap<Object> resolved, JDAImpl jda, @Nullable Guild guild) {
         super(content, jda, guild, false);
         this.resolved = resolved;
     }

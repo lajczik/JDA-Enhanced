@@ -28,7 +28,7 @@ import net.dv8tion.jda.internal.components.utils.ComponentsUtil;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.EntityString;
 
-import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 import javax.annotation.Nonnull;
@@ -153,7 +153,7 @@ public class LabelImpl extends AbstractComponentImpl implements Label, ModalTopL
 
         LabelChildComponent newChild = ComponentsUtil.doReplace(
                 LabelChildComponent.class,
-                Collections.singletonList(child),
+                List.of(child),
                 replacer,
                 newChildren -> newChildren.isEmpty() ? null : newChildren.get(0));
 

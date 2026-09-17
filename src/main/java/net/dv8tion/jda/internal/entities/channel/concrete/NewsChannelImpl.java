@@ -32,7 +32,6 @@ import net.dv8tion.jda.internal.entities.channel.mixin.concrete.NewsChannelMixin
 import net.dv8tion.jda.internal.managers.channel.concrete.NewsChannelManagerImpl;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
-import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.util.List;
 
@@ -66,7 +65,7 @@ public class NewsChannelImpl extends AbstractStandardGuildMessageChannelImpl<New
     public List<Member> getMembers() {
         return getGuild().getMembersView().stream()
                 .filter(m -> m.hasPermission(this, Permission.VIEW_CHANNEL))
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull

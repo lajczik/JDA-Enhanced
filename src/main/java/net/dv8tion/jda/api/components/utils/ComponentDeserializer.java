@@ -16,10 +16,7 @@
 
 package net.dv8tion.jda.api.components.utils;
 
-import net.dv8tion.jda.api.components.Component;
-import net.dv8tion.jda.api.components.IComponentUnion;
-import net.dv8tion.jda.api.components.MessageTopLevelComponent;
-import net.dv8tion.jda.api.components.ModalTopLevelComponent;
+import net.dv8tion.jda.api.components.*;
 import net.dv8tion.jda.api.components.filedisplay.FileDisplay;
 import net.dv8tion.jda.api.components.mediagallery.MediaGallery;
 import net.dv8tion.jda.api.components.mediagallery.MediaGalleryItem;
@@ -59,7 +56,6 @@ import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
@@ -81,7 +77,7 @@ public class ComponentDeserializer {
      *        The implicit file uploads used by the components (see {@link ComponentSerializer#getFileUploads(Collection)})
      */
     public ComponentDeserializer(@Nonnull Collection<? extends FileUpload> files) {
-        this(files, Collections.emptySet());
+        this(files, Set.of());
     }
 
     /**
@@ -119,7 +115,7 @@ public class ComponentDeserializer {
     @Nonnull
     public List<IComponentUnion> deserializeAll(@Nonnull List<DataObject> components) {
         Checks.noneNull(components, "Components");
-        return components.stream().map(this::parseComponent).collect(Collectors.toList());
+        return components.stream().map(this::parseComponent).toList();
     }
 
     /**
@@ -248,13 +244,13 @@ public class ComponentDeserializer {
 
         if (MessageComponentTree.class.isAssignableFrom(treeType)) {
             return (T) MessageComponentTree.of(
-                    deserializeAs(MessageTopLevelComponent.class, components).collect(Collectors.toList()));
+                    deserializeAs(MessageTopLevelComponent.class, components).toList());
         } else if (ModalComponentTree.class.isAssignableFrom(treeType)) {
             return (T) ModalComponentTree.of(
-                    deserializeAs(ModalTopLevelComponent.class, components).collect(Collectors.toList()));
+                    deserializeAs(ModalTopLevelComponent.class, components).toList());
         } else if (ComponentTree.class.isAssignableFrom(treeType)) {
             return (T)
-                    ComponentTree.of(deserializeAs(Component.class, components).collect(Collectors.toList()));
+                    ComponentTree.of(deserializeAs(Component.class, components).toList());
         } else {
             throw new UnsupportedOperationException("Cannot deserialize to tree of type " + treeType.getName());
         }
@@ -349,7 +345,7 @@ public class ComponentDeserializer {
                 data.getInt("id", -1),
                 data.getArray("items").stream(DataArray::getObject)
                         .map(this::toMediaGalleryItem)
-                        .collect(Collectors.toList()));
+                        .toList());
     }
 
     @Nonnull
@@ -383,7 +379,7 @@ public class ComponentDeserializer {
      */
     public enum DeserializerFeature {
         /**
-         * Throws {@link DataObjectParsingException} for {@link net.dv8tion.jda.api.components.ResolvedMedia ResolvedMedia} objects without a `proxy_url`.
+         * Throws {@link DataObjectParsingException} for {@link ResolvedMedia} objects without a `proxy_url`.
          */
         REQUIRE_MEDIA_PROXY_URL,
     }

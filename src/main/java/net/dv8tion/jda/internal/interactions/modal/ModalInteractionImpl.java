@@ -29,7 +29,6 @@ import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.interactions.DeferrableInteractionImpl;
 import net.dv8tion.jda.internal.requests.restaction.interactions.MessageEditCallbackActionImpl;
 import net.dv8tion.jda.internal.requests.restaction.interactions.ReplyCallbackActionImpl;
-import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.util.List;
 import java.util.Objects;
@@ -50,7 +49,7 @@ public class ModalInteractionImpl extends DeferrableInteractionImpl implements M
         this.mappings = data.optArray("components").orElseGet(DataArray::empty).stream(DataArray::getObject)
                 .map(component -> getMapping(component, resolved))
                 .filter(Objects::nonNull)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
 
         this.message = object.optObject("message")
                 .map(o -> api.getEntityBuilder().createMessageWithChannel(o, getMessageChannel(), false))

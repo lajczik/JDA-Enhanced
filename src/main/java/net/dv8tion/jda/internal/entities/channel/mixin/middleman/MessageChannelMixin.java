@@ -16,6 +16,8 @@
 
 package net.dv8tion.jda.internal.entities.channel.mixin.middleman;
 
+import it.unimi.dsi.fastutil.longs.LongAVLTreeSet;
+import it.unimi.dsi.fastutil.longs.LongComparators;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.components.MessageTopLevelComponent;
 import net.dv8tion.jda.api.entities.Message;
@@ -59,7 +61,7 @@ public interface MessageChannelMixin<T extends MessageChannelMixin<T>>
     default List<CompletableFuture<Void>> purgeMessages(@Nonnull List<? extends Message> messages) {
         checkCanAccess();
         if (messages == null || messages.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
 
         if (!canDeleteOtherUsersMessages()) {
@@ -85,7 +87,7 @@ public interface MessageChannelMixin<T extends MessageChannelMixin<T>>
     default List<CompletableFuture<Void>> purgeMessagesById(@Nonnull long... messageIds) {
         checkCanAccess();
         if (messageIds == null || messageIds.length == 0) {
-            return Collections.emptyList();
+            return List.of();
         }
 
         // If we can't use the bulk delete system, then use the standard purge defined in
@@ -96,8 +98,8 @@ public interface MessageChannelMixin<T extends MessageChannelMixin<T>>
 
         // remove duplicates and sort messages
         List<CompletableFuture<Void>> list = new ArrayList<>();
-        TreeSet<Long> bulk = new TreeSet<>(Comparator.reverseOrder());
-        TreeSet<Long> norm = new TreeSet<>(Comparator.reverseOrder());
+        LongAVLTreeSet bulk = new LongAVLTreeSet(LongComparators.OPPOSITE_COMPARATOR);
+        LongAVLTreeSet norm = new LongAVLTreeSet(LongComparators.OPPOSITE_COMPARATOR);
         long twoWeeksAgo =
                 TimeUtil.getDiscordTimestamp(System.currentTimeMillis() - (14 * 24 * 60 * 60 * 1000) + 10000);
         for (long messageId : messageIds) {
@@ -114,7 +116,9 @@ public interface MessageChannelMixin<T extends MessageChannelMixin<T>>
             while (!bulk.isEmpty()) {
                 toDelete.clear();
                 for (int i = 0; i < 100 && !bulk.isEmpty(); i++) {
-                    toDelete.add(Long.toUnsignedString(bulk.pollLast()));
+                    long id = bulk.firstLong();
+                    toDelete.add(Long.toUnsignedString(id));
+                    bulk.remove(id);
                 }
 
                 // If we only had 1 in the bulk collection

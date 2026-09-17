@@ -21,7 +21,6 @@ import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.container.Container;
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.section.Section;
-import org.apache.commons.collections4.iterators.SingletonIterator;
 
 import java.util.*;
 import java.util.stream.Stream;
@@ -85,22 +84,17 @@ public class ComponentPathIterator implements Iterator<ComponentPathIterator.Com
         ComponentWithPath componentWithPath = iterator.next();
         Component component = componentWithPath.component;
 
-        if (component instanceof Container) {
-            Container container = (Container) component;
+        if (component instanceof Container container) {
             stack.push(
                     new CollectionAttributeIterator(componentWithPath.path, "components", container.getComponents()));
-        } else if (component instanceof ActionRow) {
-            ActionRow actionRow = (ActionRow) component;
+        } else if (component instanceof ActionRow actionRow) {
             stack.push(
                     new CollectionAttributeIterator(componentWithPath.path, "components", actionRow.getComponents()));
-        } else if (component instanceof Section) {
-            Section section = (Section) component;
-
+        } else if (component instanceof Section section) {
             stack.push(new CollectionAttributeIterator(
                     componentWithPath.path, "components", section.getContentComponents()));
             stack.push(singleAttributeIterator(componentWithPath.path, "accessory", section.getAccessory()));
-        } else if (component instanceof Label) {
-            Label label = (Label) component;
+        } else if (component instanceof Label label) {
             stack.push(singleAttributeIterator(componentWithPath.path, "component", label.getChild()));
         }
 
@@ -160,9 +154,10 @@ public class ComponentPathIterator implements Iterator<ComponentPathIterator.Com
         }
     }
 
-    private static SingletonIterator<ComponentWithPath> singleAttributeIterator(
+    private static Iterator<ComponentWithPath> singleAttributeIterator(
             String parentPath, String attributePath, Component component) {
-        return new SingletonIterator<>(makeComponentWithPath(parentPath, attributePath, component));
+        return Collections.singleton(makeComponentWithPath(parentPath, attributePath, component))
+                .iterator();
     }
 
     private static ComponentWithPath makeComponentWithPath(

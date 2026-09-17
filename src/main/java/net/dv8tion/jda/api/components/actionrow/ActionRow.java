@@ -191,7 +191,7 @@ public interface ActionRow extends MessageTopLevelComponent, ContainerChildCompo
         return getComponents().stream()
                 .filter(ActionComponent.class::isInstance)
                 .map(ActionComponent.class::cast)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     /**
@@ -205,7 +205,7 @@ public interface ActionRow extends MessageTopLevelComponent, ContainerChildCompo
         return getComponents().stream()
                 .filter(Button.class::isInstance)
                 .map(Button.class::cast)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Override

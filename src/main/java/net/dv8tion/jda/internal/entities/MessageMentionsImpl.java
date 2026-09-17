@@ -16,11 +16,11 @@
 
 package net.dv8tion.jda.internal.entities;
 
-import gnu.trove.iterator.TLongIterator;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.utils.MiscUtil;
@@ -30,7 +30,6 @@ import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.entities.mentions.AbstractMentions;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
@@ -38,8 +37,8 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
 public class MessageMentionsImpl extends AbstractMentions {
-    private final TLongObjectMap<DataObject> userMentionMap;
-    private final TLongSet roleMentionMap;
+    private final Long2ObjectMap<DataObject> userMentionMap;
+    private final LongSet roleMentionMap;
 
     public MessageMentionsImpl(
             JDAImpl jda,
@@ -49,9 +48,9 @@ public class MessageMentionsImpl extends AbstractMentions {
             DataArray userMentions,
             DataArray roleMentions) {
         super(content, jda, guild, mentionsEveryone);
-        this.userMentionMap = new TLongObjectHashMap<>(userMentions.length());
-        this.roleMentionMap =
-                new TLongHashSet(roleMentions.stream(DataArray::getUnsignedLong).collect(Collectors.toList()));
+        this.userMentionMap = new Long2ObjectOpenHashMap<>(userMentions.length());
+        this.roleMentionMap = new LongOpenHashSet(
+                roleMentions.stream(DataArray::getUnsignedLong).toList());
 
         userMentions.stream(DataArray::getObject).forEach(obj -> {
             if (obj.isNull("member")) {
@@ -73,7 +72,7 @@ public class MessageMentionsImpl extends AbstractMentions {
     @Override
     public synchronized List<Member> getMembers() {
         if (guild == null) {
-            return Collections.emptyList();
+            return List.of();
         }
         if (mentionedMembers != null) {
             return mentionedMembers;
@@ -81,7 +80,7 @@ public class MessageMentionsImpl extends AbstractMentions {
 
         // Parse members from mentions array in order of appearance
         EntityBuilder entityBuilder = jda.getEntityBuilder();
-        TLongSet unseen = new TLongHashSet(userMentionMap.keySet());
+        LongSet unseen = new LongOpenHashSet(userMentionMap.keySet());
         List<Member> members = processMentions(
                 Message.MentionType.USER,
                 false,
@@ -94,8 +93,8 @@ public class MessageMentionsImpl extends AbstractMentions {
                 Collectors.toCollection(ArrayList::new));
 
         // Add reply mentions at beginning
-        for (TLongIterator iter = unseen.iterator(); iter.hasNext(); ) {
-            DataObject mention = userMentionMap.get(iter.next());
+        for (LongIterator iter = unseen.iterator(); iter.hasNext(); ) {
+            DataObject mention = userMentionMap.get(iter.nextLong());
             if (mention.getBoolean("is_member")) {
                 members.add(0, entityBuilder.createMember((GuildImpl) guild, mention));
             }
@@ -104,7 +103,7 @@ public class MessageMentionsImpl extends AbstractMentions {
         // Update member cache
         members.stream().map(MemberImpl.class::cast).forEach(entityBuilder::updateMemberCache);
 
-        return mentionedMembers = Collections.unmodifiableList(members);
+        return mentionedMembers = List.copyOf(members);
     }
 
     @Nonnull
@@ -116,7 +115,7 @@ public class MessageMentionsImpl extends AbstractMentions {
 
         // Parse members from mentions array in order of appearance
         EntityBuilder entityBuilder = jda.getEntityBuilder();
-        TLongSet unseen = new TLongHashSet(userMentionMap.keySet());
+        LongSet unseen = new LongOpenHashSet(userMentionMap.keySet());
         List<User> users = processMentions(
                 Message.MentionType.USER,
                 false,
@@ -129,8 +128,8 @@ public class MessageMentionsImpl extends AbstractMentions {
                 Collectors.toCollection(ArrayList::new));
 
         // Add reply mentions at beginning
-        for (TLongIterator iter = unseen.iterator(); iter.hasNext(); ) {
-            DataObject mention = userMentionMap.get(iter.next());
+        for (LongIterator iter = unseen.iterator(); iter.hasNext(); ) {
+            DataObject mention = userMentionMap.get(iter.nextLong());
             if (mention.getBoolean("is_member")) {
                 users.add(0, entityBuilder.createUser(mention.getObject("user")));
             } else {
@@ -138,7 +137,7 @@ public class MessageMentionsImpl extends AbstractMentions {
             }
         }
 
-        return mentionedUsers = Collections.unmodifiableList(users);
+        return mentionedUsers = List.copyOf(users);
     }
 
     @Override

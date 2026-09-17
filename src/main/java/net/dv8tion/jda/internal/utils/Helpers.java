@@ -18,17 +18,18 @@ package net.dv8tion.jda.internal.utils;
 
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.dv8tion.jda.api.utils.Result;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
-import okhttp3.HttpUrl;
 import org.jetbrains.annotations.Unmodifiable;
 
+import java.net.URI;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -48,10 +49,7 @@ import javax.annotation.Nullable;
  * <p>Specifically StringUtils.java and ExceptionUtils.java
  */
 public final class Helpers {
-    private static final ZoneOffset OFFSET = ZoneOffset.of("+00:00");
-
-    @SuppressWarnings("rawtypes")
-    private static final Consumer EMPTY_CONSUMER = (v) -> {};
+    private static final Consumer<?> EMPTY_CONSUMER = v -> {};
 
     @SuppressWarnings("unchecked")
     public static <T> Consumer<T> emptyConsumer() {
@@ -59,19 +57,18 @@ public final class Helpers {
     }
 
     public static OffsetDateTime toOffset(long instant) {
-        return OffsetDateTime.ofInstant(Instant.ofEpochMilli(instant), OFFSET);
+        return OffsetDateTime.ofInstant(Instant.ofEpochMilli(instant), ZoneOffset.UTC);
     }
 
     public static long toTimestamp(String iso8601String) {
-        TemporalAccessor joinedAt = DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(iso8601String);
-        return Instant.from(joinedAt).toEpochMilli();
+        return OffsetDateTime.parse(iso8601String).toInstant().toEpochMilli();
     }
 
     public static OffsetDateTime toOffsetDateTime(@Nullable TemporalAccessor temporal) {
         if (temporal == null) {
             return null;
-        } else if (temporal instanceof OffsetDateTime) {
-            return (OffsetDateTime) temporal;
+        } else if (temporal instanceof OffsetDateTime offsetDateTime) {
+            return offsetDateTime;
         } else {
             ZoneOffset offset;
             try {
@@ -106,7 +103,7 @@ public final class Helpers {
     // ## StringUtils ##
 
     public static boolean isEmpty(CharSequence seq) {
-        return seq == null || seq.length() == 0;
+        return seq == null || seq.isEmpty();
     }
 
     public static boolean containsWhitespace(CharSequence seq) {
@@ -122,8 +119,11 @@ public final class Helpers {
     }
 
     public static boolean isBlank(CharSequence seq) {
-        if (isEmpty(seq)) {
+        if (seq == null) {
             return true;
+        }
+        if (seq instanceof String str) {
+            return str.isBlank();
         }
         for (int i = 0; i < seq.length(); i++) {
             if (!Character.isWhitespace(seq.charAt(i))) {
@@ -162,26 +162,12 @@ public final class Helpers {
 
     public static String rightPad(String input, int size) {
         int pads = size - input.length();
-        if (pads <= 0) {
-            return input;
-        }
-        StringBuilder out = new StringBuilder(input);
-        for (int i = pads; i > 0; i--) {
-            out.append(' ');
-        }
-        return out.toString();
+        return pads <= 0 ? input : input + " ".repeat(pads);
     }
 
     public static String leftPad(String input, int size) {
         int pads = size - input.length();
-        if (pads <= 0) {
-            return input;
-        }
-        StringBuilder out = new StringBuilder();
-        for (int i = pads; i > 0; i--) {
-            out.append(' ');
-        }
-        return out.append(input).toString();
+        return pads <= 0 ? input : " ".repeat(pads) + input;
     }
 
     public static boolean isNumeric(String input) {
@@ -189,7 +175,8 @@ public final class Helpers {
             return false;
         }
         for (int i = 0; i < input.length(); i++) {
-            if (!Character.isDigit(input.charAt(i))) {
+            char c = input.charAt(i);
+            if (c < '0' || c > '9') {
                 return false;
             }
         }
@@ -214,7 +201,7 @@ public final class Helpers {
             i = j + match.length();
         }
 
-        return out.toArray(new String[0]);
+        return out.toArray(String[]::new);
     }
 
     @SuppressWarnings({"ReferenceEquality", "StringEquality"})
@@ -259,24 +246,44 @@ public final class Helpers {
 
     @SafeVarargs
     public static <T> Set<T> setOf(T... elements) {
-        Set<T> set = new HashSet<>(elements.length);
+        Set<T> set = HashSet.newHashSet(elements.length);
         Collections.addAll(set, elements);
         return set;
     }
 
     @SafeVarargs
     public static <T> List<T> listOf(T... elements) {
-        return Collections.unmodifiableList(Arrays.asList(elements));
+        return List.of(elements);
     }
 
-    public static TLongObjectMap<DataObject> convertToMap(ToLongFunction<DataObject> getId, DataArray array) {
-        TLongObjectMap<DataObject> map = new TLongObjectHashMap<>();
+    public static Long2ObjectMap<DataObject> convertToMap(ToLongFunction<DataObject> getId, DataArray array) {
+        Long2ObjectMap<DataObject> map = new Long2ObjectOpenHashMap<>(array.length());
         for (int i = 0; i < array.length(); i++) {
             DataObject obj = array.getObject(i);
             long objId = getId.applyAsLong(obj);
             map.put(objId, obj);
         }
         return map;
+    }
+
+    public static <T> Long2ObjectMap<T> convertToMap(ToLongFunction<T> getId, Collection<T> collection) {
+        Long2ObjectMap<T> map = new Long2ObjectOpenHashMap<>(collection.size());
+        for (T obj : collection) {
+            map.put(getId.applyAsLong(obj), obj);
+        }
+        return map;
+    }
+
+    public static <T> LongSet toLongSet(Collection<T> collection, ToLongFunction<T> getId) {
+        LongSet set = new LongOpenHashSet(collection.size());
+        for (T obj : collection) {
+            set.add(getId.applyAsLong(obj));
+        }
+        return set;
+    }
+
+    public static LongSet toLongSet(long... values) {
+        return new LongOpenHashSet(values);
     }
 
     public static <I, O> Function<I, Result<O>> tryMap(Function<I, O> mapper) {
@@ -325,7 +332,7 @@ public final class Helpers {
     }
 
     public static <T> Collector<T, ?, List<T>> toUnmodifiableList() {
-        return Collectors.collectingAndThen(Collectors.toList(), Collections::unmodifiableList);
+        return Collectors.toUnmodifiableList();
     }
 
     public static <E extends Enum<E>> Collector<E, ?, Set<E>> toUnmodifiableEnumSet(Class<E> enumType) {
@@ -341,14 +348,15 @@ public final class Helpers {
     @Nonnull
     @Unmodifiable
     public static <E> List<E> copyAsUnmodifiableList(Collection<? extends E> items) {
-        return items == null || items.isEmpty()
-                ? Collections.emptyList()
-                : Collections.unmodifiableList(new ArrayList<>(items));
+        return items == null || items.isEmpty() ? List.of() : List.copyOf(items);
     }
 
     @Nonnull
     @SafeVarargs
     public static <E> List<E> mergeVararg(@Nonnull E first, @Nonnull E... other) {
+        if (other.length == 0) {
+            return List.of(first);
+        }
         List<E> list = new ArrayList<>(other.length + 1);
         list.add(first);
         Collections.addAll(list, other);
@@ -364,12 +372,9 @@ public final class Helpers {
         String raw = actual + " " + resolutionUnit.toString().toLowerCase(Locale.ROOT);
 
         long days = duration.toDays();
-        long hours = duration.toHours() % 24;
-        long minutes = duration.toMinutes() % 60;
-        long seconds = duration.getSeconds()
-                - TimeUnit.DAYS.toSeconds(days)
-                - TimeUnit.HOURS.toSeconds(hours)
-                - TimeUnit.MINUTES.toSeconds(minutes);
+        int hours = duration.toHoursPart();
+        int minutes = duration.toMinutesPart();
+        int seconds = duration.toSecondsPart();
 
         StringJoiner joiner = new StringJoiner(" ");
         if (days > 0) {
@@ -390,10 +395,13 @@ public final class Helpers {
 
     @Nonnull
     public static String getLastPathSegment(@Nonnull String url) {
-        HttpUrl parsedUrl = HttpUrl.parse(url);
-        Checks.check(parsedUrl != null, "URL '%s' is invalid", url);
-
-        List<String> segments = parsedUrl.pathSegments();
-        return segments.get(segments.size() - 1);
+        URI uri = URI.create(url);
+        String path = uri.getPath();
+        Checks.check(path != null && !path.isEmpty(), "URL '%s' is invalid", url);
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        int lastSlash = path.lastIndexOf('/');
+        return lastSlash != -1 ? path.substring(lastSlash + 1) : path;
     }
 }

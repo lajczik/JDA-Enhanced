@@ -1,1 +1,1 @@
-UnknownComponent(data={"id":0,"type":42})
+UnknownComponent(data={"type":42,"id":0})

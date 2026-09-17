@@ -98,22 +98,17 @@ public class ComponentIterator implements Iterator<Component> {
 
     @Nullable
     private static Iterator<? extends Component> getIteratorForComponent(Component component) {
-        if (component instanceof Container) {
-            Container container = (Container) component;
+        if (component instanceof Container container) {
             return container.getComponents().iterator();
-        } else if (component instanceof ActionRow) {
-            ActionRow actionRow = (ActionRow) component;
+        } else if (component instanceof ActionRow actionRow) {
             return actionRow.getComponents().iterator();
-        } else if (component instanceof Section) {
-            Section section = (Section) component;
-
+        } else if (component instanceof Section section) {
             List<Component> sectionComponents = new ArrayList<>(section.getContentComponents());
             sectionComponents.add(section.getAccessory());
 
             return sectionComponents.iterator();
-        } else if (component instanceof Label) {
-            Label label = (Label) component;
-            return Collections.singleton(label.getChild()).iterator();
+        } else if (component instanceof Label label) {
+            return List.of(label.getChild()).iterator();
         }
 
         return null;

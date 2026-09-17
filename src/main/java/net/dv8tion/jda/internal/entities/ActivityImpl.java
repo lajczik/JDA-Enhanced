@@ -131,11 +131,10 @@ public class ActivityImpl implements Activity {
         if (o == this) {
             return true;
         }
-        if (!(o instanceof ActivityImpl)) {
+        if (!(o instanceof ActivityImpl oGame)) {
             return false;
         }
 
-        ActivityImpl oGame = (ActivityImpl) o;
         return oGame.getType() == type
                 && Objects.equals(name, oGame.getName())
                 && Objects.equals(state, oGame.state)

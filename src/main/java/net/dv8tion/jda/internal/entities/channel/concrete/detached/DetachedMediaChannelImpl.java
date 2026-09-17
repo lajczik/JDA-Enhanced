@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.entities.channel.concrete.detached;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.PermissionOverride;
 import net.dv8tion.jda.api.entities.channel.ChannelFlag;
@@ -94,7 +94,7 @@ public class DetachedMediaChannelImpl extends AbstractGuildChannelImpl<DetachedM
     }
 
     @Override
-    public TLongObjectMap<PermissionOverride> getPermissionOverrideMap() {
+    public Long2ObjectMap<PermissionOverride> getPermissionOverrideMap() {
         throw detachedException();
     }
 

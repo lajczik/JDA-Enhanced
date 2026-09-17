@@ -22,11 +22,8 @@ import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.components.AbstractComponentImpl;
 import net.dv8tion.jda.internal.utils.EntityString;
-import net.dv8tion.jda.internal.utils.Helpers;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -43,14 +40,14 @@ public class ModalImpl implements Modal {
         this.components = object.optArray("components")
                 .map(arr -> DEFAULT_COMPONENT_DESERIALIZER
                         .deserializeAs(ModalTopLevelComponentUnion.class, arr)
-                        .collect(Helpers.toUnmodifiableList()))
-                .orElseGet(Collections::emptyList);
+                        .toList())
+                .orElse(List.of());
     }
 
     public ModalImpl(String id, String title, List<ModalTopLevelComponentUnion> components) {
         this.id = id;
         this.title = title;
-        this.components = Collections.unmodifiableList(components);
+        this.components = List.copyOf(components);
     }
 
     @Nonnull
@@ -81,7 +78,7 @@ public class ModalImpl implements Modal {
                 DataArray.fromCollection(components.stream()
                         .map(AbstractComponentImpl.class::cast)
                         .map(AbstractComponentImpl::toData)
-                        .collect(Collectors.toList())));
+                        .toList()));
         return object;
     }
 

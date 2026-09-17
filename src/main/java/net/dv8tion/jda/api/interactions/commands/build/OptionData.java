@@ -18,8 +18,10 @@ package net.dv8tion.jda.api.interactions.commands.build;
 
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
+import net.dv8tion.jda.api.exceptions.ParsingException;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.commands.Command;
+import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.localization.LocalizationMap;
 import net.dv8tion.jda.api.utils.data.DataArray;
@@ -345,7 +347,7 @@ public class OptionData implements SerializableData {
     @Unmodifiable
     public List<Command.Choice> getChoices() {
         if (choices == null || choices.isEmpty()) {
-            return Collections.emptyList();
+            return List.of();
         }
         return Collections.unmodifiableList(choices);
     }
@@ -834,7 +836,7 @@ public class OptionData implements SerializableData {
      *         The name used in the client, up to {@value #MAX_CHOICE_NAME_LENGTH} characters long, as defined by
      *         {@link #MAX_CHOICE_NAME_LENGTH}
      * @param  value
-     *         The value received in {@link net.dv8tion.jda.api.interactions.commands.OptionMapping OptionMapping}
+     *         The value received in {@link OptionMapping}
      *
      * @throws IllegalArgumentException
      *         <ul>
@@ -871,7 +873,7 @@ public class OptionData implements SerializableData {
      * @param  name
      *         The name used in the client
      * @param  value
-     *         The value received in {@link net.dv8tion.jda.api.interactions.commands.OptionMapping OptionMapping}
+     *         The value received in {@link OptionMapping}
      *
      * @throws IllegalArgumentException
      *         <ul>
@@ -908,7 +910,7 @@ public class OptionData implements SerializableData {
      * @param  name
      *         The name used in the client
      * @param  value
-     *         The value received in {@link net.dv8tion.jda.api.interactions.commands.OptionMapping OptionMapping}
+     *         The value received in {@link OptionMapping}
      *
      * @throws IllegalArgumentException
      *         <ul>
@@ -984,7 +986,7 @@ public class OptionData implements SerializableData {
     @Nonnull
     public OptionData addChoices(@Nonnull Collection<? extends Command.Choice> choices) {
         Checks.notNull(choices, "Choices");
-        if (choices.size() == 0) {
+        if (choices.isEmpty()) {
             return this;
         }
         if (this.choices == null || !type.canSupportChoices()) {
@@ -1001,49 +1003,6 @@ public class OptionData implements SerializableData {
         return this;
     }
 
-    @Nonnull
-    @Override
-    public DataObject toData() {
-        DataObject json = DataObject.empty()
-                .put("type", type.getKey())
-                .put("name", name)
-                .put("name_localizations", nameLocalizations)
-                .put("description", description)
-                .put("description_localizations", descriptionLocalizations);
-        if (type != OptionType.SUB_COMMAND && type != OptionType.SUB_COMMAND_GROUP) {
-            json.put("required", isRequired);
-            json.put("autocomplete", isAutoComplete);
-        }
-        if (choices != null && !choices.isEmpty()) {
-            json.put(
-                    "choices",
-                    DataArray.fromCollection(
-                            choices.stream().map(choice -> choice.toData(type)).collect(Collectors.toList())));
-        }
-        if (type == OptionType.CHANNEL && !channelTypes.isEmpty()) {
-            json.put(
-                    "channel_types",
-                    channelTypes.stream().map(ChannelType::getId).collect(Collectors.toList()));
-        }
-        if (type == OptionType.INTEGER || type == OptionType.NUMBER) {
-            if (minValue != null) {
-                json.put("min_value", minValue);
-            }
-            if (maxValue != null) {
-                json.put("max_value", maxValue);
-            }
-        }
-        if (type == OptionType.STRING) {
-            if (minLength != null) {
-                json.put("min_length", minLength);
-            }
-            if (maxLength != null) {
-                json.put("max_length", maxLength);
-            }
-        }
-        return json;
-    }
-
     /**
      * Parses the provided serialization back into an OptionData instance.
      * <br>This is the reverse function for {@link #toData()}.
@@ -1051,7 +1010,7 @@ public class OptionData implements SerializableData {
      * @param  json
      *         The serialized {@link DataObject} representing the option
      *
-     * @throws net.dv8tion.jda.api.exceptions.ParsingException
+     * @throws ParsingException
      *         If the serialized object is missing required fields
      * @throws IllegalArgumentException
      *         If any of the values are failing the respective checks such as length
@@ -1087,7 +1046,7 @@ public class OptionData implements SerializableData {
                     .map(it -> it.stream(DataArray::getInt)
                             .map(ChannelType::fromId)
                             .collect(Collectors.toSet()))
-                    .orElse(Collections.emptySet()));
+                    .orElse(Set.of()));
         }
         if (type == OptionType.STRING) {
             if (!json.isNull("min_length")) {
@@ -1100,10 +1059,53 @@ public class OptionData implements SerializableData {
         json.optArray("choices")
                 .ifPresent(choices1 -> option.addChoices(choices1.stream(DataArray::getObject)
                         .map(Command.Choice::new)
-                        .collect(Collectors.toList())));
+                        .toList()));
         option.setNameLocalizations(LocalizationUtils.mapFromProperty(json, "name_localizations"));
         option.setDescriptionLocalizations(LocalizationUtils.mapFromProperty(json, "description_localizations"));
         return option;
+    }
+
+    @Nonnull
+    @Override
+    public DataObject toData() {
+        DataObject json = DataObject.empty()
+                .put("type", type.getKey())
+                .put("name", name)
+                .put("name_localizations", nameLocalizations)
+                .put("description", description)
+                .put("description_localizations", descriptionLocalizations);
+        if (type != OptionType.SUB_COMMAND && type != OptionType.SUB_COMMAND_GROUP) {
+            json.put("required", isRequired);
+            json.put("autocomplete", isAutoComplete);
+        }
+        if (choices != null && !choices.isEmpty()) {
+            json.put(
+                    "choices",
+                    DataArray.fromCollection(
+                            choices.stream().map(choice -> choice.toData(type)).toList()));
+        }
+        if (type == OptionType.CHANNEL && !channelTypes.isEmpty()) {
+            json.put(
+                    "channel_types",
+                    channelTypes.stream().map(ChannelType::getId).toList());
+        }
+        if (type == OptionType.INTEGER || type == OptionType.NUMBER) {
+            if (minValue != null) {
+                json.put("min_value", minValue);
+            }
+            if (maxValue != null) {
+                json.put("max_value", maxValue);
+            }
+        }
+        if (type == OptionType.STRING) {
+            if (minLength != null) {
+                json.put("min_length", minLength);
+            }
+            if (maxLength != null) {
+                json.put("max_length", maxLength);
+            }
+        }
+        return json;
     }
 
     /**

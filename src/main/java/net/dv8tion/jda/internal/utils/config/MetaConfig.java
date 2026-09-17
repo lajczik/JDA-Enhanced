@@ -16,6 +16,7 @@
 
 package net.dv8tion.jda.internal.utils.config;
 
+import net.dv8tion.jda.api.utils.JsonEngineType;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.dv8tion.jda.internal.utils.config.flags.ConfigFlag;
 
@@ -34,12 +35,22 @@ public class MetaConfig {
     private final boolean enableMDC;
     private final boolean useShutdownHook;
     private final int maxBufferSize;
+    private final JsonEngineType jsonEngine;
 
     public MetaConfig(
             int maxBufferSize,
             @Nullable ConcurrentMap<String, String> mdcContextMap,
             @Nullable EnumSet<CacheFlag> cacheFlags,
             EnumSet<ConfigFlag> flags) {
+        this(maxBufferSize, mdcContextMap, cacheFlags, flags, null);
+    }
+
+    public MetaConfig(
+            int maxBufferSize,
+            @Nullable ConcurrentMap<String, String> mdcContextMap,
+            @Nullable EnumSet<CacheFlag> cacheFlags,
+            EnumSet<ConfigFlag> flags,
+            @Nullable JsonEngineType jsonEngine) {
         this.maxBufferSize = maxBufferSize;
         this.cacheFlags = cacheFlags == null ? EnumSet.allOf(CacheFlag.class) : cacheFlags;
         this.enableMDC = flags.contains(ConfigFlag.MDC_CONTEXT);
@@ -49,6 +60,7 @@ public class MetaConfig {
             this.mdcContextMap = null;
         }
         this.useShutdownHook = flags.contains(ConfigFlag.SHUTDOWN_HOOK);
+        this.jsonEngine = jsonEngine;
     }
 
     @Nullable
@@ -71,6 +83,11 @@ public class MetaConfig {
 
     public int getMaxBufferSize() {
         return maxBufferSize;
+    }
+
+    @Nullable
+    public JsonEngineType getJsonEngine() {
+        return jsonEngine;
     }
 
     @Nonnull

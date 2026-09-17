@@ -33,7 +33,6 @@ import net.dv8tion.jda.internal.utils.Helpers;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -49,7 +48,7 @@ public class ContainerImpl extends AbstractComponentImpl implements Container, M
                 data.getInt("id", -1),
                 deserializer
                         .deserializeAs(ContainerChildComponentUnion.class, data.getArray("components"))
-                        .collect(Collectors.toList()),
+                        .toList(),
                 data.getBoolean("spoiler", false),
                 data.isNull("accent_color") ? null : data.getInt("accent_color"));
     }
@@ -175,10 +174,9 @@ public class ContainerImpl extends AbstractComponentImpl implements Container, M
         if (o == this) {
             return true;
         }
-        if (!(o instanceof ContainerImpl)) {
+        if (!(o instanceof ContainerImpl that)) {
             return false;
         }
-        ContainerImpl that = (ContainerImpl) o;
         return uniqueId == that.uniqueId
                 && spoiler == that.spoiler
                 && Objects.equals(components, that.components)

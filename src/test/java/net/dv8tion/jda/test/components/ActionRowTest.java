@@ -70,7 +70,7 @@ public class ActionRowTest extends AbstractSnapshotTest {
 
     @Test
     void testPartitionOf() {
-        assertThatIllegalArgumentException().isThrownBy(() -> ActionRow.partitionOf(Collections.emptyList()));
+        assertThatIllegalArgumentException().isThrownBy(() -> ActionRow.partitionOf(List.of()));
 
         List<ActionRow> rowsOfSixButtons = ActionRow.partitionOf(
                 EXAMPLE_BUTTON, EXAMPLE_BUTTON, EXAMPLE_BUTTON, EXAMPLE_BUTTON, EXAMPLE_BUTTON, EXAMPLE_BUTTON);

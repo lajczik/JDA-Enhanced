@@ -22,17 +22,14 @@ import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
 import net.dv8tion.jda.api.interactions.commands.SlashCommandReference;
+import net.dv8tion.jda.api.utils.Bag;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.utils.Checks;
-import net.dv8tion.jda.internal.utils.Helpers;
-import org.apache.commons.collections4.Bag;
-import org.apache.commons.collections4.BagUtils;
-import org.apache.commons.collections4.bag.HashBag;
+import net.dv8tion.jda.internal.utils.HashBag;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -59,7 +56,7 @@ public class SelectMenuMentions implements Mentions {
         this.interactionEntityBuilder = interactionEntityBuilder;
         this.guild = guild;
         this.resolved = resolved;
-        this.values = values.stream(DataArray::getString).collect(Collectors.toList());
+        this.values = values.stream(DataArray::getString).toList();
     }
 
     @Nonnull
@@ -86,8 +83,8 @@ public class SelectMenuMentions implements Mentions {
         return cachedUsers = values.stream()
                 .map(id -> userMap.optObject(id).orElse(null))
                 .filter(Objects::nonNull)
-                .map(builder::createUser)
-                .collect(Helpers.toUnmodifiableList());
+                .<User>map(builder::createUser)
+                .toList();
     }
 
     @Nonnull
@@ -100,7 +97,7 @@ public class SelectMenuMentions implements Mentions {
     @Override
     public List<GuildChannel> getChannels() {
         if (guild == null) {
-            return Collections.emptyList();
+            return List.of();
         }
         if (cachedChannels != null) {
             return cachedChannels;
@@ -125,7 +122,7 @@ public class SelectMenuMentions implements Mentions {
                     return interactionEntityBuilder.createGuildChannel(guild, json);
                 })
                 .filter(Objects::nonNull)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull
@@ -137,7 +134,7 @@ public class SelectMenuMentions implements Mentions {
     @Nonnull
     @Override
     public <T extends GuildChannel> List<T> getChannels(@Nonnull Class<T> clazz) {
-        return getChannels().stream().filter(clazz::isInstance).map(clazz::cast).collect(Helpers.toUnmodifiableList());
+        return getChannels().stream().filter(clazz::isInstance).map(clazz::cast).toList();
     }
 
     @Nonnull
@@ -150,7 +147,7 @@ public class SelectMenuMentions implements Mentions {
     @Override
     public List<Role> getRoles() {
         if (guild == null) {
-            return Collections.emptyList();
+            return List.of();
         }
         if (cachedRoles != null) {
             return cachedRoles;
@@ -168,7 +165,7 @@ public class SelectMenuMentions implements Mentions {
                     return interactionEntityBuilder.createRole(guild, json);
                 })
                 .filter(Objects::nonNull)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull
@@ -180,32 +177,32 @@ public class SelectMenuMentions implements Mentions {
     @Nonnull
     @Override
     public List<CustomEmoji> getCustomEmojis() {
-        return Collections.emptyList();
+        return List.of();
     }
 
     @Nonnull
     @Override
     public Bag<CustomEmoji> getCustomEmojisBag() {
-        return BagUtils.emptyBag();
+        return Bag.emptyBag();
     }
 
     @Nonnull
     @Override
     public List<SlashCommandReference> getSlashCommands() {
-        return Collections.emptyList();
+        return List.of();
     }
 
     @Nonnull
     @Override
     public Bag<SlashCommandReference> getSlashCommandsBag() {
-        return BagUtils.emptyBag();
+        return Bag.emptyBag();
     }
 
     @Nonnull
     @Override
     public List<Member> getMembers() {
         if (guild == null) {
-            return Collections.emptyList();
+            return List.of();
         }
         if (cachedMembers != null) {
             return cachedMembers;
@@ -226,7 +223,7 @@ public class SelectMenuMentions implements Mentions {
                     }
                     return true;
                 })
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull
@@ -290,28 +287,30 @@ public class SelectMenuMentions implements Mentions {
                     }
                     break;
                 case ROLE:
-                    if (mentionable instanceof Member) {
-                        boolean mentioned = ((Member) mentionable)
-                                .getUnsortedRoles().stream()
-                                        .anyMatch(role -> isMentioned(role, Message.MentionType.ROLE));
-                        if (mentioned) {
-                            return true;
-                        }
-                    } else if (mentionable instanceof User) {
-                        boolean mentioned = getMembers().stream()
-                                .filter(it -> it.getIdLong() == mentionable.getIdLong())
-                                .findFirst()
-                                .map(member -> isMentioned(member, Message.MentionType.ROLE))
-                                .orElse(false);
-                        if (mentioned) {
-                            return true;
-                        }
-                    } else if (mentionable instanceof Role) {
-                        boolean mentioned = resolved.optObject("roles")
-                                .map(obj -> obj.hasKey(id))
-                                .orElse(false);
-                        if (mentioned) {
-                            return true;
+                    DataObject rolesObj = resolved.optObject("roles").orElse(null);
+                    if (rolesObj != null) {
+                        if (mentionable instanceof Member member) {
+                            for (String roleId : rolesObj.keys()) {
+                                if (member.hasRole(roleId)) {
+                                    return true;
+                                }
+                            }
+                        } else if (mentionable instanceof User) {
+                            Member member = getMembers().stream()
+                                    .filter(it -> it.getIdLong() == mentionable.getIdLong())
+                                    .findFirst()
+                                    .orElse(null);
+                            if (member != null) {
+                                for (String roleId : rolesObj.keys()) {
+                                    if (member.hasRole(roleId)) {
+                                        return true;
+                                    }
+                                }
+                            }
+                        } else if (mentionable instanceof Role) {
+                            if (rolesObj.hasKey(id)) {
+                                return true;
+                            }
                         }
                     }
                     break;

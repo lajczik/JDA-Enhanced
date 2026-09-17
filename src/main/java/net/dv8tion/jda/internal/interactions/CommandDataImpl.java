@@ -34,7 +34,6 @@ import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.util.*;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
@@ -116,10 +115,10 @@ public class CommandDataImpl implements SlashCommandData {
                 .put("options", options)
                 .put(
                         "contexts",
-                        contexts.stream().map(InteractionContextType::getType).collect(Collectors.toList()))
+                        contexts.stream().map(InteractionContextType::getType).toList())
                 .put(
                         "integration_types",
-                        integrationTypes.stream().map(IntegrationType::getType).collect(Collectors.toList()))
+                        integrationTypes.stream().map(IntegrationType::getType).toList())
                 .put(
                         "default_member_permissions",
                         DefaultMemberPermissions.ENABLED.equals(defaultMemberPermissions)
@@ -168,7 +167,7 @@ public class CommandDataImpl implements SlashCommandData {
         return options.stream()
                 .filter(OptionData.class::isInstance)
                 .map(OptionData.class::cast)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull
@@ -177,7 +176,7 @@ public class CommandDataImpl implements SlashCommandData {
         return options.stream()
                 .filter(SubcommandData.class::isInstance)
                 .map(SubcommandData.class::cast)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull
@@ -186,7 +185,7 @@ public class CommandDataImpl implements SlashCommandData {
         return options.stream()
                 .filter(SubcommandGroupData.class::isInstance)
                 .map(SubcommandGroupData.class::cast)
-                .collect(Helpers.toUnmodifiableList());
+                .toList();
     }
 
     @Nonnull
@@ -432,7 +431,7 @@ public class CommandDataImpl implements SlashCommandData {
             return;
         }
 
-        SerializableData last = options.get(options.size() - 1);
+        SerializableData last = options.getLast();
         allowOption = last instanceof OptionData;
         allowRequired = allowOption && ((OptionData) last).isRequired();
         allowSubcommands = !allowOption;

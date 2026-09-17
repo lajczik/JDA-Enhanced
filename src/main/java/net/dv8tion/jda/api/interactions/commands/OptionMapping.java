@@ -16,8 +16,8 @@
 
 package net.dv8tion.jda.api.interactions.commands;
 
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
@@ -48,10 +48,10 @@ public class OptionMapping {
     private final DataObject data;
     private final OptionType type;
     private final String name;
-    private final TLongObjectMap<Object> resolved;
+    private final Long2ObjectMap<Object> resolved;
     private final Mentions mentions;
 
-    public OptionMapping(DataObject data, TLongObjectMap<Object> resolved, JDA jda, Guild guild) {
+    public OptionMapping(DataObject data, Long2ObjectMap<Object> resolved, JDA jda, Guild guild) {
         this.data = data;
         this.type = OptionType.fromKey(data.getInt("type", -1));
         this.name = data.getString("name");
@@ -59,7 +59,7 @@ public class OptionMapping {
         if (type == OptionType.STRING) {
             mentions = new InteractionMentions(getAsString(), resolved, (JDAImpl) jda, guild);
         } else {
-            mentions = new InteractionMentions("", new TLongObjectHashMap<>(0), (JDAImpl) jda, guild);
+            mentions = new InteractionMentions("", Long2ObjectMaps.emptyMap(), (JDAImpl) jda, guild);
         }
     }
 
@@ -69,11 +69,11 @@ public class OptionMapping {
      * Mentions are sorted by occurrence.
      *
      * <p>Mentioned {@link Member members} and {@link Role roles} are always of the same guild.
-     * If the interaction {@link Interaction#getUser() user}, mentions users from other guilds, they will only be provided by {@link net.dv8tion.jda.api.entities.Mentions#getUsers()}.
+     * If the interaction {@link Interaction#getUser() user}, mentions users from other guilds, they will only be provided by {@link Mentions#getUsers()}.
      *
      * <p>This is not supported for {@link CommandAutoCompleteInteraction}.
      *
-     * @return {@link net.dv8tion.jda.api.entities.Mentions} for this option
+     * @return {@link Mentions} for this option
      */
     @Nonnull
     public Mentions getMentions() {
@@ -108,7 +108,7 @@ public class OptionMapping {
      * @throws IllegalStateException
      *         If this option {@link #getType() type} is not {@link OptionType#ATTACHMENT}
      *
-     * @return {@link net.dv8tion.jda.api.entities.Message.Attachment Attachment}
+     * @return {@link Message.Attachment Attachment}
      */
     @Nonnull
     public Message.Attachment getAsAttachment() {
@@ -309,14 +309,14 @@ public class OptionMapping {
     }
 
     /**
-     * The resolved {@link net.dv8tion.jda.api.entities.channel.middleman.GuildChannel} for this option value.
+     * The resolved {@link GuildChannel} for this option value.
      * <br>Note that {@link OptionType#CHANNEL OptionType.CHANNEL} can accept channels of any type!
      *
      * @throws IllegalStateException
      *         If this option is not of type {@link OptionType#CHANNEL CHANNEL}
      *         or could not be resolved for unexpected reasons
      *
-     * @return The resolved {@link net.dv8tion.jda.api.entities.channel.middleman.GuildChannel}
+     * @return The resolved {@link GuildChannel}
      */
     @Nonnull
     public GuildChannelUnion getAsChannel() {
