@@ -3022,7 +3022,15 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      *         Minimum number of days since a member has been offline to get affected.
      *
      * @throws InsufficientPermissionException
-     *         If the account doesn't have {@link Permission#KICK_MEMBERS KICK_MEMBER} Permission.
+     *         <ul>
+     *             <li>If the server has the {@code PRUNE_REQUIRES_ADMIN} feature enabled,
+     *                 and the account doesn't have {@link Permission#ADMINISTRATOR ADMINISTRATOR} Permission
+     *             </li>
+     *             <li>If the server <b>does not</b> have the {@code PRUNE_REQUIRES_ADMIN} feature enabled,
+     *                 and the account doesn't have {@link Permission#KICK_MEMBERS KICK_MEMBERS}
+     *                 and {@link Permission#MANAGE_SERVER MANAGE_SERVER} Permission
+     *             </li>
+     *         </ul>
      * @throws IllegalArgumentException
      *         If the provided days are less than {@code 1} or more than {@code 30}
      * @throws DetachedEntityException
@@ -4491,7 +4499,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * the returned {@link RestAction RestAction} include the following:
      * <ul>
      *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The prune cannot finished due to a permission discrepancy</li>
+     *     <br>The prune cannot be finished due to a permission discrepancy</li>
      * </ul>
      *
      * @param  days
@@ -4500,7 +4508,15 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      *         Optional roles to include in prune filter
      *
      * @throws InsufficientPermissionException
-     *         If the account doesn't have {@link Permission#KICK_MEMBERS KICK_MEMBER} Permission.
+     *         <ul>
+     *             <li>If the server has the {@code PRUNE_REQUIRES_ADMIN} feature enabled,
+     *                 and the account doesn't have {@link Permission#ADMINISTRATOR ADMINISTRATOR} Permission
+     *             </li>
+     *             <li>If the server <b>does not</b> have the {@code PRUNE_REQUIRES_ADMIN} feature enabled,
+     *                 and the account doesn't have {@link Permission#KICK_MEMBERS KICK_MEMBERS}
+     *                 and {@link Permission#MANAGE_SERVER MANAGE_SERVER} Permission
+     *             </li>
+     *         </ul>
      * @throws IllegalArgumentException
      *         <ul>
      *             <li>If the provided days are not in the range from 1 to 30 (inclusive)</li>
@@ -4531,7 +4547,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * the returned {@link RestAction RestAction} include the following:
      * <ul>
      *     <li>{@link ErrorResponse#MISSING_PERMISSIONS MISSING_PERMISSIONS}
-     *     <br>The prune cannot finished due to a permission discrepancy</li>
+     *     <br>The prune cannot be finished due to a permission discrepancy</li>
      * </ul>
      *
      * @param  days
@@ -4542,7 +4558,15 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      *         Optional roles to include in prune filter
      *
      * @throws InsufficientPermissionException
-     *         If the account doesn't have {@link Permission#KICK_MEMBERS KICK_MEMBER} Permission.
+     *         <ul>
+     *             <li>If the server has the {@code PRUNE_REQUIRES_ADMIN} feature enabled,
+     *                 and the account doesn't have {@link Permission#ADMINISTRATOR ADMINISTRATOR} Permission
+     *             </li>
+     *             <li>If the server <b>does not</b> have the {@code PRUNE_REQUIRES_ADMIN} feature enabled,
+     *                 and the account doesn't have {@link Permission#KICK_MEMBERS KICK_MEMBERS}
+     *                 and {@link Permission#MANAGE_SERVER MANAGE_SERVER} Permission
+     *             </li>
+     *         </ul>
      * @throws IllegalArgumentException
      *         <ul>
      *             <li>If the provided days are not in the range from 1 to 30 (inclusive)</li>
