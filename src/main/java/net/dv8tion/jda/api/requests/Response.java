@@ -16,10 +16,16 @@
 
 package net.dv8tion.jda.api.requests;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.util.ReferenceCountUtil;
 import net.dv8tion.jda.api.exceptions.ParsingException;
 import net.dv8tion.jda.api.utils.IOFunction;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
+import net.dv8tion.jda.internal.requests.Requester;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.EntityString;
 import net.dv8tion.jda.internal.utils.IOUtil;
@@ -35,6 +41,11 @@ import javax.annotation.Nullable;
 
 /**
  * Internal class used to represent HTTP responses or request failures.
+ *
+ * <p>
+ * Response bodies are stored as a {@link ByteBuf} for zero-copy access.
+ * Reference counting: the buffer is retained by this Response and released in
+ * {@link #close()}.
  */
 public class Response implements Closeable {
     public static final int ERROR_CODE = -1;
@@ -45,8 +56,14 @@ public class Response implements Closeable {
     public final int code;
     public final String message;
     public final long retryAfter;
-    private final InputStream body;
-    private final okhttp3.Response rawResponse;
+    /**
+     * The response body, retained by this Response. Released in {@link #close()}.
+     * May be null for error responses.
+     */
+    private ByteBuf byteBuf;
+
+    private final HttpHeaders headers;
+    private final String url;
     private final Set<String> cfRays;
     private String fallbackString;
     private Object object;
@@ -54,67 +71,182 @@ public class Response implements Closeable {
     private Exception exception;
 
     public Response(@Nonnull Exception exception, @Nonnull Set<String> cfRays) {
-        this(null, ERROR_CODE, ERROR_MESSAGE, -1, cfRays);
+        this(ERROR_CODE, ERROR_MESSAGE, -1, (ByteBuf) null, null, null, cfRays);
         this.exception = exception;
     }
 
+    public Response(long retryAfter, @Nonnull Set<String> cfRays) {
+        this(429, "TOO MANY REQUESTS", retryAfter, (ByteBuf) null, null, null, cfRays);
+    }
+
+    /**
+     * Primary constructor used by
+     * {@link Requester}.
+     * The provided {@code body} buffer is retained by this Response.
+     */
     public Response(
-            @Nullable okhttp3.Response response,
             int code,
             @Nonnull String message,
             long retryAfter,
+            @Nullable ByteBuf body,
+            @Nullable HttpHeaders headers,
+            @Nullable String url,
             @Nonnull Set<String> cfRays) {
-        this.rawResponse = response;
         this.code = code;
         this.message = message;
-        this.exception = null;
         this.retryAfter = retryAfter;
+        this.byteBuf = body;
+        this.headers = headers;
+        this.url = url;
         this.cfRays = cfRays;
+        this.exception = null;
+    }
 
-        if (response == null) {
-            this.body = null;
-        } else {
-            // weird compatibility issue, thinks some final isn't initialized if we return pre-maturely
+    /**
+     * @deprecated The internal HTTP client always provides a {@link ByteBuf}.
+     *             This overload is kept for binary compatibility with external
+     *             code.
+     */
+    @Deprecated
+    public Response(
+            int code,
+            @Nonnull String message,
+            long retryAfter,
+            @Nullable InputStream body,
+            @Nullable HttpHeaders headers,
+            @Nullable String url,
+            @Nonnull Set<String> cfRays) {
+        this.code = code;
+        this.message = message;
+        this.retryAfter = retryAfter;
+        this.headers = headers;
+        this.url = url;
+        this.cfRays = cfRays;
+        this.exception = null;
+        if (body != null) {
+            ByteBuf buf;
             try {
-                this.body = IOUtil.getBody(response);
-            } catch (Exception e) {
-                throw new IllegalStateException("An error occurred while parsing the response for a RestAction", e);
+                byte[] bytes = body.readAllBytes();
+                buf = Unpooled.wrappedBuffer(bytes);
+            } catch (IOException e) {
+                buf = Unpooled.EMPTY_BUFFER;
+            } finally {
+                IOUtil.silentClose(body);
             }
+            this.byteBuf = buf;
+        } else {
+            this.byteBuf = null;
         }
-    }
-
-    public Response(long retryAfter, @Nonnull Set<String> cfRays) {
-        this(null, 429, "TOO MANY REQUESTS", retryAfter, cfRays);
-    }
-
-    public Response(@Nonnull okhttp3.Response response, long retryAfter, @Nonnull Set<String> cfRays) {
-        this(response, response.code(), response.message(), retryAfter, cfRays);
     }
 
     @Nonnull
     public DataArray getArray() {
-        return get(DataArray.class, JSON_SERIALIZE_ARRAY);
+        if (attemptedParsing) {
+            if (object instanceof DataArray) {
+                return (DataArray) object;
+            }
+            throw new IllegalStateException("Attempted to parse body as DataArray, but was previously parsed as "
+                    + (object != null ? object.getClass().getSimpleName() : "null"));
+        }
+        if (byteBuf != null && byteBuf.isReadable()) {
+            attemptedParsing = true;
+            try {
+                DataArray array = DataArray.fromJson(byteBuf.slice());
+                this.object = array;
+                RestActionImpl.LOG.trace(
+                        "Parsed response body for response on url {}\n{}", url != null ? url : "unknown", this.object);
+                return array;
+            } catch (Exception e) {
+                try {
+                    this.fallbackString = byteBuf.toString(StandardCharsets.UTF_8);
+                } catch (Exception ignored) {
+                }
+                throw new IllegalStateException("An error occurred while parsing the response for a RestAction", e);
+            }
+        }
+        throw new IllegalStateException("Response has no body to parse as DataArray");
     }
 
     @Nonnull
     public Optional<DataArray> optArray() {
-        return parseBody(true, DataArray.class, JSON_SERIALIZE_ARRAY);
+        if (attemptedParsing) {
+            if (object instanceof DataArray) {
+                return Optional.of((DataArray) object);
+            }
+            return Optional.empty();
+        }
+        if (byteBuf != null && byteBuf.isReadable()) {
+            try {
+                return Optional.of(getArray());
+            } catch (Exception e) {
+                if (e.getCause() instanceof ParsingException || e instanceof ParsingException) {
+                    return Optional.empty();
+                }
+                throw e;
+            }
+        }
+        return Optional.empty();
     }
 
     @Nonnull
     public DataObject getObject() {
-        return get(DataObject.class, JSON_SERIALIZE_OBJECT);
+        if (attemptedParsing) {
+            if (object instanceof DataObject) {
+                return (DataObject) object;
+            }
+            throw new IllegalStateException("Attempted to parse body as DataObject, but was previously parsed as "
+                    + (object != null ? object.getClass().getSimpleName() : "null"));
+        }
+        if (byteBuf != null && byteBuf.isReadable()) {
+            attemptedParsing = true;
+            try {
+                DataObject obj = DataObject.fromJson(byteBuf.slice());
+                this.object = obj;
+                RestActionImpl.LOG.trace(
+                        "Parsed response body for response on url {}\n{}", url != null ? url : "unknown", this.object);
+                return obj;
+            } catch (Exception e) {
+                try {
+                    this.fallbackString = byteBuf.toString(StandardCharsets.UTF_8);
+                } catch (Exception ignored) {
+                }
+                throw new IllegalStateException("An error occurred while parsing the response for a RestAction", e);
+            }
+        }
+        throw new IllegalStateException("Response has no body to parse as DataObject");
     }
 
     @Nonnull
     public Optional<DataObject> optObject() {
-        return parseBody(true, DataObject.class, JSON_SERIALIZE_OBJECT);
+        if (attemptedParsing) {
+            if (object instanceof DataObject) {
+                return Optional.of((DataObject) object);
+            }
+            return Optional.empty();
+        }
+        if (byteBuf != null && byteBuf.isReadable()) {
+            try {
+                return Optional.of(getObject());
+            } catch (Exception e) {
+                if (e.getCause() instanceof ParsingException || e instanceof ParsingException) {
+                    return Optional.empty();
+                }
+                throw e;
+            }
+        }
+        return Optional.empty();
     }
 
     @Nonnull
     public String getString() {
-        return parseBody(String.class, this::readString)
-                .orElseGet(() -> fallbackString == null ? "N/A" : fallbackString);
+        if (fallbackString != null) {
+            return fallbackString;
+        }
+        if (byteBuf != null && byteBuf.refCnt() > 0) {
+            fallbackString = byteBuf.toString(StandardCharsets.UTF_8);
+            return fallbackString;
+        }
+        return "N/A";
     }
 
     @Nonnull
@@ -123,13 +255,51 @@ public class Response implements Closeable {
     }
 
     @Nullable
-    public okhttp3.Response getRawResponse() {
-        return this.rawResponse;
+    public HttpHeaders getHeaders() {
+        return this.headers;
+    }
+
+    @Nullable
+    public String getHeader(@Nonnull CharSequence name) {
+        return this.headers != null ? this.headers.get(name) : null;
+    }
+
+    @Nullable
+    public String getUrl() {
+        return this.url;
+    }
+
+    /**
+     * Returns the raw response body as a {@link ByteBuf}.
+     * The returned buffer is owned by this Response and will be released in
+     * {@link #close()}.
+     * Do <b>not</b> release it externally; call {@link ByteBuf#slice()} or
+     * {@link ByteBuf#duplicate()} if needed.
+     */
+    @Nullable
+    public ByteBuf getByteBuf() {
+        return this.byteBuf;
+    }
+
+    /**
+     * Returns the response body as an {@link InputStream} for external API
+     * consumers.
+     * The caller is responsible for closing the returned stream.
+     *
+     * <p>
+     * Internally, prefer using {@link #getByteBuf()} directly.
+     */
+    @Nullable
+    public InputStream getBody() {
+        if (byteBuf != null && byteBuf.refCnt() > 0) {
+            return new ByteBufInputStream(byteBuf.slice(), false);
+        }
+        return null;
     }
 
     @Nonnull
     public Set<String> getCFRays() {
-        return cfRays;
+        return cfRays != null ? cfRays : Set.of();
     }
 
     @Nullable
@@ -164,10 +334,17 @@ public class Response implements Closeable {
         return entityString.toString();
     }
 
+    /**
+     * Releases the retained {@link ByteBuf}. Must be called exactly once after this
+     * Response is done.
+     */
     @Override
     public void close() {
-        if (rawResponse != null) {
-            rawResponse.close();
+        if (byteBuf != null) {
+            if (byteBuf.refCnt() > 0) {
+                ReferenceCountUtil.safeRelease(byteBuf);
+            }
+            byteBuf = null;
         }
     }
 
@@ -189,20 +366,19 @@ public class Response implements Closeable {
         }
 
         attemptedParsing = true;
-        if (body == null || rawResponse == null || rawResponse.body().contentLength() == 0) {
+        if (byteBuf == null || !byteBuf.isReadable()) {
             return Optional.empty();
         }
 
         BufferedReader reader = null;
         try {
-            reader = new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_8));
+            reader = new BufferedReader(
+                    new InputStreamReader(new ByteBufInputStream(byteBuf.slice(), false), StandardCharsets.UTF_8));
             reader.mark(1024);
             T t = parser.apply(reader);
             this.object = t;
             RestActionImpl.LOG.trace(
-                    "Parsed response body for response on url {}\n{}",
-                    rawResponse.request().url(),
-                    this.object);
+                    "Parsed response body for response on url {}\n{}", url != null ? url : "unknown", this.object);
             return Optional.ofNullable(t);
         } catch (Exception e) {
             try {

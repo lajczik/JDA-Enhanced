@@ -16,7 +16,7 @@
 
 package net.dv8tion.jda.internal.requests;
 
-import gnu.trove.map.TLongObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.GuildVoiceState;
@@ -43,7 +43,7 @@ class WebSocketSendingThread implements Runnable {
     private final ReentrantLock queueLock;
     private final Queue<DataObject> chunkQueue;
     private final Queue<DataObject> ratelimitQueue;
-    private final TLongObjectMap<ConnectionRequest> queuedAudioConnections;
+    private final Long2ObjectMap<ConnectionRequest> queuedAudioConnections;
     private final ScheduledExecutorService executor;
     private Future<?> handle;
 
@@ -111,7 +111,8 @@ class WebSocketSendingThread implements Runnable {
             api.setContext();
             attemptedToSend = false;
             needRateLimit = false;
-            // We do this outside of the lock because otherwise we could potentially deadlock here
+            // We do this outside of the lock because otherwise we could potentially
+            // deadlock here
             audioRequest = client.getNextAudioConnectRequest();
 
             hasLock = queueLock.tryLock() || queueLock.tryLock(10, TimeUnit.SECONDS);
@@ -209,8 +210,10 @@ class WebSocketSendingThread implements Runnable {
         }
         LOG.debug("Sending voice request {}", packet);
         if (send(packet)) {
-            // If we didn't get RateLimited, Next request attempt will be 10 seconds from now
-            // we remove it in VoiceStateUpdateHandler once we hear that it has updated our status
+            // If we didn't get RateLimited, Next request attempt will be 10 seconds from
+            // now
+            // we remove it in VoiceStateUpdateHandler once we hear that it has updated our
+            // status
             // in 10 seconds we will attempt again in case we did not receive an update
             audioRequest.setNextAttemptEpoch(System.currentTimeMillis() + 10000);
             // If we are already in the correct state according to voice state

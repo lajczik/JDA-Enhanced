@@ -18,8 +18,7 @@ package net.dv8tion.jda.api.requests;
 
 import net.dv8tion.jda.api.JDAInfo;
 import net.dv8tion.jda.internal.utils.Checks;
-import net.dv8tion.jda.internal.utils.Helpers;
-import okhttp3.Request;
+import reactor.netty.http.client.HttpClientRequest;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -47,7 +46,7 @@ public class RestConfig {
     private String userAgent = USER_AGENT;
     private String baseUrl = DEFAULT_BASE_URL;
     private boolean relativeRateLimit = true;
-    private Consumer<? super Request.Builder> customBuilder;
+    private Consumer<? super HttpClientRequest> customBuilder;
     private Function<? super RestRateLimiter.RateLimitConfig, ? extends RestRateLimiter> rateLimiter =
             SequentialRestRateLimiter::new;
 
@@ -100,38 +99,33 @@ public class RestConfig {
      *         The new base url
      *
      * @throws IllegalArgumentException
-     *         If the provided base url is null, empty, or not an HTTP(s) url
+     *         If the provided base url is null or does not end with a trailing slash
      *
      * @return The current RestConfig for chaining convenience
      */
     @Nonnull
     public RestConfig setBaseUrl(@Nonnull String baseUrl) {
-        Checks.notEmpty(baseUrl, "URL");
-        Checks.check(baseUrl.length() > 4 && baseUrl.substring(0, 4).equalsIgnoreCase("http"), "URL must be HTTP");
-        if (baseUrl.endsWith("/")) {
-            this.baseUrl = baseUrl;
-        } else {
-            this.baseUrl = baseUrl + "/";
-        }
+        Checks.notNull(baseUrl, "Base URL");
+        Checks.check(baseUrl.endsWith("/"), "Base URL must end with a trailing slash");
+        this.baseUrl = baseUrl;
         return this;
     }
 
     /**
-     * Provide a custom User-Agent suffix which is appended to {@link #USER_AGENT}.
-     * <br>You can theoretically replace the User-Agent entirely with {@link #setCustomBuilder(Consumer)},
-     * however this is not recommended as Discord blocks requests with invalid or misbehaving User-Agents.
+     * Provide a custom suffix for the user-agent.
+     * <br>By default, this will use {@link #USER_AGENT}.
      *
      * @param  suffix
-     *         The suffix to append to the User-Agent, null to unset
+     *         The custom suffix to append, or null to disable
      *
      * @return The current RestConfig for chaining convenience
      */
     @Nonnull
     public RestConfig setUserAgentSuffix(@Nullable String suffix) {
-        if (suffix == null || Helpers.isBlank(suffix)) {
+        if (suffix == null || suffix.isBlank()) {
             this.userAgent = USER_AGENT;
         } else {
-            this.userAgent = USER_AGENT + " " + suffix;
+            this.userAgent = USER_AGENT + " " + suffix.trim();
         }
         return this;
     }
@@ -154,7 +148,7 @@ public class RestConfig {
      * @return The current RestConfig for chaining convenience
      */
     @Nonnull
-    public RestConfig setCustomBuilder(@Nullable Consumer<? super Request.Builder> customBuilder) {
+    public RestConfig setCustomBuilder(@Nullable Consumer<? super HttpClientRequest> customBuilder) {
         this.customBuilder = customBuilder;
         return this;
     }
@@ -195,7 +189,7 @@ public class RestConfig {
      * @return The custom interceptor, or null if none is configured
      */
     @Nullable
-    public Consumer<? super Request.Builder> getCustomBuilder() {
+    public Consumer<? super HttpClientRequest> getCustomBuilder() {
         return customBuilder;
     }
 

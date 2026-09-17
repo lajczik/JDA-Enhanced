@@ -16,29 +16,33 @@
 
 package net.dv8tion.jda.api.utils;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.ReferenceCounted;
 import net.dv8tion.jda.api.utils.data.DataObject;
-import net.dv8tion.jda.internal.requests.Requester;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.EntityString;
 import net.dv8tion.jda.internal.utils.IOUtil;
+import net.dv8tion.jda.internal.utils.requestbody.ByteBufRequestBody;
 import net.dv8tion.jda.internal.utils.requestbody.DataSupplierBody;
+import net.dv8tion.jda.internal.utils.requestbody.MultipartBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 import net.dv8tion.jda.internal.utils.requestbody.TypedBody;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.RequestBody;
-import okio.Okio;
-import okio.Source;
 import org.jetbrains.annotations.Contract;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.lang.ref.Cleaner;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.function.Supplier;
 
+import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -46,32 +50,73 @@ import javax.annotation.Nullable;
  * Represents a file that is intended to be uploaded to Discord for arbitrary requests.
  * <br>This is used to upload data to discord for various purposes.
  *
- * <p>The {@link InputStream} will be closed on consumption by the request.
- * You can use {@link #close()} to close the stream manually.
+ * <p><b>Resource Management:</b>
+ * <br>This class implements {@link AutoCloseable}. It is recommended to use try-with-resources
+ * or call {@link #close()} when finished with this upload to eagerly release underlying buffers
+ * and close any open streams.
+ * <br>If an instance is not explicitly closed, its resources will be automatically reclaimed
+ * by the Garbage Collector once all references to it have been dropped.
  */
-public class FileUpload implements Closeable, AttachedFile {
+public class FileUpload implements AutoCloseable, AttachedFile {
+    private static final Cleaner CLEANER = Cleaner.create();
+
+    private static class CleanupAction implements Runnable {
+        private final InputStream resource;
+        private volatile TypedBody<?> body;
+
+        CleanupAction(InputStream resource) {
+            this.resource = resource;
+        }
+
+        void setBody(TypedBody<?> body) {
+            this.body = body;
+        }
+
+        @Override
+        public void run() {
+            if (resource != null) {
+                IOUtil.silentClose(resource);
+            }
+            TypedBody<?> b = this.body;
+            this.body = null;
+            if (b instanceof ReferenceCounted refCounted) {
+                ReferenceCountUtil.safeRelease(refCounted);
+            } else if (b instanceof AutoCloseable closeable) {
+                IOUtil.silentClose(closeable);
+            }
+        }
+    }
+
+    private final CleanupAction cleanup;
+    private final Cleaner.Cleanable cleanable;
     private final InputStream resource;
-    private final Supplier<? extends Source> resourceSupplier;
+    private final Supplier<? extends InputStream> resourceSupplier;
     private String name;
     private TypedBody<?> body;
     private String description;
-    private MediaType mediaType = Requester.MEDIA_TYPE_OCTET;
+    private MediaType mediaType = MediaType.OCTET;
     private byte[] waveform;
     private double durationSeconds;
     private boolean spoiler;
+    private boolean singleUse = false;
+    private volatile boolean closed = false;
 
     protected FileUpload(InputStream resource, String name) {
         this.resource = resource;
         this.resourceSupplier = null;
         this.name = name;
         this.spoiler = name != null && name.startsWith("SPOILER_");
+        this.cleanup = new CleanupAction(resource);
+        this.cleanable = CLEANER.register(this, cleanup);
     }
 
-    protected FileUpload(Supplier<? extends Source> resourceSupplier, String name) {
+    protected FileUpload(Supplier<? extends InputStream> resourceSupplier, String name) {
         this.resourceSupplier = resourceSupplier;
         this.resource = null;
         this.name = name;
         this.spoiler = name != null && name.startsWith("SPOILER_");
+        this.cleanup = new CleanupAction(null);
+        this.cleanable = CLEANER.register(this, cleanup);
     }
 
     /**
@@ -95,34 +140,9 @@ public class FileUpload implements Closeable, AttachedFile {
      * @return {@link FileUpload}
      */
     @Nonnull
+    @CheckReturnValue
     public static FileUpload fromStreamSupplier(
             @Nonnull String name, @Nonnull Supplier<? extends InputStream> supplier) {
-        Checks.notNull(supplier, "Supplier");
-        return fromSourceSupplier(name, () -> Okio.source(supplier.get()));
-    }
-
-    /**
-     * Creates a FileUpload that sources its data from the supplier.
-     * <br>The supplier <em>must</em> return a new stream on every call.
-     *
-     * <p>The streams are expected to always be at the beginning, when they are taken from the supplier.
-     * If the supplier returned the same stream instance, the reader would start at the wrong position when re-attempting a request.
-     *
-     * <p>When this supplier factory is used, {@link #getData()} will return a new instance on each call.
-     * It is the responsibility of the caller to close that stream.
-     *
-     * @param  name
-     *         The file name
-     * @param  supplier
-     *         The resource supplier, which returns a new {@link Source} on each call
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the name is blank
-     *
-     * @return {@link FileUpload}
-     */
-    @Nonnull
-    public static FileUpload fromSourceSupplier(@Nonnull String name, @Nonnull Supplier<? extends Source> supplier) {
         Checks.notNull(supplier, "Supplier");
         Checks.notBlank(name, "Name");
         return new FileUpload(supplier, name);
@@ -132,7 +152,7 @@ public class FileUpload implements Closeable, AttachedFile {
      * Create a new {@link FileUpload} for an input stream.
      * <br>This is used to upload data to discord for various purposes.
      *
-     * <p>The {@link InputStream} will be closed on consumption by the request.
+     * <p>This class implements {@link Closeable}.
      * You can use {@link FileUpload#close()} to close the stream manually.
      *
      * @param  data
@@ -145,9 +165,10 @@ public class FileUpload implements Closeable, AttachedFile {
      *
      * @return {@link FileUpload}
      *
-     * @see    java.io.FileInputStream FileInputStream
+     * @see    FileInputStream FileInputStream
      */
     @Nonnull
+    @CheckReturnValue
     public static FileUpload fromData(@Nonnull InputStream data, @Nonnull String name) {
         Checks.notNull(data, "Data");
         Checks.notBlank(name, "Name");
@@ -169,10 +190,36 @@ public class FileUpload implements Closeable, AttachedFile {
      * @return {@link FileUpload}
      */
     @Nonnull
+    @CheckReturnValue
     public static FileUpload fromData(@Nonnull byte[] data, @Nonnull String name) {
         Checks.notNull(data, "Data");
         Checks.notNull(name, "Name");
-        return fromData(new ByteArrayInputStream(data), name);
+        return fromData(Unpooled.wrappedBuffer(data), name);
+    }
+
+    /**
+     * Create a new {@link FileUpload} for a Netty {@link ByteBuf}.
+     * <br>This is used to upload data to discord with zero-copy buffer transfer.
+     *
+     * @param  data
+     *         The {@link ByteBuf} to upload
+     * @param  name
+     *         The representative name to use for the file
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or the name is empty
+     *
+     * @return {@link FileUpload}
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static FileUpload fromData(@Nonnull ByteBuf data, @Nonnull String name) {
+        Checks.notNull(data, "Data");
+        Checks.notBlank(name, "Name");
+        FileUpload upload = new FileUpload(new ByteBufInputStream(data.duplicate(), false), name);
+        upload.body = new ByteBufRequestBody(data, MediaType.OCTET);
+        upload.cleanup.setBody(upload.body);
+        return upload;
     }
 
     /**
@@ -194,24 +241,21 @@ public class FileUpload implements Closeable, AttachedFile {
      *
      * @return {@link FileUpload}
      *
-     * @see    java.io.FileInputStream FileInputStream
+     * @see    FileInputStream FileInputStream
      */
     @Nonnull
+    @CheckReturnValue
     public static FileUpload fromData(@Nonnull File file, @Nonnull String name) {
         Checks.notNull(file, "File");
-        try {
-            return fromData(new FileInputStream(file), name);
-        } catch (FileNotFoundException e) {
-            throw new UncheckedIOException(e);
-        }
+        Checks.notBlank(name, "Name");
+        return fromData(file.toPath(), name);
     }
 
     /**
      * Create a new {@link FileUpload} for a local file.
      * <br>This is used to upload data to discord for various purposes.
      *
-     * <p>This opens a {@link FileInputStream}, which will be closed on consumption by the request.
-     * You can use {@link FileUpload#close()} to close the stream manually.
+     * <p>This will use the {@link File#getName() file name} as the file upload name.
      *
      * @param  file
      *         The {@link File} to upload
@@ -223,15 +267,43 @@ public class FileUpload implements Closeable, AttachedFile {
      *
      * @return {@link FileUpload}
      *
-     * @see    java.io.FileInputStream FileInputStream
      * @see    #fromData(File, String)
      */
     @Nonnull
+    @CheckReturnValue
     public static FileUpload fromData(@Nonnull File file) {
         Checks.notNull(file, "File");
+        return fromData(file.toPath(), file.getName());
+    }
+
+    /**
+     * Create a new {@link FileUpload} for a local file.
+     * <br>This is used to upload data to discord for various purposes.
+     *
+     * @param  path
+     *         The {@link Path} of the file to upload
+     * @param  name
+     *         The representative name to use for the file
+     * @param  options
+     *         Options specifying how the file is opened
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or the name is empty
+     * @throws UncheckedIOException
+     *         If an IOException occurs while opening the file
+     *
+     * @return {@link FileUpload}
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static FileUpload fromData(@Nonnull Path path, @Nonnull String name, @Nonnull OpenOption... options) {
+        Checks.notNull(path, "Path");
+        Checks.notBlank(name, "Name");
+        Checks.notNull(options, "OpenOptions");
         try {
-            return fromData(new FileInputStream(file), file.getName());
-        } catch (FileNotFoundException e) {
+            ByteBuf buffer = IOUtil.readIntoByteBuf(path, NettyConfig.getGlobalAllocator(), options);
+            return fromData(buffer, name);
+        } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
@@ -240,60 +312,28 @@ public class FileUpload implements Closeable, AttachedFile {
      * Create a new {@link FileUpload} for a local file.
      * <br>This is used to upload data to discord for various purposes.
      *
-     * <p>This opens the path using {@link Files#newInputStream(Path, OpenOption...)}, which will be closed on consumption by the request.
-     * You can use {@link FileUpload#close()} to close the stream manually.
-     *
-     * @param  path
-     *         The {@link Path} of the file to upload
-     * @param  name
-     *         The representative name to use for the file
-     * @param  options
-     *         The {@link OpenOption OpenOptions} specifying how the file is opened
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the name is empty
-     * @throws UncheckedIOException
-     *         If an IOException is thrown while opening the file
-     *
-     * @return {@link FileUpload}
-     */
-    @Nonnull
-    public static FileUpload fromData(@Nonnull Path path, @Nonnull String name, @Nonnull OpenOption... options) {
-        Checks.notNull(path, "Path");
-        Checks.noneNull(options, "Options");
-        Checks.check(Files.isReadable(path), "File for specified path cannot be read. Path: %s", path);
-        try {
-            return fromData(Files.newInputStream(path, options), name);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Could not open file for specified path. Path: " + path, e);
-        }
-    }
-
-    /**
-     * Create a new {@link FileUpload} for a local file.
-     * <br>This is used to upload data to discord for various purposes.
-     * Uses {@link Path#getFileName()} to specify the name of the file, to customize the filename use {@link #fromData(Path, String, OpenOption...)}.
-     *
-     * <p>This opens the path using {@link Files#newInputStream(Path, OpenOption...)}, which will be closed on consumption by the request.
-     * You can use {@link FileUpload#close()} to close the stream manually.
+     * <p>This will use the {@link Path#getFileName() file name} as the file upload name.
      *
      * @param  path
      *         The {@link Path} of the file to upload
      * @param  options
-     *         The {@link OpenOption OpenOptions} specifying how the file is opened
+     *         Options specifying how the file is opened
      *
      * @throws IllegalArgumentException
      *         If null is provided
      * @throws UncheckedIOException
-     *         If an IOException is thrown while opening the file
+     *         If an IOException occurs while opening the file
      *
      * @return {@link FileUpload}
+     *
+     * @see    #fromData(Path, String, OpenOption...)
      */
     @Nonnull
+    @CheckReturnValue
     public static FileUpload fromData(@Nonnull Path path, @Nonnull OpenOption... options) {
         Checks.notNull(path, "Path");
         Path fileName = path.getFileName();
-        Checks.check(fileName != null, "Path does not have a file name. Path: %s", path);
+        Checks.notNull(fileName, "Path.getFileName");
         return fromData(path, fileName.toString(), options);
     }
 
@@ -323,6 +363,92 @@ public class FileUpload implements Closeable, AttachedFile {
         }
         this.spoiler = isSpoiler;
         return this;
+    }
+
+    /**
+     * Mark this file upload as single-use, causing it to be closed automatically after being consumed by a request.
+     * <br>By default, file uploads are <b>not</b> closed automatically after use and can be reused across multiple requests.
+     *
+     * @return The updated FileUpload instance
+     */
+    @Nonnull
+    @Contract(" -> this")
+    public FileUpload asSingleUse() {
+        return asSingleUse(true);
+    }
+
+    /**
+     * Set whether this file upload should be closed automatically after being consumed by a request.
+     * <br>By default, this is {@code false} and file uploads can be reused across multiple requests.
+     *
+     * @param  singleUse
+     *         {@code true} if this file upload should close automatically after use
+     *
+     * @return The updated FileUpload instance
+     */
+    @Nonnull
+    @Contract("_->this")
+    public FileUpload asSingleUse(boolean singleUse) {
+        this.singleUse = singleUse;
+        return this;
+    }
+
+    /**
+     * Whether this file upload is configured to be closed automatically after use.
+     *
+     * @return True, if this file upload is single-use
+     */
+    public boolean isSingleUse() {
+        return singleUse;
+    }
+
+    /**
+     * Mark this file upload to be closed automatically after being consumed by a request.
+     *
+     * @return The updated FileUpload instance
+     *
+     * @see    #asSingleUse()
+     */
+    @Nonnull
+    @Contract(" -> this")
+    public FileUpload closeOnUse() {
+        return asSingleUse(true);
+    }
+
+    /**
+     * Set whether this file upload should be closed automatically after being consumed by a request.
+     *
+     * @param  closeOnUse
+     *         {@code true} if this file upload should close automatically after use
+     *
+     * @return The updated FileUpload instance
+     *
+     * @see    #asSingleUse(boolean)
+     */
+    @Nonnull
+    @Contract("_->this")
+    public FileUpload setCloseOnUse(boolean closeOnUse) {
+        return asSingleUse(closeOnUse);
+    }
+
+    /**
+     * Whether this file upload is configured to be closed automatically after use.
+     *
+     * @return True, if this file upload closes on use
+     *
+     * @see    #isSingleUse()
+     */
+    public boolean isCloseOnUse() {
+        return singleUse;
+    }
+
+    /**
+     * Whether this file upload has been closed.
+     *
+     * @return True, if this file upload has already been closed
+     */
+    public boolean isClosed() {
+        return closed;
     }
 
     /**
@@ -459,7 +585,7 @@ public class FileUpload implements Closeable, AttachedFile {
         if (resource != null) {
             return resource;
         } else {
-            return Okio.buffer(resourceSupplier.get()).inputStream();
+            return resourceSupplier.get();
         }
     }
 
@@ -480,21 +606,40 @@ public class FileUpload implements Closeable, AttachedFile {
     @Nonnull
     public synchronized RequestBody getRequestBody(@Nonnull MediaType type) {
         Checks.notNull(type, "Type");
+        if (closed) {
+            throw new IllegalStateException("FileUpload has already been closed");
+        }
         if (body != null) { // This allows FileUpload to be used more than once!
             return body.withType(type);
         }
-
         if (resource == null) {
-            return body = new DataSupplierBody(type, resourceSupplier);
+            body = new DataSupplierBody(type, resourceSupplier);
         } else {
-            return body = IOUtil.createRequestBody(type, resource);
+            body = IOUtil.createRequestBody(type, resource, UnpooledByteBufAllocator.DEFAULT);
+        }
+        cleanup.setBody(body);
+        return body;
+    }
+
+    public synchronized void addPart(
+            @Nonnull MultipartBody.Builder builder, @Nonnull String partName, @Nonnull MediaType type) {
+        Checks.notNull(builder, "Builder");
+        Checks.notNull(partName, "Part name");
+        Checks.notNull(type, "Type");
+        RequestBody requestBody = getRequestBody(type);
+        if (requestBody instanceof ReferenceCounted refCounted) {
+            refCounted.retain();
+        }
+        if (singleUse) {
+            builder.addFormDataPart(partName, name, new SingleUseRequestBody(requestBody, this));
+        } else {
+            builder.addFormDataPart(partName, name, requestBody);
         }
     }
 
     @Override
-    @SuppressWarnings("ConstantConditions")
     public synchronized void addPart(@Nonnull MultipartBody.Builder builder, int index) {
-        builder.addFormDataPart("files[" + index + "]", name, getRequestBody(mediaType));
+        addPart(builder, "files[" + index + "]", mediaType);
     }
 
     @Nonnull
@@ -507,36 +652,166 @@ public class FileUpload implements Closeable, AttachedFile {
                 .put("is_spoiler", spoiler)
                 .put("filename", name);
         if (waveform != null && durationSeconds > 0) {
-            attachment.put("waveform", new String(Base64.getEncoder().encode(waveform), StandardCharsets.UTF_8));
+            attachment.put("waveform", Base64.getEncoder().encodeToString(waveform));
             attachment.put("duration_secs", durationSeconds);
         }
         return attachment;
     }
 
     @Override
-    public synchronized void close() throws IOException {
-        if (body == null) {
+    public synchronized void close() {
+        try {
             forceClose();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
     @Override
-    public void forceClose() throws IOException {
-        if (resource != null) {
-            resource.close();
+    public synchronized void forceClose() throws IOException {
+        if (closed) {
+            return;
         }
-    }
-
-    @Override
-    @SuppressWarnings("deprecation")
-    protected void finalize() {
-        if (body == null && resource != null) { // Only close if the resource was never used
-            IOUtil.silentClose(resource);
+        closed = true;
+        try {
+            if (resource != null) {
+                resource.close();
+            }
+        } finally {
+            this.body = null;
+            cleanable.clean();
         }
     }
 
     @Override
     public String toString() {
         return new EntityString("AttachedFile").setType("Data").setName(name).toString();
+    }
+
+    private static class SingleUseRequestBody extends RequestBody implements ReferenceCounted, AutoCloseable {
+        private final RequestBody delegate;
+        private final FileUpload upload;
+
+        SingleUseRequestBody(RequestBody delegate, FileUpload upload) {
+            this.delegate = delegate;
+            this.upload = upload;
+        }
+
+        @Nullable
+        @Override
+        public MediaType contentType() {
+            return delegate.contentType();
+        }
+
+        @Nullable
+        @Override
+        public String contentTypeHeader() {
+            return delegate.contentTypeHeader();
+        }
+
+        @Override
+        public long contentLength() throws IOException {
+            return delegate.contentLength();
+        }
+
+        @Override
+        public void writeTo(@Nonnull OutputStream out) throws IOException {
+            delegate.writeTo(out);
+        }
+
+        @Override
+        public void writeTo(@Nonnull ByteBuf out) throws IOException {
+            delegate.writeTo(out);
+        }
+
+        @Nonnull
+        @Override
+        public ByteBuf getByteBuf(@Nonnull ByteBufAllocator allocator) throws IOException {
+            return delegate.getByteBuf(allocator);
+        }
+
+        @Nonnull
+        @Override
+        public byte[] toBytes() throws IOException {
+            return delegate.toBytes();
+        }
+
+        @Nonnull
+        @Override
+        public InputStream getInputStream() throws IOException {
+            return delegate.getInputStream();
+        }
+
+        @Override
+        public int refCnt() {
+            if (delegate instanceof ReferenceCounted refCounted) {
+                return refCounted.refCnt();
+            }
+            return 1;
+        }
+
+        @Nonnull
+        @Override
+        public ReferenceCounted retain() {
+            if (delegate instanceof ReferenceCounted refCounted) {
+                refCounted.retain();
+            }
+            return this;
+        }
+
+        @Nonnull
+        @Override
+        public ReferenceCounted retain(int increment) {
+            if (delegate instanceof ReferenceCounted refCounted) {
+                refCounted.retain(increment);
+            }
+            return this;
+        }
+
+        @Nonnull
+        @Override
+        public ReferenceCounted touch() {
+            if (delegate instanceof ReferenceCounted refCounted) {
+                refCounted.touch();
+            }
+            return this;
+        }
+
+        @Nonnull
+        @Override
+        public ReferenceCounted touch(@Nullable Object hint) {
+            if (delegate instanceof ReferenceCounted refCounted) {
+                refCounted.touch(hint);
+            }
+            return this;
+        }
+
+        @Override
+        public boolean release() {
+            return release(1);
+        }
+
+        @Override
+        public boolean release(int decrement) {
+            try {
+                if (delegate instanceof ReferenceCounted refCounted) {
+                    return refCounted.release(decrement);
+                }
+                return true;
+            } finally {
+                upload.close();
+            }
+        }
+
+        @Override
+        public void close() {
+            try {
+                if (delegate instanceof AutoCloseable closeable) {
+                    IOUtil.silentClose(closeable);
+                }
+            } finally {
+                upload.close();
+            }
+        }
     }
 }

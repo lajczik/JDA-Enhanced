@@ -16,6 +16,10 @@
 
 package net.dv8tion.jda.api.utils;
 
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpMethod;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Widget;
 import net.dv8tion.jda.api.exceptions.RateLimitedException;
@@ -24,16 +28,19 @@ import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.entities.WidgetImpl;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.Helpers;
-import net.dv8tion.jda.internal.utils.IOUtil;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.resources.ConnectionProvider;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -149,9 +156,9 @@ public class WidgetUtil {
      * @param  guildId
      *         The id of the Guild
      *
-     * @throws net.dv8tion.jda.api.exceptions.RateLimitedException
+     * @throws RateLimitedException
      *         If the request was rate limited, <b>respect the timeout</b>!
-     * @throws java.lang.NumberFormatException
+     * @throws NumberFormatException
      *         If the provided {@code guildId} cannot be parsed by {@link Long#parseLong(String)}
      *
      * @return {@code null} if the provided guild ID is not a valid Discord guild ID
@@ -179,9 +186,9 @@ public class WidgetUtil {
      * @param  guildId
      *         The id of the Guild
      *
-     * @throws java.io.UncheckedIOException
+     * @throws UncheckedIOException
      *         If an I/O error occurs
-     * @throws net.dv8tion.jda.api.exceptions.RateLimitedException
+     * @throws RateLimitedException
      *         If the request was rate limited, <b>respect the timeout</b>!
      *
      * @return {@code null} if the provided guild ID is not a valid Discord guild ID
@@ -191,52 +198,135 @@ public class WidgetUtil {
      *         <br>a filled-in Widget object if the guild ID is valid and the guild
      *         in question has the widget enabled.
      */
+    private static final HttpClient DEFAULT_HTTP_CLIENT = HttpClient.create(ConnectionProvider.builder("JDA-Widget")
+                    .maxConnections(64)
+                    .pendingAcquireTimeout(Duration.ofSeconds(45))
+                    .maxIdleTime(Duration.ofSeconds(10))
+                    .build())
+            .compress(true);
+
+    /**
+     * Makes an asynchronous request to get the information for a Guild's widget as a Project Reactor {@link Mono}.
+     *
+     * @param  guildId
+     *         The id of the Guild
+     *
+     * @return Never-null {@link Mono} representing the widget retrieval
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static Mono<Widget> getWidgetAsMono(long guildId) {
+        return getWidgetAsMono(guildId, (Scheduler) null);
+    }
+
+    /**
+     * Makes an asynchronous request to get the information for a Guild's widget as a Project Reactor {@link Mono},
+     * dispatching on the callback scheduler of the provided {@link JDA} instance.
+     *
+     * @param  guildId
+     *         The id of the Guild
+     * @param  jda
+     *         The JDA instance whose callback scheduler should be used, or null to use the default
+     *
+     * @return Never-null {@link Mono} representing the widget retrieval
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static Mono<Widget> getWidgetAsMono(long guildId, @Nullable JDA jda) {
+        return getWidgetAsMono(guildId, jda == null ? null : jda.getCallbackScheduler());
+    }
+
+    /**
+     * Makes an asynchronous request to get the information for a Guild's widget as a Project Reactor {@link Mono},
+     * dispatching on the provided {@link Scheduler}.
+     *
+     * @param  guildId
+     *         The id of the Guild
+     * @param  scheduler
+     *         The {@link Scheduler} to publish on, or null to use the default
+     *
+     * @return Never-null {@link Mono} representing the widget retrieval
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static Mono<Widget> getWidgetAsMono(long guildId, @Nullable Scheduler scheduler) {
+        if (scheduler == null) {
+            scheduler = FileProxy.getDefaultScheduler();
+            if (scheduler == null) {
+                scheduler = Schedulers.boundedElastic();
+            }
+        }
+        Scheduler finalScheduler = scheduler;
+        return DEFAULT_HTTP_CLIENT
+                .request(HttpMethod.GET)
+                .uri(String.format(WIDGET_URL, guildId))
+                .send((req, out) -> {
+                    req.header(HttpHeaderNames.USER_AGENT, RestConfig.USER_AGENT)
+                            .header(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
+                    return out;
+                })
+                .responseSingle((response, byteBufMono) -> {
+                    int code = response.status().code();
+                    if (code == 400 || code == 404) {
+                        return byteBufMono.ignoreElement().then(Mono.empty());
+                    }
+                    if (code == 403) {
+                        return byteBufMono.ignoreElement().then(Mono.just((Widget) new WidgetImpl(guildId)));
+                    }
+                    return byteBufMono.map(buf -> {
+                        if (code == 200) {
+                            return (Widget) new WidgetImpl(DataObject.fromJson(buf));
+                        } else if (code == 429) {
+                            long retryAfter = 0;
+                            try {
+                                retryAfter = DataObject.fromJson(buf).getLong("retry_after");
+                            } catch (Exception ignored) {
+                            }
+                            throw new RuntimeException(new RateLimitedException(WIDGET_URL, retryAfter));
+                        } else {
+                            throw new IllegalStateException("An unknown status was returned: " + code + " "
+                                    + response.status().reasonPhrase());
+                        }
+                    });
+                })
+                .publishOn(finalScheduler);
+    }
+
+    /**
+     * Makes an asynchronous request to get the information for a Guild's widget as a {@link CompletableFuture}.
+     *
+     * @param  guildId
+     *         The id of the Guild
+     *
+     * @return Never-null {@link CompletableFuture} representing the widget retrieval
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static CompletableFuture<Widget> getWidgetAsync(long guildId) {
+        return getWidgetAsMono(guildId).toFuture();
+    }
+
     @Nullable
     public static Widget getWidget(long guildId) throws RateLimitedException {
         Checks.notNull(guildId, "GuildId");
 
-        OkHttpClient client = new OkHttpClient.Builder().build();
-        Request request = new Request.Builder()
-                .url(String.format(WIDGET_URL, guildId))
-                .method("GET", null)
-                .header("user-agent", RestConfig.USER_AGENT)
-                .header("accept-encoding", "gzip")
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            int code = response.code();
-            InputStream data = IOUtil.getBody(response);
-
-            switch (code) {
-                case 200: // ok
-                {
-                    try (InputStream stream = data) {
-                        return new WidgetImpl(DataObject.fromJson(stream));
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                }
-                case 400: // not valid snowflake
-                case 404: // guild not found
-                    return null;
-                case 403: // widget disabled
-                    return new WidgetImpl(guildId);
-                case 429: // ratelimited
-                {
-                    long retryAfter;
-                    try (InputStream stream = data) {
-                        retryAfter = DataObject.fromJson(stream).getLong("retry_after");
-                    } catch (Exception e) {
-                        retryAfter = 0;
-                    }
-                    throw new RateLimitedException(WIDGET_URL, retryAfter);
-                }
-                default:
-                    throw new IllegalStateException(
-                            "An unknown status was returned: " + code + " " + response.message());
+        try {
+            return getWidgetAsMono(guildId).block();
+        } catch (Exception e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RateLimitedException) {
+                throw (RateLimitedException) cause;
             }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            if (e instanceof RateLimitedException) {
+                throw (RateLimitedException) e;
+            }
+            if (cause instanceof IOException) {
+                throw new UncheckedIOException((IOException) cause);
+            }
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            }
+            throw new RuntimeException(e);
         }
     }
 

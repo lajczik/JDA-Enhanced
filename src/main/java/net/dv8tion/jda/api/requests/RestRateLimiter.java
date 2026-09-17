@@ -17,7 +17,6 @@
 package net.dv8tion.jda.api.requests;
 
 import net.dv8tion.jda.api.JDA;
-import okhttp3.Response;
 import org.jetbrains.annotations.Blocking;
 
 import java.util.concurrent.ExecutorService;

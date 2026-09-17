@@ -16,227 +16,211 @@
 
 package net.dv8tion.jda.internal.utils;
 
-import com.neovisionaries.ws.client.WebSocketFactory;
-import net.dv8tion.jda.internal.utils.requestbody.BufferedRequestBody;
-import okhttp3.ConnectionPool;
-import okhttp3.Dispatcher;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okio.Okio;
-import org.slf4j.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import net.dv8tion.jda.api.utils.MediaType;
+import net.dv8tion.jda.api.utils.NettyConfig;
+import net.dv8tion.jda.internal.utils.requestbody.ByteBufRequestBody;
 
 import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.Inflater;
-import java.util.zip.InflaterInputStream;
-import java.util.zip.ZipException;
+import java.nio.file.Files;
+import java.nio.file.OpenOption;
+import java.nio.file.Path;
 
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 
 public class IOUtil {
-    private static final Logger log = JDALogger.getLog(IOUtil.class);
+    private static final VarHandle INT_VIEW = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.BIG_ENDIAN);
 
     public static void silentClose(AutoCloseable closeable) {
         try {
-            closeable.close();
+            if (closeable != null) {
+                closeable.close();
+            }
         } catch (Exception ignored) {
         }
     }
 
     public static void silentClose(Closeable closeable) {
         try {
-            closeable.close();
+            if (closeable != null) {
+                closeable.close();
+            }
         } catch (IOException ignored) {
         }
     }
 
-    @SuppressWarnings("JdkObsolete")
     public static String addQuery(String base, Object... params) {
-        try {
-            StringBuilder builder = new StringBuilder(base);
-            // Start a new query or append to existing one
-            if (new URI(base).getQuery() == null) {
-                builder.append('?');
-            } else {
-                builder.append('&');
-            }
-
-            for (int i = 0; i < params.length; i += 2) {
-                builder.append(params[i])
-                        .append('=')
-                        .append(URLEncoder.encode(params[i + 1].toString(), "UTF-8"))
-                        .append('&');
-            }
-
-            // Remove trailing &
-            builder.setLength(builder.length() - 1);
-
-            return builder.toString();
-        } catch (URISyntaxException | UnsupportedEncodingException e) {
-            throw new IllegalArgumentException(e);
+        if (params == null || params.length == 0) {
+            return base;
         }
-    }
-
-    public static String getHost(String uri) {
-        return URI.create(uri).getHost();
-    }
-
-    public static void setServerName(WebSocketFactory factory, String url) {
-        String host = getHost(url);
-        // null if the host is undefined, unlikely but we should handle it
-        if (host != null) {
-            factory.setServerName(host);
+        StringBuilder builder = new StringBuilder(base);
+        int queryStart = base.indexOf('?');
+        if (queryStart == -1) {
+            builder.append('?');
+        } else if (queryStart < base.length() - 1 && !base.endsWith("&") && !base.endsWith("?")) {
+            builder.append('&');
         }
-    }
 
-    public static OkHttpClient.Builder newHttpClientBuilder() {
-        Dispatcher dispatcher = new Dispatcher();
-        // Allow 25 parallel requests to the same host (usually discord.com)
-        dispatcher.setMaxRequestsPerHost(25);
-        // Allow 5 idle threads with 10 seconds timeout for each
-        ConnectionPool connectionPool = new ConnectionPool(5, 10, TimeUnit.SECONDS);
-        return new OkHttpClient.Builder().connectionPool(connectionPool).dispatcher(dispatcher);
-    }
-
-    /**
-     * Used as an alternate to Java's nio Files.readAllBytes.
-     *
-     * <p>This customized version for File is provide (instead of just using {@link #readFully(java.io.InputStream)} with a FileInputStream)
-     * because with a File we can determine the total size of the array and do not need to have a buffer.
-     * This results in a memory footprint that is half the size of {@link #readFully(java.io.InputStream)}
-     *
-     * <p>Code provided from <a href="http://stackoverflow.com/a/6276139">Stackoverflow</a>
-     *
-     * @param  file
-     *         The file from which we should retrieve the bytes from
-     *
-     * @throws java.io.IOException
-     *         Thrown if there is a problem while reading the file.
-     *
-     * @return A byte[] containing all of the file's data
-     */
-    public static byte[] readFully(File file) throws IOException {
-        Checks.notNull(file, "File");
-        Checks.check(file.exists(), "Provided file does not exist!");
-
-        try (InputStream is = new FileInputStream(file)) {
-            // Get the size of the file
-            long length = file.length();
-
-            // You cannot create an array using a long type.
-            // It needs to be an int type.
-            // Before converting to an int type, check
-            // to ensure that file is not larger than Integer.MAX_VALUE.
-            if (length > Integer.MAX_VALUE) {
-                throw new IOException("Cannot read the file into memory completely due to it being too large!");
-                // File is too large
-            }
-
-            // Create the byte array to hold the data
-            byte[] bytes = new byte[(int) length];
-
-            // Read in the bytes
-            int offset = 0;
-            int numRead = 0;
-            while (offset < bytes.length && (numRead = is.read(bytes, offset, bytes.length - offset)) >= 0) {
-                offset += numRead;
-            }
-
-            // Ensure all the bytes have been read in
-            if (offset < bytes.length) {
-                throw new IOException("Could not completely read file " + file.getName());
-            }
-
-            // Close the input stream and return bytes
-            is.close();
-            return bytes;
+        for (int i = 0; i < params.length; i += 2) {
+            builder.append(params[i])
+                    .append('=')
+                    .append(URLEncoder.encode(String.valueOf(params[i + 1]), StandardCharsets.UTF_8))
+                    .append('&');
         }
+        builder.setLength(builder.length() - 1);
+        return builder.toString();
     }
 
     /**
      * Provided as a simple way to fully read an InputStream into a byte[].
      *
-     * <p>This method will block until the InputStream has been fully read, so if you provide an InputStream that is
+     * <p>
+     * This method will block until the InputStream has been fully read, so if you
+     * provide an InputStream that is
      * non-finite, you're gonna have a bad time.
      *
-     * @param  stream
-     *         The Stream to be read.
+     * @param stream
+     *               The Stream to be read.
      *
      * @throws IOException
-     *         If the first byte cannot be read for any reason other than the end of the file,
-     *         if the input stream has been closed, or if some other I/O error occurs.
+     *                     If the first byte cannot be read for any reason other
+     *                     than the end of the file,
+     *                     if the input stream has been closed, or if some other I/O
+     *                     error occurs.
      *
      * @return A byte[] containing all of the data provided by the InputStream
      */
     public static byte[] readFully(InputStream stream) throws IOException {
         Checks.notNull(stream, "InputStream");
-
-        byte[] buffer = new byte[1024];
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-            int readAmount = 0;
-            while ((readAmount = stream.read(buffer)) != -1) {
-                bos.write(buffer, 0, readAmount);
-            }
-            return bos.toByteArray();
-        }
+        return stream.readAllBytes();
     }
 
     /**
-     * Creates a new request body that transmits the provided {@link java.io.InputStream InputStream}.
+     * Creates a new request body that transmits the provided
+     * {@link InputStream}.
+     * Uses {@link NettyConfig#getGlobalAllocator()} as the allocator.
      *
-     * @param  contentType
-     *         The {@link okhttp3.MediaType MediaType} of the data
-     * @param  stream
-     *         The {@link java.io.InputStream InputStream} to be transmitted
+     * @param contentType
+     *                    The {@link MediaType MediaType} of the data
+     * @param stream
+     *                    The {@link InputStream} to be
+     *                    transmitted
      *
-     * @return RequestBody capable of transmitting the provided InputStream of data
+     * @return ByteBufRequestBody capable of transmitting the provided InputStream
+     *         of data
      */
-    public static BufferedRequestBody createRequestBody(MediaType contentType, InputStream stream) {
-        return new BufferedRequestBody(Okio.source(stream), contentType);
+    public static ByteBufRequestBody createRequestBody(MediaType contentType, InputStream stream) {
+        return createRequestBody(contentType, stream, NettyConfig.getGlobalAllocator());
     }
 
-    public static short getShortBigEndian(byte[] arr, int offset) {
-        return (short) ((arr[offset] & 0xff) << 8 | arr[offset + 1] & 0xff);
+    /**
+     * Creates a new request body that transmits the provided
+     * {@link InputStream}, using the specified allocator.
+     *
+     * @param contentType
+     *                    The {@link MediaType MediaType} of the data
+     * @param stream
+     *                    The {@link InputStream} to be
+     *                    transmitted
+     * @param allocator
+     *                    The {@link ByteBufAllocator} to use for buffer allocation
+     *
+     * @return ByteBufRequestBody capable of transmitting the provided InputStream
+     *         of data
+     */
+    public static ByteBufRequestBody createRequestBody(
+            MediaType contentType, InputStream stream, ByteBufAllocator allocator) {
+        try {
+            ByteBuf buffer = readIntoByteBuf(stream, allocator);
+            return new ByteBufRequestBody(buffer, contentType);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read InputStream into ByteBuf", e);
+        }
     }
 
-    public static short getShortLittleEndian(byte[] arr, int offset) {
-        // Same as big endian but reversed order of bytes (java uses big endian)
-        return (short) ((arr[offset] & 0xff) | (arr[offset + 1] & 0xff) << 8);
+    @Nonnull
+    @CheckReturnValue
+    public static ByteBuf readIntoByteBuf(@Nonnull InputStream stream, @Nonnull ByteBufAllocator allocator)
+            throws IOException {
+        Checks.notNull(stream, "InputStream");
+        Checks.notNull(allocator, "ByteBufAllocator");
+        if (stream instanceof FileInputStream fis) {
+            FileChannel channel = fis.getChannel();
+            long size = channel.size();
+            if (size <= Integer.MAX_VALUE) {
+                int length = (int) size;
+                ByteBuf buf = allocator.buffer(length);
+                try {
+                    buf.writeBytes(channel, 0, length);
+                    return buf;
+                } catch (Throwable t) {
+                    buf.release();
+                    throw t;
+                } finally {
+                    silentClose(stream);
+                }
+            }
+        }
+        int available = 0;
+        try {
+            available = stream.available();
+        } catch (IOException ignored) {
+        }
+        int initialCapacity = Math.max(8192, available);
+        ByteBuf buf = allocator.buffer(initialCapacity);
+        try {
+            while (buf.writeBytes(stream, 8192) > 0) {}
+            return buf;
+        } catch (Throwable t) {
+            buf.release();
+            throw t;
+        } finally {
+            silentClose(stream);
+        }
     }
 
-    public static int getIntBigEndian(byte[] arr, int offset) {
-        return arr[offset + 3] & 0xFF
-                | (arr[offset + 2] & 0xFF) << 8
-                | (arr[offset + 1] & 0xFF) << 16
-                | (arr[offset] & 0xFF) << 24;
+    @Nonnull
+    @CheckReturnValue
+    public static ByteBuf readIntoByteBuf(
+            @Nonnull Path path, @Nonnull ByteBufAllocator allocator, @Nonnull OpenOption... options)
+            throws IOException {
+        Checks.notNull(path, "Path");
+        Checks.notNull(allocator, "ByteBufAllocator");
+        Checks.notNull(options, "OpenOptions");
+        long size = Files.size(path);
+        if (size > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("File size exceeds maximum supported ByteBuf capacity: " + size);
+        }
+        int length = (int) size;
+        try (FileChannel channel = FileChannel.open(path, options)) {
+            ByteBuf buf = allocator.buffer(length);
+            try {
+                buf.writeBytes(channel, 0, length);
+                return buf;
+            } catch (Throwable t) {
+                buf.release();
+                throw t;
+            }
+        }
     }
 
     public static void setIntBigEndian(byte[] arr, int offset, int it) {
-        arr[offset] = (byte) ((it >>> 24) & 0xFF);
-        arr[offset + 1] = (byte) ((it >>> 16) & 0xFF);
-        arr[offset + 2] = (byte) ((it >>> 8) & 0xFF);
-        arr[offset + 3] = (byte) (it & 0xFF);
+        INT_VIEW.set(arr, offset, it);
     }
 
     @Nonnull
     @CheckReturnValue
     public static ByteBuffer allocateLike(@Nonnull ByteBuffer original, int length) {
         return original.isDirect() ? ByteBuffer.allocateDirect(length) : ByteBuffer.allocate(length);
-    }
-
-    @Nonnull
-    @CheckReturnValue
-    public static ByteBuffer reallocate(@Nonnull ByteBuffer original, int length) {
-        ByteBuffer buffer = allocateLike(original, length);
-        buffer.put(original);
-        return buffer;
     }
 
     @Nonnull
@@ -250,39 +234,5 @@ public class IOUtil {
         destination.put(source);
         destination.flip();
         return destination;
-    }
-
-    /**
-     * Retrieves an {@link InputStream InputStream} for the provided {@link okhttp3.Response Response}.
-     * <br>When the header for {@code content-encoding} is set with {@code gzip} this will wrap the body
-     * in a {@link java.util.zip.GZIPInputStream GZIPInputStream} which decodes the data.
-     *
-     * <p>This is used to make usage of encoded responses more user-friendly in various parts of JDA.
-     *
-     * @param  response
-     *         The not-null Response object
-     *
-     * @return InputStream representing the body of this response
-     */
-    public static InputStream getBody(okhttp3.Response response) throws IOException {
-        String encoding = response.header("content-encoding", "");
-        InputStream data = new BufferedInputStream(response.body().byteStream());
-        data.mark(256);
-        try {
-            if (encoding.equalsIgnoreCase("gzip")) {
-                return new GZIPInputStream(data);
-            } else if (encoding.equalsIgnoreCase("deflate")) {
-                return new InflaterInputStream(data, new Inflater(true));
-            }
-        } catch (ZipException | EOFException ex) {
-            data.reset(); // reset to get full content
-            log.error(
-                    "Failed to read gzip content for response. Headers: {}\nContent: '{}'",
-                    response.headers(),
-                    JDALogger.getLazyString(() -> new String(readFully(data), StandardCharsets.UTF_8)),
-                    ex);
-            return null;
-        }
-        return data;
     }
 }

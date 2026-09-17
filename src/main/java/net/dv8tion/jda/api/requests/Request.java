@@ -16,6 +16,8 @@
 
 package net.dv8tion.jda.api.requests;
 
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.ReferenceCounted;
 import net.dv8tion.jda.api.audit.ThreadLocalReason;
 import net.dv8tion.jda.api.events.ExceptionEvent;
 import net.dv8tion.jda.api.events.http.HttpRequestEvent;
@@ -26,11 +28,11 @@ import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.requests.CallbackContext;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.IOUtil;
-import okhttp3.MultipartBody;
-import okhttp3.RequestBody;
-import org.apache.commons.collections4.map.CaseInsensitiveMap;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
+import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -54,7 +56,7 @@ public class Request<T> {
     private final Route.CompiledRoute route;
     private final RequestBody body;
     private final Object rawBody;
-    private final CaseInsensitiveMap<String, String> headers;
+    private final Map<String, String> headers;
     private final long deadline;
     private final boolean priority;
 
@@ -74,7 +76,7 @@ public class Request<T> {
             long deadline,
             boolean priority,
             Route.CompiledRoute route,
-            CaseInsensitiveMap<String, String> headers) {
+            Map<String, String> headers) {
         this.deadline = deadline;
         this.priority = priority;
         this.restAction = restAction;
@@ -98,14 +100,8 @@ public class Request<T> {
     }
 
     private void cleanup() {
-        // Try closing any open request bodies that were never read from
-        if (body instanceof MultipartBody) {
-            MultipartBody multi = (MultipartBody) body;
-            multi.parts().stream()
-                    .map(MultipartBody.Part::body)
-                    .filter(AutoCloseable.class::isInstance)
-                    .map(AutoCloseable.class::cast)
-                    .forEach(IOUtil::silentClose);
+        if (body instanceof ReferenceCounted refCounted) {
+            ReferenceCountUtil.safeRelease(refCounted);
         } else if (body instanceof AutoCloseable) {
             IOUtil.silentClose((AutoCloseable) body);
         }
@@ -121,7 +117,11 @@ public class Request<T> {
                 "Scheduling success callback for request with route {}/{}",
                 route.getMethod(),
                 route.getCompiledRoute());
-        api.getCallbackPool().execute(() -> {
+        ExecutorService executor = api.getCallbackPool();
+        if (executor == null || executor.isShutdown()) {
+            executor = api.getEventPool();
+        }
+        executor.execute(() -> {
             try (ThreadLocalReason.Closable __ = ThreadLocalReason.closable(localReason);
                     CallbackContext ___ = CallbackContext.getInstance()) {
                 RestActionImpl.LOG.trace(
@@ -167,7 +167,11 @@ public class Request<T> {
                 "Scheduling failure callback for request with route {}/{}",
                 route.getMethod(),
                 route.getCompiledRoute());
-        api.getCallbackPool().execute(() -> {
+        ExecutorService executor = api.getCallbackPool();
+        if (executor == null || executor.isShutdown()) {
+            executor = api.getEventPool();
+        }
+        executor.execute(() -> {
             try (ThreadLocalReason.Closable __ = ThreadLocalReason.closable(localReason);
                     CallbackContext ___ = CallbackContext.getInstance()) {
                 RestActionImpl.LOG.trace(
@@ -247,7 +251,7 @@ public class Request<T> {
     }
 
     @Nullable
-    public CaseInsensitiveMap<String, String> getHeaders() {
+    public Map<String, String> getHeaders() {
         return headers;
     }
 
@@ -282,12 +286,16 @@ public class Request<T> {
     }
 
     public void handleResponse(@Nonnull Response response) {
-        RestActionImpl.LOG.trace(
-                "Handling response for request with route {}/{} and code {}",
-                route.getMethod(),
-                route.getCompiledRoute(),
-                response.code);
-        restAction.handleResponse(response, this);
-        api.handleEvent(new HttpRequestEvent(this, response));
+        try {
+            RestActionImpl.LOG.trace(
+                    "Handling response for request with route {}/{} and code {}",
+                    route.getMethod(),
+                    route.getCompiledRoute(),
+                    response.code);
+            restAction.handleResponse(response, this);
+            api.handleEvent(new HttpRequestEvent(this, response));
+        } finally {
+            response.close();
+        }
     }
 }

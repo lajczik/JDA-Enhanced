@@ -16,9 +16,17 @@
 
 package net.dv8tion.jda.internal.requests;
 
-import com.neovisionaries.ws.client.*;
-import gnu.trove.iterator.TLongObjectIterator;
-import gnu.trove.map.TLongObjectMap;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.*;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.websocketx.*;
+import io.netty.handler.ssl.SslContext;
+import io.netty.util.ReferenceCountUtil;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import net.dv8tion.jda.api.GatewayEncoding;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDAInfo;
@@ -35,10 +43,12 @@ import net.dv8tion.jda.api.managers.AudioManager;
 import net.dv8tion.jda.api.requests.CloseCode;
 import net.dv8tion.jda.api.utils.Compression;
 import net.dv8tion.jda.api.utils.MiscUtil;
+import net.dv8tion.jda.api.utils.NettyConfig;
 import net.dv8tion.jda.api.utils.SessionController;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.api.utils.data.DataType;
+import net.dv8tion.jda.api.utils.data.etf.ExTermEncoder;
 import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.audio.ConnectionRequest;
 import net.dv8tion.jda.internal.audio.ConnectionStage;
@@ -46,37 +56,31 @@ import net.dv8tion.jda.internal.entities.GuildImpl;
 import net.dv8tion.jda.internal.handle.*;
 import net.dv8tion.jda.internal.managers.AudioManagerImpl;
 import net.dv8tion.jda.internal.managers.PresenceImpl;
-import net.dv8tion.jda.internal.utils.IOUtil;
-import net.dv8tion.jda.internal.utils.JDALogger;
-import net.dv8tion.jda.internal.utils.ShutdownReason;
-import net.dv8tion.jda.internal.utils.UnlockHook;
+import net.dv8tion.jda.internal.utils.*;
 import net.dv8tion.jda.internal.utils.cache.AbstractCacheView;
-import net.dv8tion.jda.internal.utils.compress.Decompressor;
-import net.dv8tion.jda.internal.utils.compress.ZlibDecompressor;
+import net.dv8tion.jda.internal.utils.compress.ZlibStreamDecoder;
+import net.dv8tion.jda.internal.utils.compress.ZstdStreamDecoder;
+import net.dv8tion.jda.internal.utils.concurrent.CountingThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.MDC;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.lang.ref.SoftReference;
-import java.net.Socket;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.net.URI;
+import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.zip.DataFormatException;
 
 import javax.annotation.Nonnull;
 
-public class WebSocketClient extends WebSocketAdapter implements WebSocketListener {
+public class WebSocketClient {
     public static final ThreadLocal<Boolean> WS_THREAD = ThreadLocal.withInitial(() -> false);
     public static final Logger LOG = JDALogger.getLog(WebSocketClient.class);
 
@@ -85,35 +89,44 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
 
     protected final JDAImpl api;
     protected final JDA.ShardInfo shardInfo;
-    protected final Map<String, SocketHandler> handlers = new HashMap<>();
+    protected final Map<String, SocketHandler> handlers = new Object2ObjectOpenHashMap<>();
     protected final Compression compression;
     protected final int gatewayIntents;
     protected final MemberChunkManager chunkManager;
     protected final GatewayEncoding encoding;
 
-    public WebSocket socket;
+    public volatile Channel channel;
+    protected EventLoopGroup group;
+    protected boolean ownsEventLoopGroup;
+    protected volatile CloseFrameInfo serverCloseFrame;
+    protected volatile CloseFrameInfo clientCloseFrame;
+
     protected String traceMetadata = null;
     protected volatile String sessionId = null;
-    protected final Object readLock = new Object();
-    protected Decompressor decompressor;
     protected String resumeUrl = null;
 
     protected final ReentrantLock queueLock = new ReentrantLock();
     protected final ScheduledExecutorService executor;
-    protected WebSocketSendingThread ratelimitThread;
+    private WebSocketSendingThread ratelimitThread;
     protected volatile Future<?> keepAliveThread;
 
     protected final ReentrantLock reconnectLock = new ReentrantLock();
     protected final Condition reconnectCondvar = reconnectLock.newCondition();
 
+    private static final int PAYLOAD_HIGH_WATERMARK = 512;
+    private static final int PAYLOAD_LOW_WATERMARK = 256;
+
+    protected final BlockingQueue<Runnable> payloadQueue = new LinkedBlockingQueue<>();
+    protected final ExecutorService payloadProcessor;
+
     protected boolean initiating;
 
     protected int missedHeartbeats = 0;
     protected int reconnectTimeoutS = 2;
-    protected long heartbeatStartTime;
+    protected volatile long heartbeatStartTime;
     protected long identifyTime = 0;
 
-    protected final TLongObjectMap<ConnectionRequest> queuedAudioConnections = MiscUtil.newLongMap();
+    protected final Long2ObjectMap<ConnectionRequest> queuedAudioConnections = MiscUtil.newLongMap();
     protected final Queue<DataObject> chunkSyncQueue = new ConcurrentLinkedQueue<>();
     protected final Queue<DataObject> ratelimitQueue = new ConcurrentLinkedQueue<>();
 
@@ -142,6 +155,13 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         this.encoding = encoding;
         this.shouldReconnect = api.isAutoReconnect();
         this.connectNode = new StartingNode();
+        this.payloadProcessor = new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                this.payloadQueue,
+                new CountingThreadFactory(() -> api.getIdentifierString(), "Gateway-Processor", true));
         setupHandlers();
         try {
             api.getSessionController().appendSession(connectNode);
@@ -236,7 +256,8 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
     }
 
     protected boolean send(DataObject message, boolean skipQueue) {
-        if (!connected) {
+        Channel ch = this.channel;
+        if (!connected || ch == null || !ch.isActive()) {
             return false;
         }
 
@@ -254,10 +275,14 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
                 String redactedMessage = message.toString().replace(getToken(), "<REDACTED>");
                 LOG.trace("<- {}", redactedMessage);
             }
+            ByteBuf buf = ch.alloc().buffer();
             if (encoding == GatewayEncoding.ETF) {
-                socket.sendBinary(message.toETF());
+                buf.writeByte(131);
+                ExTermEncoder.pack(buf, message.toMap());
+                ch.writeAndFlush(new BinaryWebSocketFrame(buf));
             } else {
-                socket.sendText(message.toString());
+                SerializationUtil.writeJson(buf, message.toMap());
+                ch.writeAndFlush(new TextWebSocketFrame(buf));
             }
             this.messagesSent.getAndIncrement();
             return true;
@@ -280,37 +305,19 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         ratelimitThread.start();
     }
 
-    private void prepareClose() {
-        try {
-            if (socket != null) {
-                Socket rawSocket = this.socket.getSocket();
-                if (rawSocket != null) { // attempt to set a 10 second timeout for the close frame
-                    // this has no affect if the socket is already stuck in a read call
-                    rawSocket.setSoTimeout(10000);
-                }
-            }
-        } catch (SocketException ignored) {
-        }
-    }
-
     public void close() {
-        prepareClose();
-        if (socket != null) {
-            socket.sendClose(1000);
-        }
+        close(1000, null);
     }
 
     public void close(int code) {
-        prepareClose();
-        if (socket != null) {
-            socket.sendClose(code);
-        }
+        close(code, null);
     }
 
     public void close(int code, String reason) {
-        prepareClose();
-        if (socket != null) {
-            socket.sendClose(code, reason);
+        Channel ch = this.channel;
+        if (ch != null && ch.isActive()) {
+            this.clientCloseFrame = new CloseFrameInfo(code, reason);
+            ch.writeAndFlush(new CloseWebSocketFrame(code, reason)).addListener(ChannelFutureListener.CLOSE);
         }
     }
 
@@ -330,20 +337,38 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
             return !wasConnected;
         });
 
+        if (ownsEventLoopGroup && group != null) {
+            group.shutdownGracefully();
+        }
+
+        List<Runnable> dropped = payloadProcessor.shutdownNow();
+        for (Runnable task : dropped) {
+            if (task instanceof PayloadTask payloadTask) {
+                payloadTask.release();
+            }
+        }
+
         if (callOnShutdown) {
             onShutdown(1000);
         }
     }
 
     /*
-       ### Start Internal methods ###
-    */
+     * ### Start Internal methods ###
+     */
+
+    protected void clearCloseFrames() {
+        serverCloseFrame = null;
+        clientCloseFrame = null;
+    }
 
     protected void onShutdown(int rawCloseCode) {
+        clearCloseFrames();
         api.shutdownInternals(new ShutdownEvent(api, OffsetDateTime.now(), rawCloseCode));
     }
 
     protected synchronized void connect() {
+        clearCloseFrames();
         if (api.getStatus() != JDA.Status.ATTEMPTING_TO_RECONNECT) {
             api.setStatus(JDA.Status.CONNECTING_TO_WEBSOCKET);
         }
@@ -362,48 +387,91 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
                     JDAInfo.DISCORD_GATEWAY_VERSION);
             if (compression != Compression.NONE) {
                 gatewayUrl = IOUtil.addQuery(gatewayUrl, "compress", compression.getKey());
-                switch (compression) {
-                    case ZLIB:
-                        if (decompressor == null || decompressor.getType() != Compression.ZLIB) {
-                            decompressor = new ZlibDecompressor(api.getMaxBufferSize());
-                        }
-                        break;
-                    default:
-                        throw new IllegalStateException("Unknown compression");
-                }
             }
 
-            WebSocketFactory socketFactory = new WebSocketFactory(api.getWebSocketFactory());
-            IOUtil.setServerName(socketFactory, gatewayUrl);
-            if (socketFactory.getSocketTimeout() > 0) {
-                socketFactory.setSocketTimeout(Math.max(1000, socketFactory.getSocketTimeout()));
+            URI uri = URI.create(gatewayUrl);
+            String scheme = uri.getScheme() == null ? "wss" : uri.getScheme();
+            String host = uri.getHost() == null ? "127.0.0.1" : uri.getHost();
+            int defaultPort = "ws".equalsIgnoreCase(scheme) ? 80 : 443;
+            final int port = uri.getPort() != -1 ? uri.getPort() : defaultPort;
+            boolean ssl = "wss".equalsIgnoreCase(scheme);
+            final SslContext sslCtx;
+            if (ssl) {
+                sslCtx = NettyUtils.createSslContext();
             } else {
-                socketFactory.setSocketTimeout(10000);
+                sslCtx = null;
             }
 
-            socket = socketFactory.createSocket(gatewayUrl);
-            socket.setDirectTextMessage(true);
-            socket.addHeader("Accept-Encoding", "gzip").addListener(this).connect();
-        } catch (IOException | WebSocketException | IllegalArgumentException e) {
+            NettyConfig nettyConfig = api.getNettyConfig();
+            this.group = api.getWebsocketEventLoopGroup();
+            this.ownsEventLoopGroup = false;
+
+            HttpHeaders customHeaders = new DefaultHttpHeaders();
+            customHeaders.add(HttpHeaderNames.USER_AGENT, api.getRequester().getUserAgent());
+
+            WebSocketClientHandshaker handshaker =
+                    NettyUtils.newHandshaker(uri, customHeaders, nettyConfig.getMaxFramePayloadLength());
+
+            CompletableFuture<Void> handshakeFuture = new CompletableFuture<>();
+
+            Bootstrap b = new Bootstrap();
+            b.group(group);
+            NettyUtils.configureBootstrap(b, nettyConfig);
+            b.handler(new ChannelInitializer<SocketChannel>() {
+                @Override
+                protected void initChannel(SocketChannel ch) {
+                    ChannelPipeline p = ch.pipeline();
+                    if (sslCtx != null) {
+                        p.addLast("ssl", sslCtx.newHandler(ch.alloc(), host, port));
+                    }
+                    p.addLast("http-codec", new HttpClientCodec());
+                    p.addLast(
+                            "http-aggregator",
+                            new HttpObjectAggregator(nettyConfig.getHttpAggregatorMaxContentLength()));
+                    if (compression == Compression.ZSTD) {
+                        if (!Compression.ZSTD.isSupported()) {
+                            throw new IllegalStateException(
+                                    "ZSTD compression is not supported on this classpath (missing zstd-jni dependency)");
+                        }
+                        p.addLast("zstd-decoder", new ZstdStreamDecoder(api.getMaxBufferSize()));
+                    } else if (compression == Compression.ZLIB) {
+                        p.addLast("zlib-decoder", new ZlibStreamDecoder(api.getMaxBufferSize()));
+                    }
+                    p.addLast("ws-handler", new GatewayWebSocketHandler(handshaker, handshakeFuture));
+                }
+            });
+
+            ChannelFuture connectFuture = b.connect(host, port);
+            this.channel = connectFuture.channel();
+            connectFuture.addListener((ChannelFutureListener) future -> {
+                if (!future.isSuccess()) {
+                    handshakeFuture.completeExceptionally(future.cause());
+                }
+            });
+            try {
+                handshakeFuture.get(15, TimeUnit.SECONDS);
+            } catch (ExecutionException e) {
+                throw e.getCause() != null ? e.getCause() : e;
+            }
+        } catch (Throwable e) {
             resumeUrl = null;
             api.resetGatewayUrl();
-            // Completely fail here. We couldn't make the connection.
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            } else if (e instanceof Error) {
+                throw (Error) e;
+            }
             throw new IllegalStateException(e);
         }
     }
 
-    @Override
-    public void onThreadStarted(WebSocket websocket, ThreadType threadType, Thread thread) throws Exception {
-        api.setContext();
-    }
-
-    @Override
-    public void onConnected(WebSocket websocket, Map<String, List<String>> headers) {
-        prepareClose(); // set 10s timeout in-case discord never sends us a HELLO payload
-        api.setStatus(JDA.Status.IDENTIFYING_SESSION);
+    public void onConnected(HttpHeaders headers) {
+        api.setStatus(JDA.Status.CONNECTING_TO_WEBSOCKET);
         if (sessionId == null) {
-            LOG.info("Connected to WebSocket");
-            // Log which intents are used on debug level since most people won't know how to use the
+            String transport = this.channel != null ? this.channel.getClass().getSimpleName() : "Unknown";
+            LOG.info("Connected to WebSocket (Transport: {}, Compression: {})", transport, compression);
+            // Log which intents are used on debug level since most people won't know how to
+            // use the
             // binary output anyway
             LOG.debug("Connected with gateway intents: {}", Integer.toBinaryString(gatewayIntents));
         } else {
@@ -411,37 +479,24 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
             LOG.debug("Connected to WebSocket");
         }
         connected = true;
-        // reconnectTimeoutS = 2; We will reset this when the session was started successfully
+        // reconnectTimeoutS = 2; We will reset this when the session was started
+        // successfully
         // (ready/resume)
         messagesSent.set(0);
         ratelimitResetTime = System.currentTimeMillis() + 60000;
-        if (sessionId == null) {
-            sendIdentify();
-        } else {
-            sendResume();
-        }
     }
 
-    @Override
     public void onDisconnected(
-            WebSocket websocket,
-            WebSocketFrame serverCloseFrame,
-            WebSocketFrame clientCloseFrame,
-            boolean closedByServer) {
+            CloseFrameInfo serverCloseFrame, CloseFrameInfo clientCloseFrame, boolean closedByServer) {
         sentAuthInfo = false;
         connected = false;
-        // Use a new thread to avoid issues with sleep interruption
-        if (Thread.currentThread().isInterrupted()) {
-            Thread thread = new Thread(() -> handleDisconnect(serverCloseFrame, clientCloseFrame, closedByServer));
-            thread.setName(api.getIdentifierString() + " MainWS-ReconnectThread");
-            thread.start();
-        } else {
-            handleDisconnect(serverCloseFrame, clientCloseFrame, closedByServer);
-        }
+        Thread.ofVirtual()
+                .name(api.getIdentifierString() + " MainWS-ReconnectThread")
+                .start(() -> handleDisconnect(serverCloseFrame, clientCloseFrame, closedByServer));
     }
 
     private void handleDisconnect(
-            WebSocketFrame serverCloseFrame, WebSocketFrame clientCloseFrame, boolean closedByServer) {
+            CloseFrameInfo serverCloseFrame, CloseFrameInfo clientCloseFrame, boolean closedByServer) {
         api.setStatus(JDA.Status.DISCONNECTED);
         CloseCode closeCode = null;
         int rawCloseCode = 1005;
@@ -454,8 +509,8 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
             keepAliveThread = null;
         }
         if (closedByServer && serverCloseFrame != null) {
-            rawCloseCode = serverCloseFrame.getCloseCode();
-            String rawCloseReason = serverCloseFrame.getCloseReason();
+            rawCloseCode = serverCloseFrame.statusCode();
+            String rawCloseReason = serverCloseFrame.reason();
             closeCode = CloseCode.from(rawCloseCode);
             if (closeCode == CloseCode.RATE_LIMITED) {
                 LOG.error(
@@ -470,10 +525,11 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
                 LOG.warn("WebSocket connection closed with unknown meaning for close-code {}", rawCloseCode);
             }
         } else if (clientCloseFrame != null) {
-            rawCloseCode = clientCloseFrame.getCloseCode();
-            if (rawCloseCode == 1000 && INVALIDATE_REASON.equals(clientCloseFrame.getCloseReason())) {
+            rawCloseCode = clientCloseFrame.statusCode();
+            if (rawCloseCode == 1000 && INVALIDATE_REASON.equals(clientCloseFrame.reason())) {
                 // When we close with 1000 we properly dropped our session due to invalidation
-                // in that case we can be sure that resume will not work and instead we invalidate
+                // in that case we can be sure that resume will not work and instead we
+                // invalidate
                 // and reconnect here
                 isInvalidate = true;
             }
@@ -489,7 +545,8 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
             }
 
             if (!closeCodeIsReconnect) {
-                // it is possible that a token can be invalidated due to too many reconnect attempts
+                // it is possible that a token can be invalidated due to too many reconnect
+                // attempts
                 // or that a bot reached a new shard minimum and cannot connect with the current
                 // settings
                 // if that is the case we have to drop our connection and inform the user with a
@@ -515,18 +572,8 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
                 }
             }
 
-            if (decompressor != null) {
-                decompressor.shutdown();
-            }
-
             onShutdown(rawCloseCode);
         } else {
-            // reset our decompression tools
-            synchronized (readLock) {
-                if (decompressor != null) {
-                    decompressor.reset();
-                }
-            }
             if (isInvalidate) {
                 invalidate(); // 1000 means our session is dropped so we cannot resume
             }
@@ -589,8 +636,8 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
      * This method is used to start the reconnect of the JDA instance.
      * It is public for access from SessionReconnectQueue extensions.
      *
-     * @param  callFromQueue
-     *         whether this was in SessionReconnectQueue and got polled
+     * @param callFromQueue
+     *                      whether this was in SessionReconnectQueue and got polled
      */
     public void reconnect(boolean callFromQueue) throws InterruptedException {
         Set<MDC.MDCCloseable> contextEntries = null;
@@ -661,15 +708,9 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
     }
 
     protected void setupKeepAlive(int timeout) {
-        try {
-            Socket rawSocket = this.socket.getSocket();
-            if (rawSocket != null) {
-                rawSocket.setSoTimeout(timeout + 10000); // setup a timeout when we miss heartbeats
-            }
-        } catch (SocketException ex) {
-            LOG.warn("Failed to setup timeout for socket", ex);
+        if (keepAliveThread != null) {
+            keepAliveThread.cancel(false);
         }
-
         keepAliveThread = executor.scheduleAtFixedRate(
                 () -> {
                     api.setContext();
@@ -689,8 +730,7 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         if (missedHeartbeats >= 2) {
             missedHeartbeats = 0;
             LOG.warn("Missed 2 heartbeats! Trying to reconnect...");
-            prepareClose();
-            socket.disconnect(4900, "ZOMBIE CONNECTION");
+            close(4900, "ZOMBIE CONNECTION");
         } else {
             missedHeartbeats += 1;
             send(keepAlivePacket, true);
@@ -703,8 +743,8 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         PresenceImpl presenceObj = (PresenceImpl) api.getPresence();
         DataObject connectionProperties = DataObject.empty()
                 .put("os", System.getProperty("os.name"))
-                .put("browser", "JDA")
-                .put("device", "JDA");
+                .put("browser", "JDA+")
+                .put("device", "JDA+");
         DataObject payload = DataObject.empty()
                 .put("presence", presenceObj.getFullPresence())
                 .put("token", getToken())
@@ -746,30 +786,43 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
 
         locked("Interrupted while trying to invalidate chunk/sync queue", chunkSyncQueue::clear);
 
+        List<Runnable> pending = new ArrayList<>();
+        payloadQueue.drainTo(pending);
+        for (Runnable task : pending) {
+            if (task instanceof PayloadTask payloadTask) {
+                payloadTask.release();
+            }
+        }
+
+        api.getGuildSetupController().clearCache();
+        api.getGuildSetupController().cacheGuildsOnInvalidate(api.getGuildsView());
+
         api.getChannelsView().clear();
 
         api.getGuildsView().clear();
         api.getUsersView().clear();
 
         api.getEventCache().clear();
-        api.getGuildSetupController().clearCache();
         chunkManager.clear();
 
         api.handleEvent(new SessionInvalidateEvent(api));
     }
 
     protected void updateAudioManagerReferences() {
+        api.getGuildSetupController().clearReloadCandidates();
         AbstractCacheView<AudioManager> managerView = api.getAudioManagersView();
         try (UnlockHook hook = managerView.writeLock()) {
-            TLongObjectMap<AudioManager> managerMap = managerView.getMap();
-            if (managerMap.size() > 0) {
+            Long2ObjectMap<AudioManager> managerMap = managerView.getMap();
+            if (!managerMap.isEmpty()) {
                 LOG.trace("Updating AudioManager references");
             }
 
-            for (TLongObjectIterator<AudioManager> it = managerMap.iterator(); it.hasNext(); ) {
-                it.advance();
-                long guildId = it.key();
-                AudioManagerImpl mng = (AudioManagerImpl) it.value();
+            ObjectIterator<Long2ObjectMap.Entry<AudioManager>> it =
+                    managerMap.long2ObjectEntrySet().iterator();
+            while (it.hasNext()) {
+                Long2ObjectMap.Entry<AudioManager> entry = it.next();
+                long guildId = entry.getLongKey();
+                AudioManagerImpl mng = (AudioManagerImpl) entry.getValue();
 
                 GuildImpl guild = (GuildImpl) api.getGuildById(guildId);
                 if (guild == null) {
@@ -822,18 +875,16 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         }
 
         switch (opCode) {
-            case WebSocketCode.DISPATCH:
-                onDispatch(content);
-                break;
-            case WebSocketCode.HEARTBEAT:
+            case WebSocketCode.DISPATCH -> onDispatch(content);
+            case WebSocketCode.HEARTBEAT -> {
                 LOG.debug("Got Keep-Alive request (OP 1). Sending response...");
                 sendKeepAlive();
-                break;
-            case WebSocketCode.RECONNECT:
+            }
+            case WebSocketCode.RECONNECT -> {
                 LOG.debug("Got Reconnect request (OP 7). Closing connection now...");
                 close(4900, "OP 7: RECONNECT");
-                break;
-            case WebSocketCode.INVALIDATE_SESSION:
+            }
+            case WebSocketCode.INVALIDATE_SESSION -> {
                 LOG.debug("Got Invalidate request (OP 9). Invalidating...");
                 handleIdentifyRateLimit =
                         handleIdentifyRateLimit && System.currentTimeMillis() - identifyTime < IDENTIFY_BACKOFF;
@@ -850,19 +901,23 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
                 }
 
                 close(closeCode, INVALIDATE_REASON);
-                break;
-            case WebSocketCode.HELLO:
+            }
+            case WebSocketCode.HELLO -> {
                 LOG.debug("Got HELLO packet (OP 10). Initializing keep-alive.");
                 DataObject data = content.getObject("d");
                 setupKeepAlive(data.getInt("heartbeat_interval"));
-                break;
-            case WebSocketCode.HEARTBEAT_ACK:
+                if (sessionId == null) {
+                    sendIdentify();
+                } else {
+                    sendResume();
+                }
+            }
+            case WebSocketCode.HEARTBEAT_ACK -> {
                 LOG.trace("Got Heartbeat Ack (OP 11).");
                 missedHeartbeats = 0;
                 api.setGatewayPing(System.currentTimeMillis() - heartbeatStartTime);
-                break;
-            default:
-                LOG.debug("Got unknown op-code: {} with content: {}", opCode, content);
+            }
+            default -> LOG.debug("Got unknown op-code: {} with content: {}", opCode, content);
         }
     }
 
@@ -964,75 +1019,24 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         }
     }
 
-    @Override
-    public void onTextMessage(WebSocket websocket, byte[] data) {
-        handleEvent(DataObject.fromJson(data));
+    public void onTextMessage(ByteBuf data) {
+        boolean deduplicate = api.getSessionConfig().isStringDeduplication();
+        handleEvent(DataObject.fromJson(data, deduplicate));
     }
 
-    @Override
-    public void onBinaryMessage(WebSocket websocket, byte[] binary) throws DataFormatException {
-        DataObject message;
-        // Only acquire lock for decompression and unlock for event handling
-        synchronized (readLock) {
-            message = handleBinary(binary);
-        }
-        if (message != null) {
-            handleEvent(message);
+    public void onBinaryMessage(ByteBuf binary) {
+        boolean deduplicate = api.getSessionConfig().isStringDeduplication();
+        if (encoding == GatewayEncoding.ETF) {
+            handleEvent(DataObject.fromETF(binary, deduplicate));
+        } else {
+            handleEvent(DataObject.fromJson(binary, deduplicate));
         }
     }
 
-    protected DataObject handleBinary(byte[] binary) throws DataFormatException {
-        if (decompressor == null) {
-            if (encoding == GatewayEncoding.ETF) {
-                return DataObject.fromETF(binary);
-            }
-            throw new IllegalStateException(
-                    "Cannot decompress binary message due to unknown compression algorithm: " + compression);
-        }
-        // Scoping allows us to print the json that possibly failed parsing
-        byte[] data;
-        try {
-            data = decompressor.decompress(binary);
-            if (data == null) {
-                return null;
-            }
-        } catch (DataFormatException e) {
-            close(4900, "MALFORMED_PACKAGE");
-            throw e;
-        }
-
-        try {
-            if (encoding == GatewayEncoding.ETF) {
-                return DataObject.fromETF(data);
-            } else {
-                return DataObject.fromJson(data);
-            }
-        } catch (ParsingException e) {
-            String jsonString = "malformed";
-            try {
-                jsonString = new String(data, StandardCharsets.UTF_8);
-            } catch (Exception ignored) {
-            }
-            // Print the string that could not be parsed and re-throw the exception
-            LOG.error("Failed to parse json: {}", jsonString);
-            throw e;
-        }
-    }
-
-    @Override
-    public void handleCallbackError(WebSocket websocket, Throwable cause) throws Exception {
-        handleError(cause);
-    }
-
-    @Override
-    public void onError(WebSocket websocket, WebSocketException cause) throws Exception {
-        handleError(cause);
-    }
-
-    private void handleError(Throwable cause) {
-        if (cause.getCause() instanceof SocketTimeoutException) {
+    public void handleError(Throwable cause) {
+        if (cause instanceof SocketTimeoutException || (cause.getCause() instanceof SocketTimeoutException)) {
             LOG.debug("Socket timed out");
-        } else if (cause.getCause() instanceof IOException) {
+        } else if (cause instanceof IOException || (cause.getCause() instanceof IOException)) {
             LOG.debug("Encountered I/O error", cause);
         } else {
             LOG.error("There was an error in the WebSocket connection. Trace: {}", traceMetadata, cause);
@@ -1040,25 +1044,68 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         }
     }
 
-    @Override
-    public void onThreadCreated(WebSocket websocket, ThreadType threadType, Thread thread) throws Exception {
-        String identifier = api.getIdentifierString();
-        switch (threadType) {
-            case CONNECT_THREAD:
-                thread.setName(identifier + " MainWS-ConnectThread");
-                break;
-            case FINISH_THREAD:
-                thread.setName(identifier + " MainWS-FinishThread");
-                break;
-            case READING_THREAD:
-                thread.setName(identifier + " MainWS-ReadThread");
-                break;
-            case WRITING_THREAD:
-                thread.setName(identifier + " MainWS-WriteThread");
-                break;
-            default:
-                thread.setName(identifier + " MainWS-" + threadType);
+    protected ConnectionRequest getNextAudioConnectRequest() {
+        // Don't try to setup audio connections before JDA has finished loading.
+        if (sessionId == null) {
+            return null;
         }
+
+        long now = System.currentTimeMillis();
+        ConnectionRequest request = null;
+        synchronized (queuedAudioConnections) {
+            for (ObjectIterator<Long2ObjectMap.Entry<ConnectionRequest>> it =
+                            queuedAudioConnections.long2ObjectEntrySet().iterator();
+                    it.hasNext(); ) {
+                Long2ObjectMap.Entry<ConnectionRequest> entry = it.next();
+                long guildId = entry.getLongKey();
+                ConnectionRequest audioRequest = entry.getValue();
+                if (audioRequest.getNextAttemptEpoch() < now) {
+                    // Check if the guild is ready
+                    Guild guild = api.getGuildById(guildId);
+                    if (guild == null) {
+                        // Not yet ready, check if the guild is known to this shard
+                        GuildSetupController controller = api.getGuildSetupController();
+                        if (!controller.isKnown(guildId)) {
+                            // The guild is not tracked anymore
+                            // -> we can't connect the audio channel
+                            LOG.debug(
+                                    "Removing audio connection request because the guild has been removed. {}",
+                                    audioRequest);
+                            it.remove();
+                            continue;
+                        }
+                        continue;
+                    }
+
+                    ConnectionListener listener = guild.getAudioManager().getConnectionListener();
+                    if (audioRequest.getStage() != ConnectionStage.DISCONNECT) {
+                        // Check if we can connect to the target channel
+                        AudioChannel channel = (AudioChannel) guild.getGuildChannelById(audioRequest.getChannelId());
+                        if (channel == null) {
+                            if (listener != null) {
+                                listener.onStatusChange(ConnectionStatus.DISCONNECTED_CHANNEL_DELETED);
+                            }
+                            it.remove();
+                            continue;
+                        }
+
+                        if (!guild.getSelfMember().hasPermission(channel, Permission.VOICE_CONNECT)) {
+                            if (listener != null) {
+                                listener.onStatusChange(ConnectionStatus.DISCONNECTED_LOST_PERMISSION);
+                            }
+                            it.remove();
+                            continue;
+                        }
+                    }
+                    // This will take the first result
+                    if (request == null) {
+                        request = audioRequest;
+                    }
+                }
+            }
+        }
+
+        return request;
     }
 
     protected void locked(String comment, Runnable task) {
@@ -1180,64 +1227,158 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         return null;
     }
 
-    private SoftReference<ByteArrayOutputStream> newDecompressBuffer() {
-        return new SoftReference<>(new ByteArrayOutputStream(1024));
-    }
+    private class GatewayWebSocketHandler extends SimpleChannelInboundHandler<Object> {
+        private final WebSocketClientHandshaker handshaker;
+        private final CompletableFuture<Void> handshakeFuture;
+        private boolean disconnectedHandled = false;
 
-    protected ConnectionRequest getNextAudioConnectRequest() {
-        // Don't try to setup audio connections before JDA has finished loading.
-        if (sessionId == null) {
-            return null;
+        public GatewayWebSocketHandler(WebSocketClientHandshaker handshaker, CompletableFuture<Void> handshakeFuture) {
+            this.handshaker = handshaker;
+            this.handshakeFuture = handshakeFuture;
         }
 
-        long now = System.currentTimeMillis();
-        AtomicReference<ConnectionRequest> request = new AtomicReference<>();
-        queuedAudioConnections.retainEntries(
-                (guildId, audioRequest) -> // we use this because it locks the mutex
-                {
-                    if (audioRequest.getNextAttemptEpoch() < now) {
-                        // Check if the guild is ready
-                        Guild guild = api.getGuildById(guildId);
-                        if (guild == null) {
-                            // Not yet ready, check if the guild is known to this shard
-                            GuildSetupController controller = api.getGuildSetupController();
-                            if (!controller.isKnown(guildId)) {
-                                // The guild is not tracked anymore
-                                //   -> we can't connect the audio channel
-                                LOG.debug(
-                                        "Removing audio connection request because the guild has been removed. {}",
-                                        audioRequest);
-                                return false;
-                            }
-                            return true;
-                        }
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) {
+            api.setContext();
+            handshaker.handshake(ctx.channel());
+        }
 
-                        ConnectionListener listener = guild.getAudioManager().getConnectionListener();
-                        if (audioRequest.getStage() != ConnectionStage.DISCONNECT) {
-                            // Check if we can connect to the target channel
-                            AudioChannel channel =
-                                    (AudioChannel) guild.getGuildChannelById(audioRequest.getChannelId());
-                            if (channel == null) {
-                                if (listener != null) {
-                                    listener.onStatusChange(ConnectionStatus.DISCONNECTED_CHANNEL_DELETED);
-                                }
-                                return false;
-                            }
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) {
+            api.setContext();
+            if (!handshakeFuture.isDone()) {
+                handshakeFuture.completeExceptionally(new ClosedChannelException());
+            }
+            if (!disconnectedHandled) {
+                disconnectedHandled = true;
+                executor.execute(() -> onDisconnected(
+                        serverCloseFrame, clientCloseFrame, serverCloseFrame != null || clientCloseFrame == null));
+            }
+        }
 
-                            if (!guild.getSelfMember().hasPermission(channel, Permission.VOICE_CONNECT)) {
-                                if (listener != null) {
-                                    listener.onStatusChange(ConnectionStatus.DISCONNECTED_LOST_PERMISSION);
-                                }
-                                return false;
-                            }
-                        }
-                        // This will take the first result
-                        request.compareAndSet(null, audioRequest);
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
+            api.setContext();
+            if (!handshaker.isHandshakeComplete()) {
+                if (msg instanceof FullHttpResponse response) {
+                    if (!response.status().equals(HttpResponseStatus.SWITCHING_PROTOCOLS)) {
+                        String body = response.content().toString(StandardCharsets.UTF_8);
+                        LOG.error(
+                                "WebSocket handshake failed with status {}: {}\nHeaders: {}",
+                                response.status(),
+                                body,
+                                response.headers());
                     }
-                    return true;
-                });
+                    handshaker.finishHandshake(ctx.channel(), response);
+                    ChannelHandler httpAggregator = ctx.pipeline().get("http-aggregator");
+                    if (httpAggregator != null) {
+                        ctx.pipeline().remove(httpAggregator);
+                    }
+                    int maxPayload = api.getNettyConfig().getMaxFramePayloadLength();
+                    if (ctx.pipeline().get("ws-decoder") != null) {
+                        ctx.pipeline()
+                                .addAfter("ws-decoder", "ws-aggregator", new WebSocketFrameAggregator(maxPayload));
+                    } else {
+                        ctx.pipeline()
+                                .addBefore("ws-handler", "ws-aggregator", new WebSocketFrameAggregator(maxPayload));
+                    }
+                    handshakeFuture.complete(null);
+                    onConnected(response.headers());
+                    return;
+                }
+            }
+            if (msg instanceof ByteBuf buf) {
+                queuePayload(buf, true);
+            } else if (msg instanceof WebSocketFrame frame) {
+                switch (frame) {
+                    case TextWebSocketFrame textFrame -> queuePayload(textFrame.content(), false);
+                    case BinaryWebSocketFrame binaryFrame -> queuePayload(binaryFrame.content(), true);
+                    case CloseWebSocketFrame closeFrame -> {
+                        int rawCode = closeFrame.statusCode();
+                        String reason = closeFrame.reasonText();
+                        serverCloseFrame = new CloseFrameInfo(rawCode, reason);
+                        if (!disconnectedHandled) {
+                            disconnectedHandled = true;
+                            executor.execute(() -> onDisconnected(serverCloseFrame, clientCloseFrame, true));
+                        }
+                        ctx.close();
+                    }
+                    case PingWebSocketFrame pingFrame ->
+                        ctx.writeAndFlush(
+                                new PongWebSocketFrame(pingFrame.content().retain()));
+                    case PongWebSocketFrame pongFrame -> {
+                        missedHeartbeats = 0;
+                        api.setGatewayPing(System.currentTimeMillis() - heartbeatStartTime);
+                    }
+                    default -> {}
+                }
+            }
+        }
 
-        return request.get();
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            api.setContext();
+            if (!handshakeFuture.isDone()) {
+                handshakeFuture.completeExceptionally(cause);
+            }
+            handleError(cause);
+            ctx.close();
+        }
+    }
+
+    protected void queuePayload(ByteBuf buf, boolean isBinary) {
+        buf.retain();
+        try {
+            payloadProcessor.execute(new PayloadTask(this, buf, isBinary));
+            Channel ch = this.channel;
+            if (ch != null
+                    && payloadQueue.size() >= PAYLOAD_HIGH_WATERMARK
+                    && ch.config().isAutoRead()) {
+                ch.config().setAutoRead(false);
+            }
+        } catch (RejectedExecutionException ex) {
+            ReferenceCountUtil.safeRelease(buf);
+        }
+    }
+
+    private static class PayloadTask implements Runnable {
+        private final WebSocketClient client;
+        private final ByteBuf buffer;
+        private final boolean isBinary;
+
+        PayloadTask(WebSocketClient client, ByteBuf buffer, boolean isBinary) {
+            this.client = client;
+            this.buffer = buffer;
+            this.isBinary = isBinary;
+        }
+
+        @Override
+        public void run() {
+            try {
+                client.api.setContext();
+                WS_THREAD.set(true);
+                if (isBinary) {
+                    client.onBinaryMessage(buffer);
+                } else {
+                    client.onTextMessage(buffer);
+                }
+            } catch (Throwable t) {
+                LOG.error("Encountered exception while processing gateway payload", t);
+            } finally {
+                WS_THREAD.remove();
+                release();
+                Channel ch = client.channel;
+                if (ch != null
+                        && client.payloadQueue.size() <= PAYLOAD_LOW_WATERMARK
+                        && !ch.config().isAutoRead()) {
+                    ch.eventLoop().execute(() -> ch.config().setAutoRead(true));
+                }
+            }
+        }
+
+        public void release() {
+            ReferenceCountUtil.safeRelease(buffer);
+        }
     }
 
     public Map<String, SocketHandler> getHandlers() {
@@ -1381,10 +1522,9 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
             if (obj == this) {
                 return true;
             }
-            if (!(obj instanceof StartingNode)) {
+            if (!(obj instanceof StartingNode node)) {
                 return false;
             }
-            StartingNode node = (StartingNode) obj;
             return node.getJDA().equals(getJDA());
         }
     }
@@ -1422,10 +1562,9 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
             if (obj == this) {
                 return true;
             }
-            if (!(obj instanceof ReconnectNode)) {
+            if (!(obj instanceof ReconnectNode node)) {
                 return false;
             }
-            ReconnectNode node = (ReconnectNode) obj;
             return node.getJDA().equals(getJDA());
         }
     }

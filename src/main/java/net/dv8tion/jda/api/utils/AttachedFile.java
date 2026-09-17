@@ -16,11 +16,12 @@
 
 package net.dv8tion.jda.api.utils;
 
+import io.netty.buffer.ByteBuf;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.utils.data.DataObject;
-import net.dv8tion.jda.internal.requests.Requester;
-import okhttp3.MultipartBody;
-import okhttp3.RequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.JsonRequestBody;
+import net.dv8tion.jda.internal.utils.requestbody.MultipartBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -28,169 +29,231 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.Collection;
 
+import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
  * Represents files that are attached to requests.
  */
-public interface AttachedFile extends Closeable {
+public interface AttachedFile extends AutoCloseable {
     /**
-     * The maximum length a {@link FileUpload#setDescription(String) description} can be ({@value}).
+     * The maximum length a {@link FileUpload#setDescription(String) description}
+     * can be ({@value}).
      */
     int MAX_DESCRIPTION_LENGTH = 1024;
 
     /**
      * Create a new {@link FileUpload} for an input stream.
-     * <br>This is used to upload data to discord for various purposes.
+     * <br>
+     * This is used to upload data to discord for various purposes.
      *
-     * <p>The {@link InputStream} will be closed on consumption by the request.
+     * <p>
+     * The {@link InputStream} will be closed on consumption by the request.
      * You can use {@link FileUpload#close()} to close the stream manually.
      *
-     * @param  data
-     *         The {@link InputStream} to upload
-     * @param  name
-     *         The representative name to use for the file
+     * @param data
+     *             The {@link InputStream} to upload
+     * @param name
+     *             The representative name to use for the file
      *
      * @throws IllegalArgumentException
-     *         If null is provided or the name is empty
+     *                                  If null is provided or the name is empty
      *
      * @return {@link FileUpload}
      *
-     * @see    java.io.FileInputStream FileInputStream
+     * @see FileInputStream FileInputStream
      */
     @Nonnull
+    @CheckReturnValue
     static FileUpload fromData(@Nonnull InputStream data, @Nonnull String name) {
         return FileUpload.fromData(data, name);
     }
 
     /**
      * Create a new {@link FileUpload} for a byte array.
-     * <br>This is used to upload data to discord for various purposes.
+     * <br>
+     * This is used to upload data to discord for various purposes.
      *
-     * @param  data
-     *         The {@code byte[]} to upload
-     * @param  name
-     *         The representative name to use for the file
+     * @param data
+     *             The {@code byte[]} to upload
+     * @param name
+     *             The representative name to use for the file
      *
      * @throws IllegalArgumentException
-     *         If null is provided or the name is empty
+     *                                  If null is provided or the name is empty
      *
      * @return {@link FileUpload}
      */
     @Nonnull
+    @CheckReturnValue
     static FileUpload fromData(@Nonnull byte[] data, @Nonnull String name) {
         return FileUpload.fromData(data, name);
     }
 
     /**
-     * Create a new {@link FileUpload} for a local file.
-     * <br>This is used to upload data to discord for various purposes.
+     * Create a new {@link FileUpload} for a Netty {@link ByteBuf}.
+     * <br>
+     * This is used to upload data to discord with zero-copy buffer transfer.
      *
-     * <p>This opens a {@link FileInputStream}, which will be closed on consumption by the request.
-     * You can use {@link FileUpload#close()} to close the stream manually.
-     *
-     * @param  file
-     *         The {@link File} to upload
-     * @param  name
-     *         The representative name to use for the file
+     * @param data
+     *             The {@link ByteBuf} to upload
+     * @param name
+     *             The representative name to use for the file
      *
      * @throws IllegalArgumentException
-     *         If null is provided or the name is empty
+     *                                  If null is provided or the name is empty
+     *
+     * @return {@link FileUpload}
+     */
+    @Nonnull
+    @CheckReturnValue
+    static FileUpload fromData(@Nonnull ByteBuf data, @Nonnull String name) {
+        return FileUpload.fromData(data, name);
+    }
+
+    /**
+     * Create a new {@link FileUpload} for a local file.
+     * <br>
+     * This is used to upload data to discord for various purposes.
+     *
+     * <p>
+     * This opens a {@link FileInputStream}, which will be closed on consumption by
+     * the request.
+     * You can use {@link FileUpload#close()} to close the stream manually.
+     *
+     * @param file
+     *             The {@link File} to upload
+     * @param name
+     *             The representative name to use for the file
+     *
+     * @throws IllegalArgumentException
+     *                                  If null is provided or the name is empty
      * @throws UncheckedIOException
-     *         If an IOException is thrown while opening the file
+     *                                  If an IOException occurs while opening the
+     *                                  file
      *
      * @return {@link FileUpload}
      *
-     * @see    java.io.FileInputStream FileInputStream
+     * @see FileInputStream#FileInputStream(File)
      */
     @Nonnull
+    @CheckReturnValue
     static FileUpload fromData(@Nonnull File file, @Nonnull String name) {
         return FileUpload.fromData(file, name);
     }
 
     /**
      * Create a new {@link FileUpload} for a local file.
-     * <br>This is used to upload data to discord for various purposes.
+     * <br>
+     * This is used to upload data to discord for various purposes.
      *
-     * <p>This opens a {@link FileInputStream}, which will be closed on consumption by the request.
+     * <p>
+     * This opens a {@link FileInputStream}, which will be closed on consumption by
+     * the request.
      * You can use {@link FileUpload#close()} to close the stream manually.
      *
-     * @param  file
-     *         The {@link File} to upload
+     * <p>
+     * This will use the {@link File#getName() file name} as the file upload name.
+     *
+     * @param file
+     *             The {@link File} to upload
      *
      * @throws IllegalArgumentException
-     *         If null is provided
+     *                                  If null is provided
      * @throws UncheckedIOException
-     *         If an IOException is thrown while opening the file
+     *                                  If an IOException occurs while opening the
+     *                                  file
      *
      * @return {@link FileUpload}
      *
-     * @see    java.io.FileInputStream FileInputStream
-     * @see    #fromData(File, String)
+     * @see FileInputStream#FileInputStream(File)
      */
     @Nonnull
+    @CheckReturnValue
     static FileUpload fromData(@Nonnull File file) {
         return FileUpload.fromData(file);
     }
 
     /**
      * Create a new {@link FileUpload} for a local file.
-     * <br>This is used to upload data to discord for various purposes.
+     * <br>
+     * This is used to upload data to discord for various purposes.
      *
-     * <p>This opens the path using {@link Files#newInputStream(Path, OpenOption...)}, which will be closed on consumption by the request.
+     * <p>
+     * This opens a {@link InputStream}, which will be closed on consumption by the
+     * request.
      * You can use {@link FileUpload#close()} to close the stream manually.
      *
-     * @param  path
-     *         The {@link Path} of the file to upload
-     * @param  name
-     *         The representative name to use for the file
-     * @param  options
-     *         The {@link OpenOption OpenOptions} specifying how the file is opened
+     * @param path
+     *                The {@link Path} of the file to upload
+     * @param name
+     *                The representative name to use for the file
+     * @param options
+     *                Options specifying how the file is opened
      *
      * @throws IllegalArgumentException
-     *         If null is provided or the name is empty
+     *                                  If null is provided or the name is empty
      * @throws UncheckedIOException
-     *         If an IOException is thrown while opening the file
+     *                                  If an IOException occurs while opening the
+     *                                  file
      *
      * @return {@link FileUpload}
+     *
+     * @see Files#newInputStream(Path, OpenOption...)
      */
     @Nonnull
+    @CheckReturnValue
     static FileUpload fromData(@Nonnull Path path, @Nonnull String name, @Nonnull OpenOption... options) {
         return FileUpload.fromData(path, name, options);
     }
 
     /**
      * Create a new {@link FileUpload} for a local file.
-     * <br>This is used to upload data to discord for various purposes.
-     * Uses {@link Path#getFileName()} to specify the name of the file, to customize the filename use {@link #fromData(Path, String, OpenOption...)}.
+     * <br>
+     * This is used to upload data to discord for various purposes.
      *
-     * <p>This opens the path using {@link Files#newInputStream(Path, OpenOption...)}, which will be closed on consumption by the request.
+     * <p>
+     * This opens a {@link InputStream}, which will be closed on consumption by the
+     * request.
      * You can use {@link FileUpload#close()} to close the stream manually.
      *
-     * @param  path
-     *         The {@link Path} of the file to upload
-     * @param  options
-     *         The {@link OpenOption OpenOptions} specifying how the file is opened
+     * <p>
+     * This will use the {@link Path#getFileName() file name} as the file upload
+     * name.
+     *
+     * @param path
+     *                The {@link Path} of the file to upload
+     * @param options
+     *                Options specifying how the file is opened
      *
      * @throws IllegalArgumentException
-     *         If null is provided
+     *                                  If null is provided
      * @throws UncheckedIOException
-     *         If an IOException is thrown while opening the file
+     *                                  If an IOException occurs while opening the
+     *                                  file
      *
      * @return {@link FileUpload}
+     *
+     * @see Files#newInputStream(Path, OpenOption...)
      */
     @Nonnull
+    @CheckReturnValue
     static FileUpload fromData(@Nonnull Path path, @Nonnull OpenOption... options) {
         return FileUpload.fromData(path, options);
     }
 
     /**
      * Creates an {@link AttachmentUpdate} with the given attachment id.
-     * <br>This is primarily used for message edit requests, to specify which attachments to retain in the message after the update.
+     * <br>
+     * This is primarily used for message edit requests, to specify which
+     * attachments to retain in the message after the update.
      *
-     * @param  id
-     *         The id of the attachment to retain
+     * @param id
+     *           The id of the attachment to retain
+     *
+     * @throws IllegalArgumentException
+     *                                  If the id is not a valid snowflake
      *
      * @return {@link AttachmentUpdate}
      */
@@ -201,13 +264,15 @@ public interface AttachedFile extends Closeable {
 
     /**
      * Creates an {@link AttachmentUpdate} with the given attachment id.
-     * <br>This is primarily used for message edit requests, to specify which attachments to retain in the message after the update.
+     * <br>
+     * This is primarily used for message edit requests, to specify which
+     * attachments to retain in the message after the update.
      *
-     * @param  id
-     *         The id of the attachment to retain
+     * @param id
+     *           The id of the attachment to retain
      *
      * @throws IllegalArgumentException
-     *         If the id is not a valid snowflake
+     *                                  If the id is not a valid snowflake
      *
      * @return {@link AttachmentUpdate}
      */
@@ -218,10 +283,12 @@ public interface AttachedFile extends Closeable {
 
     /**
      * Creates an {@link AttachmentUpdate} with the given attachment.
-     * <br>This is primarily used for message edit requests, to specify which attachments to retain in the message after the update.
+     * <br>
+     * This is primarily used for message edit requests, to specify which
+     * attachments to retain in the message after the update.
      *
-     * @param  attachment
-     *         The attachment to retain
+     * @param attachment
+     *                   The attachment to retain
      *
      * @return {@link AttachmentUpdate}
      */
@@ -233,21 +300,26 @@ public interface AttachedFile extends Closeable {
     /**
      * Used internally to build the multipart request.
      *
-     * <p>The index can be used as a unique identifier for the multipart name, which is required to be unique by Discord.
+     * <p>
+     * The index can be used as a unique identifier for the multipart name, which is
+     * required to be unique by Discord.
      *
      * @param builder
-     *        The {@link MultipartBody.Builder} used for the request body
+     *                The {@link MultipartBody.Builder} used for the request body
      * @param index
-     *        The index of the attachment, ignored for {@link AttachmentUpdate}
+     *                The index of the attachment, ignored for
+     *                {@link AttachmentUpdate}
      */
     void addPart(@Nonnull MultipartBody.Builder builder, int index);
 
     /**
      * Used internally to build attachment descriptions for requests.
-     * <br>This contains the id/index of the attachment, and the name of the file.
+     * <br>
+     * This contains the id/index of the attachment, and the name of the file.
      *
-     * @param  index
-     *         The reference index (should be same as {@link #addPart(MultipartBody.Builder, int)})
+     * @param index
+     *              The reference index (should be same as
+     *              {@link #addPart(MultipartBody.Builder, int)})
      *
      * @return {@link DataObject} for the attachment
      */
@@ -257,11 +329,11 @@ public interface AttachedFile extends Closeable {
     /**
      * Build a complete request using the provided files and payload data.
      *
-     * @param  files
-     *         The files to upload/edit
+     * @param files
+     *              The files to upload/edit
      *
      * @throws IllegalArgumentException
-     *         If the file list is null
+     *                                  If the file list is null
      *
      * @return {@link MultipartBody.Builder}
      */
@@ -273,58 +345,71 @@ public interface AttachedFile extends Closeable {
     /**
      * Build a complete request using the provided files and payload data.
      *
-     * @param  files
-     *         The files to upload/edit
-     * @param  payloadJson
-     *         The payload data to send, null to not add a payload_json part
+     * @param files
+     *                    The files to upload/edit
+     * @param payloadJson
+     *                    The payload data to send, null to not add a payload_json
+     *                    part
      *
      * @throws IllegalArgumentException
-     *         If the file list is null
+     *                                  If the file list is null
      *
      * @return {@link MultipartBody.Builder}
      */
     @Nonnull
     static MultipartBody.Builder createMultipartBody(
             @Nonnull Collection<? extends AttachedFile> files, @Nullable DataObject payloadJson) {
-        RequestBody body =
-                payloadJson != null ? RequestBody.create(payloadJson.toJson(), Requester.MEDIA_TYPE_JSON) : null;
+        RequestBody body = payloadJson != null ? new JsonRequestBody(payloadJson.toMap()) : null;
         return createMultipartBody(files, body);
     }
 
     /**
      * Build a complete request using the provided files and payload data.
      *
-     * @param  files
-     *         The files to upload/edit
-     * @param  payloadJson
-     *         The payload data to send, null to not add a payload_json part
+     * @param files
+     *                    The files to upload/edit
+     * @param payloadJson
+     *                    The payload data to send, null to not add a payload_json
+     *                    part
      *
      * @throws IllegalArgumentException
-     *         If the file list is null
+     *                                  If the file list is null
      *
      * @return {@link MultipartBody.Builder}
      */
     @Nonnull
     static MultipartBody.Builder createMultipartBody(
             @Nonnull Collection<? extends AttachedFile> files, @Nullable RequestBody payloadJson) {
-        MultipartBody.Builder builder = new MultipartBody.Builder().setType(MultipartBody.FORM);
-        // Match the attachment `id` fields generated by [[MessageUtil#getAttachmentsData]]
+        MultipartBody.Builder builder = new MultipartBody.Builder();
+        if (payloadJson != null) {
+            builder.addFormDataPart("payload_json", null, payloadJson);
+        }
+
+        // Match the attachment `id` fields generated by
+        // [[MessageUtil#getAttachmentsData]]
         int i = 0;
         for (AttachedFile file : files) {
             file.addPart(builder, i++);
         }
 
-        if (payloadJson != null) {
-            builder.addFormDataPart("payload_json", null, payloadJson);
-        }
         return builder;
     }
 
     /**
-     * Forces the underlying resource to be closed, even if the file is already handled by a request.
+     * Forces the underlying resource to be closed, even if the file is already
+     * handled by a request.
      *
      * @throws IOException
-     *         If an IOException is thrown while closing the resource
+     *                     If an IOException is thrown while closing the resource
      */
     void forceClose() throws IOException;
+
+    @Override
+    default void close() {
+        try {
+            forceClose();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 }

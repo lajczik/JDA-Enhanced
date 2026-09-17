@@ -16,16 +16,18 @@
 
 package net.dv8tion.jda.api.requests;
 
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.util.AsciiString;
 import net.dv8tion.jda.api.utils.MiscUtil;
 import net.dv8tion.jda.internal.utils.JDALogger;
-import okhttp3.Headers;
-import okhttp3.Response;
 import org.slf4j.Logger;
 
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 
+import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 
 /**
@@ -67,7 +69,15 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
     private static final String UNINIT_BUCKET =
             "uninit"; // we generate an uninit bucket for every major parameter configuration
 
-    private final CompletableFuture<?> shutdownHandle = new CompletableFuture<>();
+    private static final AsciiString GLOBAL_HEADER_ASCII = AsciiString.cached(GLOBAL_HEADER);
+    private static final AsciiString HASH_HEADER_ASCII = AsciiString.cached(HASH_HEADER);
+    private static final AsciiString SCOPE_HEADER_ASCII = AsciiString.cached(SCOPE_HEADER);
+    private static final AsciiString LIMIT_HEADER_ASCII = AsciiString.cached(LIMIT_HEADER);
+    private static final AsciiString REMAINING_HEADER_ASCII = AsciiString.cached(REMAINING_HEADER);
+    private static final AsciiString RESET_AFTER_HEADER_ASCII = AsciiString.cached(RESET_AFTER_HEADER);
+    private static final AsciiString RESET_HEADER_ASCII = AsciiString.cached(RESET_HEADER);
+
+    private final CompletableFuture<?> shutdownHandle;
 
     private final Future<?> cleanupWorker;
     private final RateLimitConfig config;
@@ -86,7 +96,29 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
 
     public SequentialRestRateLimiter(@Nonnull RateLimitConfig config) {
         this.config = config;
+        this.shutdownHandle = new RateLimitFuture<>(config.getScheduler());
         this.cleanupWorker = config.getScheduler().scheduleAtFixedRate(this::cleanup, 30, 30, TimeUnit.SECONDS);
+    }
+
+    private static class RateLimitFuture<T> extends CompletableFuture<T> {
+        private final ScheduledExecutorService scheduler;
+
+        private RateLimitFuture(ScheduledExecutorService scheduler) {
+            this.scheduler = scheduler;
+        }
+
+        @Nonnull
+        @Override
+        public Executor defaultExecutor() {
+            return scheduler;
+        }
+
+        @Nonnull
+        @CheckReturnValue
+        @Override
+        public <U> CompletableFuture<U> newIncompleteFuture() {
+            return new RateLimitFuture<>(scheduler);
+        }
     }
 
     @Override
@@ -275,12 +307,15 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
         MiscUtil.locked(lock, () -> {
             try {
                 Bucket bucket = getBucket(route);
-                Headers headers = response.headers();
+                HttpHeaders headers = response.getHeaders();
+                if (headers == null) {
+                    return bucket;
+                }
 
-                boolean global = headers.get(GLOBAL_HEADER) != null;
-                boolean cloudflare = headers.get("via") == null;
-                String hash = headers.get(HASH_HEADER);
-                String scope = headers.get(SCOPE_HEADER);
+                boolean global = headers.get(GLOBAL_HEADER_ASCII) != null;
+                boolean cloudflare = headers.get(HttpHeaderNames.VIA) == null;
+                String hash = headers.get(HASH_HEADER_ASCII);
+                String scope = headers.get(SCOPE_HEADER_ASCII);
                 long now = getNow();
 
                 // Create a new bucket for the hash if needed
@@ -294,8 +329,8 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
                     bucket = getBucket(route);
                 }
 
-                if (response.code() == 429) {
-                    String retryAfterHeader = headers.get(RETRY_AFTER_HEADER);
+                if (response.code == 429) {
+                    String retryAfterHeader = headers.get(HttpHeaderNames.RETRY_AFTER);
                     long retryAfter = parseLong(retryAfterHeader) * 1000; // seconds precision
                     // Handle global rate limit if necessary
                     if (global) {
@@ -344,10 +379,10 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
                 }
 
                 // Update the bucket parameters with new information
-                String limitHeader = headers.get(LIMIT_HEADER);
-                String remainingHeader = headers.get(REMAINING_HEADER);
-                String resetAfterHeader = headers.get(RESET_AFTER_HEADER);
-                String resetHeader = headers.get(RESET_HEADER);
+                String limitHeader = headers.get(LIMIT_HEADER_ASCII);
+                String remainingHeader = headers.get(REMAINING_HEADER_ASCII);
+                String resetAfterHeader = headers.get(RESET_AFTER_HEADER_ASCII);
+                String resetHeader = headers.get(RESET_HEADER_ASCII);
 
                 //                bucket.limit = (int) Math.max(1L, parseLong(limitHeader));
                 bucket.remaining = (int) parseLong(remainingHeader);
@@ -369,8 +404,8 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
                         "Encountered Exception while updating a bucket. Route: {} Bucket: {} Code: {} Headers:\n{}",
                         route.getBaseRoute(),
                         bucket,
-                        response.code(),
-                        response.headers(),
+                        response.code,
+                        response.getHeaders(),
                         e);
                 return bucket;
             }
@@ -466,8 +501,9 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
         }
 
         protected boolean execute(@Nonnull Work request) {
+            Response response = null;
             try {
-                Response response = request.execute();
+                response = request.execute();
                 if (response != null) {
                     updateBucket(request.getRoute(), response);
                 }
@@ -480,6 +516,10 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
                     throw (Error) ex;
                 }
                 return true;
+            } finally {
+                if (response != null && !request.isDone()) {
+                    response.close();
+                }
             }
             return false;
         }

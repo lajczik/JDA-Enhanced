@@ -16,38 +16,75 @@
 
 package net.dv8tion.jda.internal.utils.requestbody;
 
-import okhttp3.MediaType;
-import okio.BufferedSink;
-import okio.Source;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import net.dv8tion.jda.api.utils.MediaType;
+import net.dv8tion.jda.internal.utils.Checks;
+import net.dv8tion.jda.internal.utils.IOUtil;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class DataSupplierBody extends TypedBody<DataSupplierBody> {
-    private final Supplier<? extends Source> streamSupply;
+    private final Supplier<? extends InputStream> streamSupply;
 
-    public DataSupplierBody(MediaType type, Supplier<? extends Source> streamSupply) {
+    public DataSupplierBody(@Nullable MediaType type, @Nonnull Supplier<? extends InputStream> streamSupply) {
         super(type);
+        Checks.notNull(streamSupply, "Supplier");
         this.streamSupply = streamSupply;
     }
 
     @Nonnull
     @Override
     public DataSupplierBody withType(@Nonnull MediaType newType) {
-        if (this.type.equals(newType)) {
+        Checks.notNull(newType, "MediaType");
+        if (newType.equals(this.type)) {
             return this;
         }
         return new DataSupplierBody(newType, streamSupply);
     }
 
+    @Nonnull
     @Override
-    public void writeTo(@Nonnull BufferedSink bufferedSink) throws IOException {
-        synchronized (streamSupply) {
-            try (Source stream = streamSupply.get()) {
-                bufferedSink.writeAll(stream);
-            }
+    public InputStream getInputStream() throws IOException {
+        InputStream stream = streamSupply.get();
+        if (stream == null) {
+            throw new IOException("Stream supplier returned null");
+        }
+        return stream;
+    }
+
+    @Override
+    public void writeTo(@Nonnull OutputStream out) throws IOException {
+        Checks.notNull(out, "OutputStream");
+        try (InputStream stream = this.getInputStream()) {
+            stream.transferTo(out);
+        }
+    }
+
+    @Override
+    public void writeTo(@Nonnull ByteBuf target) throws IOException {
+        Checks.notNull(target, "ByteBuf");
+        try (InputStream stream = this.getInputStream()) {
+            while (target.writeBytes(stream, 8192) > 0) {}
+        }
+    }
+
+    @Nonnull
+    @Override
+    public ByteBuf getByteBuf(@Nonnull ByteBufAllocator allocator) throws IOException {
+        Checks.notNull(allocator, "ByteBufAllocator");
+        return IOUtil.readIntoByteBuf(this.getInputStream(), allocator);
+    }
+
+    @Nonnull
+    @Override
+    public byte[] toBytes() throws IOException {
+        try (InputStream is = this.getInputStream()) {
+            return is.readAllBytes();
         }
     }
 }

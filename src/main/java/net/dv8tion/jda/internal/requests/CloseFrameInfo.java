@@ -14,26 +14,19 @@
  * limitations under the License.
  */
 
-package net.dv8tion.jda.internal.utils.requestbody;
+package net.dv8tion.jda.internal.requests;
 
-import net.dv8tion.jda.api.utils.MediaType;
-
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public abstract class TypedBody<T extends TypedBody<T>> extends RequestBody {
-    protected final MediaType type;
-
-    protected TypedBody(MediaType type) {
-        this.type = type;
-    }
-
-    @Nonnull
-    public abstract T withType(@Nonnull MediaType newType);
-
-    @Nullable
-    @Override
-    public MediaType contentType() {
-        return type;
-    }
-}
+/**
+ * Lightweight holder for WebSocket close frame information (status code and reason),
+ * replacing the use of {@code CloseWebSocketFrame} for field storage.
+ *
+ * <p>Unlike {@code CloseWebSocketFrame}, this record does not extend {@code ReferenceCounted}
+ * and does not allocate a {@code ByteBuf}, eliminating memory leaks and unnecessary GC pressure
+ * from storing close frame metadata as long-lived fields.
+ *
+ * @param statusCode the close status code
+ * @param reason     the close reason, or null
+ */
+public record CloseFrameInfo(int statusCode, @Nullable String reason) {}

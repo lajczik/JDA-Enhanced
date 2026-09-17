@@ -16,11 +16,11 @@
 
 package net.dv8tion.jda.api.utils;
 
+import io.netty.buffer.ByteBuf;
 import net.dv8tion.jda.api.entities.Icon;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.FutureUtil;
 import net.dv8tion.jda.internal.utils.IOUtil;
-import okhttp3.OkHttpClient;
 
 import java.io.File;
 import java.io.InputStream;
@@ -34,39 +34,38 @@ import javax.annotation.Nonnull;
 
 /**
  * A utility class to retrieve images.
- * <br>This supports downloading the images from the normal URL, as well as downloading the image with a specific size.
+ * <br>
+ * This supports downloading the images from the normal URL, as well as
+ * downloading the image with a specific size.
  *
- * @see <a href="https://discord.com/developers/docs/reference#image-formatting" target="_blank">Discord docs on image formatting</a>
+ * @see <a href="https://discord.com/developers/docs/reference#image-formatting"
+ *      target="_blank">Discord docs on image formatting</a>
  */
 public class ImageProxy extends FileProxy {
     /**
      * Constructs a new {@link ImageProxy} for the provided URL.
      *
-     * @param  url
-     *         The URL to download the image from
+     * @param url
+     *            The URL to download the image from
      *
      * @throws IllegalArgumentException
-     *         If the provided URL is null
+     *                                  If the provided URL is null
      */
     public ImageProxy(@Nonnull String url) {
         super(url);
     }
 
-    @Nonnull
-    @Override
-    public ImageProxy withClient(@Nonnull OkHttpClient customHttpClient) {
-        return (ImageProxy) super.withClient(customHttpClient);
-    }
-
     /**
      * Returns the image URL for the specified size.
-     * <br>The size is a best-effort resize from Discord, with recommended size values as powers of 2 such as 1024 or 512.
+     * <br>
+     * The size is a best-effort resize from Discord, with recommended size values
+     * as powers of 2 such as 1024 or 512.
      *
-     * @param  size
-     *         The size of the image
+     * @param size
+     *             The size of the image
      *
      * @throws IllegalArgumentException
-     *         If the requested size is negative or 0
+     *                                  If the requested size is negative or 0
      *
      * @return URL of the image with the specified size
      */
@@ -78,16 +77,46 @@ public class ImageProxy extends FileProxy {
     }
 
     /**
+     * Retrieves the {@link ByteBuf} of this image at the specified size.
+     * <br>
+     * <b>The image may not be resized at any size, usually Discord only allows for
+     * a few powers of 2</b>,
+     * so numbers like 128, 256, 512..., 100 and 600 might also be valid sizes.
+     * <br>
+     * <b>Note:</b> The returned {@link ByteBuf} is reference-counted and must be
+     * released when no longer needed via {@link ByteBuf#release()}.
+     *
+     * <p>
+     * If the image is not of a valid size, the CompletableFuture will hold an
+     * exception since the HTTP request would have returned a 404.
+     *
+     * @param size
+     *             The size of this image
+     *
+     * @return {@link CompletableFuture} which holds a {@link ByteBuf}
+     */
+    @Nonnull
+    @CheckReturnValue
+    public CompletableFuture<ByteBuf> downloadAsByteBuf(int size) {
+        return downloadAsByteBuf(getUrl(size));
+    }
+
+    /**
      * Retrieves the {@link InputStream} of this image at the specified size.
-     * <br><b>The image may not be resized at any size, usually Discord only allows for a few powers of 2</b>,
+     * <br>
+     * <b>The image may not be resized at any size, usually Discord only allows for
+     * a few powers of 2</b>,
      * so numbers like 128, 256, 512..., 100 and 600 might also be valid sizes.
      *
-     * <p>If the image is not of a valid size, the CompletableFuture will hold an exception since the HTTP request would have returned a 404.
+     * <p>
+     * If the image is not of a valid size, the CompletableFuture will hold an
+     * exception since the HTTP request would have returned a 404.
      *
-     * @param  size
-     *         The size of this image
+     * @param size
+     *             The size of this image
      *
-     * @return {@link CompletableFuture} which holds an {@link InputStream}, the {@link InputStream} must be closed manually.
+     * @return {@link CompletableFuture} which holds an {@link InputStream}, the
+     *         {@link InputStream} must be closed manually.
      */
     @Nonnull
     @CheckReturnValue
@@ -96,27 +125,36 @@ public class ImageProxy extends FileProxy {
     }
 
     /**
-     * Downloads the data of this image, at the specified size, and stores it in a file with the same name
+     * Downloads the data of this image, at the specified size, and stores it in a
+     * file with the same name
      * as the queried file name (this would be the last segment of the URL).
-     * <br><b>The image may not be resized at any size, usually Discord only allows for a few powers of 2</b>,
+     * <br>
+     * <b>The image may not be resized at any size, usually Discord only allows for
+     * a few powers of 2</b>,
      * so numbers like 128, 256, 512..., 100 and 600 might also be valid sizes.
      *
-     * <p>If the image is not of a valid size, the CompletableFuture will hold an exception since the HTTP request would have returned a 404.
+     * <p>
+     * If the image is not of a valid size, the CompletableFuture will hold an
+     * exception since the HTTP request would have returned a 404.
      *
-     * <p><b>Implementation note:</b>
-     *       The file is first downloaded into a temporary file, the file is then moved to its real destination when the download is complete.
+     * <p>
+     * <b>Implementation note:</b>
+     * The file is first downloaded into a temporary file, the file is then moved to
+     * its real destination when the download is complete.
      *
-     * @param  size
-     *         The size of this image, must be positive
+     * @param size
+     *             The size of this image, must be positive
      *
      * @throws IllegalArgumentException
-     *         If any of the follow checks are true
-     *         <ul>
-     *             <li>The requested size is negative or 0</li>
-     *             <li>The URL's scheme is neither http or https</li>
-     *         </ul>
+     *                                  If any of the follow checks are true
+     *                                  <ul>
+     *                                  <li>The requested size is negative or 0</li>
+     *                                  <li>The URL's scheme is neither http or
+     *                                  https</li>
+     *                                  </ul>
      *
-     * @return {@link CompletableFuture} which holds a {@link Path} which corresponds to the location the file has been downloaded.
+     * @return {@link CompletableFuture} which holds a {@link Path} which
+     *         corresponds to the location the file has been downloaded.
      */
     @Nonnull
     @CheckReturnValue
@@ -125,31 +163,43 @@ public class ImageProxy extends FileProxy {
     }
 
     /**
-     * Downloads the data of this image, at the specified size, and stores it in the specified file.
-     * <br><b>The image may not be resized at any size, usually Discord only allows for a few powers of 2</b>,
+     * Downloads the data of this image, at the specified size, and stores it in the
+     * specified file.
+     * <br>
+     * <b>The image may not be resized at any size, usually Discord only allows for
+     * a few powers of 2</b>,
      * so numbers like 128, 256, 512..., 100 and 600 might also be valid sizes.
      *
-     * <p>If the image is not of a valid size, the CompletableFuture will hold an exception since the HTTP request would have returned a 404.
+     * <p>
+     * If the image is not of a valid size, the CompletableFuture will hold an
+     * exception since the HTTP request would have returned a 404.
      *
-     * <p><b>Implementation note:</b>
-     *       The file is first downloaded into a temporary file, the file is then moved to its real destination when the download is complete.
+     * <p>
+     * <b>Implementation note:</b>
+     * The file is first downloaded into a temporary file, the file is then moved to
+     * its real destination when the download is complete.
      *
-     * @param  file
-     *         The file in which to download the image
-     * @param  size
-     *         The size of this image, must be positive
+     * @param file
+     *             The file in which to download the image
+     * @param size
+     *             The size of this image, must be positive
      *
      * @throws IllegalArgumentException
-     *         If any of the follow checks are true
-     *         <ul>
-     *             <li>The target file is null</li>
-     *             <li>The parent folder of the target file does not exist</li>
-     *             <li>The target file exists and is not a {@link Files#isRegularFile(Path, LinkOption...) regular file}</li>
-     *             <li>The target file exists and is not {@link Files#isWritable(Path) writable}</li>
-     *             <li>The requested size is negative or 0</li>
-     *         </ul>
+     *                                  If any of the follow checks are true
+     *                                  <ul>
+     *                                  <li>The target file is null</li>
+     *                                  <li>The parent folder of the target file
+     *                                  does not exist</li>
+     *                                  <li>The target file exists and is not a
+     *                                  {@link Files#isRegularFile(Path, LinkOption...)
+     *                                  regular file}</li>
+     *                                  <li>The target file exists and is not
+     *                                  {@link Files#isWritable(Path) writable}</li>
+     *                                  <li>The requested size is negative or 0</li>
+     *                                  </ul>
      *
-     * @return {@link CompletableFuture} which holds a {@link File}, it is the same as the file passed in the parameters.
+     * @return {@link CompletableFuture} which holds a {@link File}, it is the same
+     *         as the file passed in the parameters.
      */
     @Nonnull
     @CheckReturnValue
@@ -161,32 +211,45 @@ public class ImageProxy extends FileProxy {
     }
 
     /**
-     * Downloads the data of this image, at the specified size, and stores it in the specified file.
-     * <br><b>The image may not be resized at any size, usually Discord only allows for a few powers of 2</b>,
+     * Downloads the data of this image, at the specified size, and stores it in the
+     * specified file.
+     * <br>
+     * <b>The image may not be resized at any size, usually Discord only allows for
+     * a few powers of 2</b>,
      * so numbers like 128, 256, 512..., 100 and 600 might also be valid sizes.
      *
-     * <p>If the image is not of a valid size, the CompletableFuture will hold an exception since the HTTP request would have returned a 404.
+     * <p>
+     * If the image is not of a valid size, the CompletableFuture will hold an
+     * exception since the HTTP request would have returned a 404.
      *
-     * <p><b>Implementation note:</b>
-     *       The file is first downloaded into a temporary file, the file is then moved to its real destination when the download is complete.
-     *       <br>The given path can also target filesystems such as a ZIP filesystem.
+     * <p>
+     * <b>Implementation note:</b>
+     * The file is first downloaded into a temporary file, the file is then moved to
+     * its real destination when the download is complete.
+     * <br>
+     * The given path can also target filesystems such as a ZIP filesystem.
      *
-     * @param  path
-     *         The file in which to download the image
-     * @param  size
-     *         The size of this image, must be positive
+     * @param path
+     *             The file in which to download the image
+     * @param size
+     *             The size of this image, must be positive
      *
      * @throws IllegalArgumentException
-     *         If any of the follow checks are true
-     *         <ul>
-     *             <li>The target path is null</li>
-     *             <li>The parent folder of the target path does not exist</li>
-     *             <li>The target path exists and is not a {@link Files#isRegularFile(Path, LinkOption...) regular file}</li>
-     *             <li>The target path exists and is not {@link Files#isWritable(Path) writable}</li>
-     *             <li>The requested size is negative or 0</li>
-     *         </ul>
+     *                                  If any of the follow checks are true
+     *                                  <ul>
+     *                                  <li>The target path is null</li>
+     *                                  <li>The parent folder of the target path
+     *                                  does not exist</li>
+     *                                  <li>The target path exists and is not a
+     *                                  {@link Files#isRegularFile(Path, LinkOption...)
+     *                                  regular file}</li>
+     *                                  <li>The target path exists and is not
+     *                                  {@link Files#isWritable(Path) writable}</li>
+     *                                  <li>The requested size is negative or 0</li>
+     *                                  </ul>
      *
-     * @return {@link CompletableFuture} which holds a {@link Path}, it is the same as the path passed in the parameters.
+     * @return {@link CompletableFuture} which holds a {@link Path}, it is the same
+     *         as the path passed in the parameters.
      */
     @Nonnull
     @CheckReturnValue
@@ -197,7 +260,8 @@ public class ImageProxy extends FileProxy {
     }
 
     /**
-     * Downloads the data of this attachment, and constructs an {@link Icon} from the data.
+     * Downloads the data of this attachment, and constructs an {@link Icon} from
+     * the data.
      *
      * @return {@link CompletableFuture} which holds an {@link Icon}.
      */
@@ -208,17 +272,22 @@ public class ImageProxy extends FileProxy {
     }
 
     /**
-     * Downloads the data of this image, at the specified size, and constructs an {@link Icon} from the data.
-     * <br><b>The image may not be resized at any size, usually Discord only allows for a few powers of 2</b>,
+     * Downloads the data of this image, at the specified size, and constructs an
+     * {@link Icon} from the data.
+     * <br>
+     * <b>The image may not be resized at any size, usually Discord only allows for
+     * a few powers of 2</b>,
      * so numbers like 128, 256, 512..., 100 and 600 might also be valid sizes.
      *
-     * <p>If the image is not of a valid size, the CompletableFuture will hold an exception since the HTTP request would have returned a 404.
+     * <p>
+     * If the image is not of a valid size, the CompletableFuture will hold an
+     * exception since the HTTP request would have returned a 404.
      *
-     * @param  size
-     *         The size of this image, must be positive
+     * @param size
+     *             The size of this image, must be positive
      *
      * @throws IllegalArgumentException
-     *         If the requested size is negative or 0
+     *                                  If the requested size is negative or 0
      *
      * @return {@link CompletableFuture} which holds an {@link Icon}.
      */
@@ -231,16 +300,23 @@ public class ImageProxy extends FileProxy {
     /**
      * Returns a {@link FileUpload} which supplies a data stream of this attachment,
      * with the given file name and at the specified size.
-     * <br>The returned {@link FileUpload} can be reused safely, and does not need to be closed.
+     * <br>
+     * The returned {@link FileUpload} can be reused safely, and does not need to be
+     * closed.
      *
-     * <p><b>The image may not be resized at any size, usually Discord only allows for a few powers of 2</b>, so numbers like 128, 256, 512..., 100 might also be a valid size.
+     * <p>
+     * <b>The image may not be resized at any size, usually Discord only allows for
+     * a few powers of 2</b>, so numbers like 128, 256, 512..., 100 might also be a
+     * valid size.
      *
-     * <p>If the image is not of a valid size, the CompletableFuture will hold an exception since the HTTP request would have returned a 404.
+     * <p>
+     * If the image is not of a valid size, the CompletableFuture will hold an
+     * exception since the HTTP request would have returned a 404.
      *
-     * @param  name
-     *         The name of the to-be-uploaded file
-     * @param  size
-     *         The size of this image
+     * @param name
+     *             The name of the to-be-uploaded file
+     * @param size
+     *             The size of this image
      *
      * @throws IllegalArgumentException If the file name is null or blank
      *

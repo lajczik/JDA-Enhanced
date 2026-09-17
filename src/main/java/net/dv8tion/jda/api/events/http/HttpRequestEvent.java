@@ -16,6 +16,7 @@
 
 package net.dv8tion.jda.api.events.http;
 
+import io.netty.handler.codec.http.HttpHeaders;
 import net.dv8tion.jda.api.events.Event;
 import net.dv8tion.jda.api.requests.Request;
 import net.dv8tion.jda.api.requests.Response;
@@ -23,10 +24,10 @@ import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.Route.CompiledRoute;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
-import okhttp3.Headers;
-import okhttp3.RequestBody;
-import okhttp3.ResponseBody;
+import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
 
+import java.io.InputStream;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.CheckReturnValue;
@@ -34,7 +35,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Indicates that a {@link net.dv8tion.jda.api.requests.RestAction RestAction} has been executed.
+ * Indicates that a {@link RestAction} has been executed.
  *
  * <p>Depending on the request and its result not all values have to be populated.
  */
@@ -65,17 +66,8 @@ public class HttpRequestEvent extends Event {
     }
 
     @Nullable
-    public Headers getRequestHeaders() {
-        return this.response.getRawResponse() == null
-                ? null
-                : this.response.getRawResponse().request().headers();
-    }
-
-    @Nullable
-    public okhttp3.Request getRequestRaw() {
-        return this.response.getRawResponse() == null
-                ? null
-                : this.response.getRawResponse().request();
+    public Map<String, String> getRequestHeaders() {
+        return this.request.getHeaders();
     }
 
     @Nullable
@@ -84,10 +76,8 @@ public class HttpRequestEvent extends Event {
     }
 
     @Nullable
-    public ResponseBody getResponseBody() {
-        return this.response.getRawResponse() == null
-                ? null
-                : this.response.getRawResponse().body();
+    public InputStream getResponseBody() {
+        return this.response.getBody();
     }
 
     @Nullable
@@ -106,15 +96,8 @@ public class HttpRequestEvent extends Event {
     }
 
     @Nullable
-    public Headers getResponseHeaders() {
-        return this.response.getRawResponse() == null
-                ? null
-                : this.response.getRawResponse().headers();
-    }
-
-    @Nullable
-    public okhttp3.Response getResponseRaw() {
-        return this.response.getRawResponse();
+    public HttpHeaders getResponseHeaders() {
+        return this.response.getHeaders();
     }
 
     @Nonnull
