@@ -7,7 +7,7 @@
 [JDABuilder]: https://docs.jda.wiki/net/dv8tion/jda/api/JDABuilder.html
 [DefaultShardManagerBuilder]: https://docs.jda.wiki/net/dv8tion/jda/api/sharding/DefaultShardManagerBuilder.html
 
-<img align="right" src="https://github.com/discord-jda/JDA/blob/assets/assets/readme/logo.png?raw=true" height="150" width="150">
+<img align="right" src="https://github.com/discord-jda/JDA/blob/assets/assets/readme/logo.png?raw=true" height="150" width="150" alt="JDA Logo" />
 
 [![license-shield][]][license]
 
@@ -43,10 +43,10 @@ The core concepts of JDA have been developed to make building scalable apps easy
 
 1. Event System
     Providing simplified events from the gateway API, to respond to any platform events in real-time without much hassle.
-1. Rest Actions
+2. Rest Actions
     Easy to use and scalable implementation of REST API functionality, letting you choose between callbacks with combinators, futures, and blocking.
     The library also handles rate-limits imposed by Discord automatically, while still offering ways to replace the default implementation.
-1. Customizable Cache
+3. Customizable Cache
     Trading memory usage for better performance where necessary, with sane default presets to choose from and customize.
 
 You can learn more by visiting the [wiki][wiki] or referencing the [Javadocs][docs].
@@ -64,7 +64,7 @@ repositories {
 }
 
 dependencies {
-    implementation("net.dv8tion:JDA:$version") {
+    implementation("io.github.lajczik:JDA-Enhanced:$version") {
         // === Audio excludes (safe if you don't use voice) ===
         // exclude(module = "opus-java")  // Opus encoding via JNA native bindings
         // exclude(module = "tink")       // DAVE protocol audio encryption
@@ -98,7 +98,7 @@ repositories {
 }
 
 dependencies {
-    implementation("net.dv8tion:JDA:$version") {
+    implementation("io.github.lajczik:JDA-Enhanced:$version") {
         // exclude module: 'opus-java'   // Opus encoding
         // exclude module: 'tink'        // DAVE protocol audio encryption
         // exclude module: 'zstd-jni'    // Zstandard compression
@@ -111,8 +111,8 @@ dependencies {
 
 ```xml
 <dependency>
-    <groupId>net.dv8tion</groupId>
-    <artifactId>JDA</artifactId>
+    <groupId>io.github.lajczik</groupId>
+    <artifactId>JDA-Enhanced</artifactId>
     <version>$version</version> <!-- replace $version with the latest version -->
     <exclusions>
         <!-- Audio: Opus encoding via JNA native bindings -->
@@ -153,10 +153,10 @@ The build produces several JAR variants:
 
 | Artifact | Contents |
 |---|---|
-| `JDA-$version.jar` | Library only, no bundled dependencies |
-| `JDA-$version-withDependencies.jar` | Fat jar with all runtime dependencies |
-| `JDA-$version-withDependencies-no-opus.jar` | Fat jar without opus/JNA |
-| `JDA-$version-withDependencies-min.jar` | Minimized fat jar — no audio, no platform-specific Netty transport, `minimize()` applied |
+| `JDA-Enhanced-$version.jar` | Library only, no bundled dependencies |
+| `JDA-Enhanced-$version-withDependencies.jar` | Fat jar with all runtime dependencies |
+| `JDA-Enhanced-$version-withDependencies-no-opus.jar` | Fat jar without opus/JNA |
+| `JDA-Enhanced-$version-withDependencies-min.jar` | Minimized fat jar — no audio, no platform-specific Netty transport, `minimize()` applied |
 
 ## 🤖 Creating a Bot
 

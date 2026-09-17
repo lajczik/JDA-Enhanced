@@ -16,7 +16,6 @@
 
 import com.diffplug.spotless.LineEnding
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import de.undercouch.gradle.tasks.download.Download
 import net.dv8tion.jda.gradle.Version
 import net.dv8tion.jda.gradle.plugins.applyAudioExclusions
 import net.dv8tion.jda.gradle.plugins.applyNettyExclusions
@@ -157,7 +156,7 @@ if (projectEnvironment.canPublish) {
 project.group = "net.dv8tion"
 
 base {
-    archivesName.set("JDA")
+    archivesName.set("JDA-Enhanced")
 }
 
 val examples = sourceSets.create("examples") {
