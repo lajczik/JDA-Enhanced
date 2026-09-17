@@ -17,8 +17,13 @@
 package net.dv8tion.jda.internal.utils.config;
 
 import net.dv8tion.jda.internal.utils.concurrent.CountingThreadFactory;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
@@ -31,6 +36,7 @@ public class ThreadingConfig {
     private ExecutorService rateLimitElastic;
     private ScheduledExecutorService gatewayPool;
     private ExecutorService callbackPool;
+    private Scheduler callbackScheduler;
     private ExecutorService eventPool;
     private ScheduledExecutorService audioPool;
 
@@ -42,12 +48,15 @@ public class ThreadingConfig {
     private boolean shutdownAudioPool;
 
     public ThreadingConfig() {
-        this.callbackPool = ForkJoinPool.commonPool();
+        this.callbackPool = newVirtualThreadExecutor("JDA-Callback");
+        this.callbackScheduler = Schedulers.fromExecutorService(this.callbackPool);
+        this.eventPool = newVirtualThreadExecutor("JDA-Event");
 
         this.shutdownRateLimitScheduler = true;
         this.shutdownRateLimitElastic = true;
         this.shutdownGatewayPool = true;
-        this.shutdownCallbackPool = false;
+        this.shutdownCallbackPool = true;
+        this.shutdownEventPool = true;
         this.shutdownAudioPool = true;
     }
 
@@ -66,9 +75,18 @@ public class ThreadingConfig {
         this.shutdownGatewayPool = shutdown;
     }
 
-    public void setCallbackPool(@Nullable ExecutorService executor, boolean shutdown) {
-        this.callbackPool = executor == null ? ForkJoinPool.commonPool() : executor;
-        this.shutdownCallbackPool = shutdown;
+    @Nonnull
+    public static ScheduledThreadPoolExecutor newScheduler(
+            int coreSize, Supplier<String> identifier, String baseName, boolean daemon) {
+        ScheduledThreadPoolExecutor executor =
+                new ScheduledThreadPoolExecutor(coreSize, new CountingThreadFactory(identifier, baseName, daemon));
+        executor.setRemoveOnCancelPolicy(true);
+        return executor;
+    }
+
+    @Nonnull
+    public static ExecutorService newVirtualThreadExecutor(@Nonnull String prefix) {
+        return Executors.newThreadPerTaskExecutor(new CountingThreadFactory(() -> prefix, "", true, true));
     }
 
     public void setEventPool(@Nullable ExecutorService executor, boolean shutdown) {
@@ -81,28 +99,23 @@ public class ThreadingConfig {
         this.shutdownAudioPool = shutdown;
     }
 
-    public void init(@Nonnull Supplier<String> identifier) {
-        if (this.rateLimitScheduler == null) {
-            this.rateLimitScheduler = newScheduler(2, identifier, "RateLimit-Scheduler", false);
+    public void setCallbackPool(@Nullable ExecutorService executor, boolean shutdown) {
+        if (this.callbackScheduler != null) {
+            this.callbackScheduler.dispose();
         }
-        if (this.gatewayPool == null) {
-            this.gatewayPool = newScheduler(1, identifier, "Gateway");
-        }
-        if (this.rateLimitElastic == null) {
-            this.rateLimitElastic =
-                    Executors.newCachedThreadPool(new CountingThreadFactory(identifier, "RateLimit-Elastic", false));
-            if (this.rateLimitElastic instanceof ThreadPoolExecutor) {
-                ((ThreadPoolExecutor) this.rateLimitElastic).setCorePoolSize(1);
-                ((ThreadPoolExecutor) this.rateLimitElastic).setKeepAliveTime(2, TimeUnit.MINUTES);
-            }
-        }
+        this.callbackPool = executor == null ? newVirtualThreadExecutor("JDA-Callback") : executor;
+        this.shutdownCallbackPool = shutdown;
+        this.callbackScheduler = Schedulers.fromExecutorService(this.callbackPool);
     }
 
     public void shutdown() {
         if (shutdownCallbackPool) {
             callbackPool.shutdown();
+            if (callbackScheduler != null) {
+                callbackScheduler.dispose();
+            }
         }
-        if (shutdownGatewayPool) {
+        if (shutdownGatewayPool && gatewayPool != null) {
             gatewayPool.shutdown();
         }
         if (shutdownEventPool && eventPool != null) {
@@ -125,8 +138,11 @@ public class ThreadingConfig {
     public void shutdownNow() {
         if (shutdownCallbackPool) {
             callbackPool.shutdownNow();
+            if (callbackScheduler != null) {
+                callbackScheduler.dispose();
+            }
         }
-        if (shutdownGatewayPool) {
+        if (shutdownGatewayPool && gatewayPool != null) {
             gatewayPool.shutdownNow();
         }
         if (shutdownRateLimitScheduler) {
@@ -161,6 +177,14 @@ public class ThreadingConfig {
     @Nonnull
     public ExecutorService getCallbackPool() {
         return callbackPool;
+    }
+
+    @Nonnull
+    public Scheduler getCallbackScheduler() {
+        if (callbackScheduler == null) {
+            callbackScheduler = Schedulers.fromExecutorService(callbackPool);
+        }
+        return callbackScheduler;
     }
 
     @Nullable
@@ -211,10 +235,20 @@ public class ThreadingConfig {
         return newScheduler(coreSize, identifier, baseName, true);
     }
 
-    @Nonnull
-    public static ScheduledThreadPoolExecutor newScheduler(
-            int coreSize, Supplier<String> identifier, String baseName, boolean daemon) {
-        return new ScheduledThreadPoolExecutor(coreSize, new CountingThreadFactory(identifier, baseName, daemon));
+    public void init(@Nonnull Supplier<String> identifier) {
+        if (this.rateLimitScheduler == null) {
+            this.rateLimitScheduler = newScheduler(2, identifier, "RateLimit-Scheduler", false);
+        }
+        if (this.gatewayPool == null) {
+            this.gatewayPool = newScheduler(1, identifier, "Gateway");
+        }
+        if (this.rateLimitElastic == null) {
+            this.rateLimitElastic = newVirtualThreadExecutor(identifier.get() + " RateLimit-Elastic");
+        }
+        if (this.eventPool == null) {
+            this.eventPool = newVirtualThreadExecutor(identifier.get() + " Event");
+            this.shutdownEventPool = true;
+        }
     }
 
     @Nonnull
