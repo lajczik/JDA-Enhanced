@@ -79,7 +79,7 @@ public class AudioManagerImpl implements AudioManager {
         }
         Member self = getGuild().getSelfMember();
         // if (!self.hasPermission(channel, Permission.VOICE_CONNECT))
-        //    throw new InsufficientPermissionException(Permission.VOICE_CONNECT);
+        // throw new InsufficientPermissionException(Permission.VOICE_CONNECT);
 
         // If we are already connected to this AudioChannel, then do nothing.
         if (audioConnection != null && channel.equals(audioConnection.getChannel())) {
@@ -108,7 +108,8 @@ public class AudioManagerImpl implements AudioManager {
             // - If there is a userlimit
             // - If that userlimit is reached
             // - If we don't have voice move others permissions
-            // VOICE_MOVE_OTHERS allows access because you would be able to move people out to
+            // VOICE_MOVE_OTHERS allows access because you would be able to move people out
+            // to
             // open up a slot anyway
             if (userLimit <= channel.getMembers().size() && !perms.contains(Permission.VOICE_MOVE_OTHERS)) {
                 throw new InsufficientPermissionException(
@@ -311,17 +312,5 @@ public class AudioManagerImpl implements AudioManager {
             // This is technically equivalent to an audio open/move packet.
             getJDA().getDirectAudioController().connect(channel);
         }
-    }
-
-    @Override
-    @SuppressWarnings("deprecation") /* If this was in JDK9 we would be using java.lang.ref.Cleaner instead! */
-    protected void finalize() {
-        if (audioConnection != null) {
-            LOG.warn(
-                    "Finalized AudioManager with active audio connection. GuildId: {}",
-                    getGuild().getId());
-            audioConnection.close(ConnectionStatus.DISCONNECTED_REMOVED_FROM_GUILD);
-        }
-        audioConnection = null;
     }
 }

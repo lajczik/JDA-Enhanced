@@ -16,12 +16,15 @@
 
 package net.dv8tion.jda.api.audio.factory;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.socket.DatagramChannel;
 import net.dv8tion.jda.internal.audio.AudioConnection;
 import net.dv8tion.jda.internal.utils.JDALogger;
 import org.slf4j.MDC;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
 import java.net.NoRouteToHostException;
 import java.net.SocketException;
 import java.util.concurrent.ConcurrentMap;
@@ -32,7 +35,7 @@ import javax.annotation.Nonnull;
 import static net.dv8tion.jda.api.audio.OpusPacket.OPUS_FRAME_TIME_AMOUNT;
 
 /**
- * The default implementation of the {@link net.dv8tion.jda.api.audio.factory.IAudioSendSystem IAudioSendSystem}.
+ * The default implementation of the {@link IAudioSendSystem}.
  * <br>This implementation uses a Java thread, named based on: {@link IPacketProvider#getIdentifier()} + " Sending Thread".
  */
 public class DefaultSendSystem implements IAudioSendSystem {
@@ -52,7 +55,15 @@ public class DefaultSendSystem implements IAudioSendSystem {
     @Override
     @SuppressWarnings("ThreadPriorityCheck")
     public void start() {
-        DatagramSocket udpSocket = packetProvider.getUdpSocket();
+        DatagramChannel nettyChannel = packetProvider.getDatagramChannel();
+        DatagramSocket udpSocket;
+        try {
+            udpSocket = (nettyChannel == null) ? packetProvider.getUdpSocket() : null;
+        } catch (Exception e) {
+            udpSocket = null;
+        }
+        final DatagramSocket finalUdpSocket = udpSocket;
+        final InetSocketAddress remoteAddress = packetProvider.getSocketAddress();
 
         sendThread = new Thread(() -> {
             if (contextMap != null) {
@@ -60,15 +71,25 @@ public class DefaultSendSystem implements IAudioSendSystem {
             }
             long lastFrameSent = System.currentTimeMillis();
             boolean sentPacket = true;
-            while (!udpSocket.isClosed() && !sendThread.isInterrupted()) {
+            while (((nettyChannel != null && nettyChannel.isActive())
+                            || (finalUdpSocket != null && !finalUdpSocket.isClosed()))
+                    && !sendThread.isInterrupted()) {
                 try {
                     boolean changeTalking =
                             !sentPacket || (System.currentTimeMillis() - lastFrameSent) > OPUS_FRAME_TIME_AMOUNT;
-                    DatagramPacket packet = packetProvider.getNextPacket(changeTalking);
 
-                    sentPacket = packet != null;
-                    if (sentPacket) {
-                        udpSocket.send(packet);
+                    if (nettyChannel != null) {
+                        ByteBuf buf = packetProvider.getNextPacketByteBuf(changeTalking);
+                        sentPacket = buf != null;
+                        if (sentPacket) {
+                            nettyChannel.writeAndFlush(new io.netty.channel.socket.DatagramPacket(buf, remoteAddress));
+                        }
+                    } else {
+                        DatagramPacket packet = packetProvider.getNextPacket(changeTalking);
+                        sentPacket = packet != null;
+                        if (sentPacket) {
+                            finalUdpSocket.send(packet);
+                        }
                     }
                 } catch (NoRouteToHostException e) {
                     packetProvider.onConnectionLost();

@@ -32,6 +32,8 @@ public class Decoder {
     protected char lastSeq;
     protected int lastTimestamp;
     protected PointerByReference opusDecoder;
+    protected final ShortBuffer decodeBuffer = ShortBuffer.allocate(4096);
+    protected byte[] decodeInputBuffer = new byte[1024];
 
     protected Decoder(int ssrc) {
         this.ssrc = ssrc;
@@ -56,10 +58,10 @@ public class Decoder {
 
     public short[] decodeFromOpus(AudioPacket decryptedPacket) {
         int result;
-        ShortBuffer decoded = ShortBuffer.allocate(4096);
+        decodeBuffer.clear();
         if (decryptedPacket == null) // Flag for packet-loss
         {
-            result = Opus.INSTANCE.opus_decode(opusDecoder, null, 0, decoded, OpusPacket.OPUS_FRAME_SIZE, 0);
+            result = Opus.INSTANCE.opus_decode(opusDecoder, null, 0, decodeBuffer, OpusPacket.OPUS_FRAME_SIZE, 0);
             lastSeq = Character.MAX_VALUE;
             lastTimestamp = -1;
         } else {
@@ -68,9 +70,12 @@ public class Decoder {
 
             ByteBuffer encodedAudio = decryptedPacket.getEncodedAudio();
             int length = encodedAudio.remaining();
-            byte[] buf = new byte[length];
-            encodedAudio.slice().get(buf);
-            result = Opus.INSTANCE.opus_decode(opusDecoder, buf, buf.length, decoded, OpusPacket.OPUS_FRAME_SIZE, 0);
+            if (decodeInputBuffer.length < length) {
+                decodeInputBuffer = new byte[length];
+            }
+            encodedAudio.slice().get(decodeInputBuffer, 0, length);
+            result = Opus.INSTANCE.opus_decode(
+                    opusDecoder, decodeInputBuffer, length, decodeBuffer, OpusPacket.OPUS_FRAME_SIZE, 0);
         }
 
         // If we get a result that is less than 0, then there was an error. Return null as a
@@ -81,7 +86,7 @@ public class Decoder {
         }
 
         short[] audio = new short[result * 2];
-        decoded.get(audio);
+        decodeBuffer.get(audio);
         return audio;
     }
 
@@ -120,12 +125,5 @@ public class Decoder {
             Opus.INSTANCE.opus_decoder_destroy(opusDecoder);
             opusDecoder = null;
         }
-    }
-
-    @Override
-    @SuppressWarnings("deprecation") /* If this was in JDK9 we would be using java.lang.ref.Cleaner instead! */
-    protected void finalize() throws Throwable {
-        super.finalize();
-        close();
     }
 }

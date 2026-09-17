@@ -16,7 +16,17 @@
 
 package net.dv8tion.jda.internal.audio;
 
-import com.neovisionaries.ws.client.*;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.*;
+import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.websocketx.*;
+import io.netty.handler.ssl.SslContext;
 import net.dv8tion.jda.api.JDAInfo;
 import net.dv8tion.jda.api.audio.SpeakingMode;
 import net.dv8tion.jda.api.audio.dave.DaveProtocolCallbacks;
@@ -29,21 +39,22 @@ import net.dv8tion.jda.api.entities.UserSnowflake;
 import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
 import net.dv8tion.jda.api.events.ExceptionEvent;
 import net.dv8tion.jda.api.utils.MiscUtil;
+import net.dv8tion.jda.api.utils.NettyConfig;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.managers.AudioManagerImpl;
+import net.dv8tion.jda.internal.requests.CloseFrameInfo;
 import net.dv8tion.jda.internal.utils.IOUtil;
 import net.dv8tion.jda.internal.utils.JDALogger;
+import net.dv8tion.jda.internal.utils.NettyUtils;
+import net.dv8tion.jda.internal.utils.SerializationUtil;
 import org.slf4j.Logger;
 
-import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -52,14 +63,18 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 
-class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
+class AudioWebSocket implements DaveProtocolCallbacks {
     public static final Logger LOG = JDALogger.getLog(AudioWebSocket.class);
     public static final int DISCORD_SECRET_KEY_LENGTH = 32;
     private static final byte[] UDP_KEEP_ALIVE = {(byte) 0xC9, 0, 0, 0, 0, 0, 0, 0, 0};
 
     protected volatile AudioEncryption encryption;
     protected volatile CryptoAdapter crypto;
-    protected WebSocket socket;
+    public volatile Channel channel;
+    protected EventLoopGroup group;
+    protected boolean ownsEventLoopGroup;
+    protected volatile CloseFrameInfo serverCloseFrame;
+    protected volatile CloseFrameInfo clientCloseFrame;
 
     private DaveSession daveSession;
     private final AudioConnection audioConnection;
@@ -101,7 +116,8 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
 
         // Add the version query parameter
         String url = IOUtil.addQuery(endpoint, "v", JDAInfo.AUDIO_GATEWAY_VERSION);
-        // Append the Secure Websocket scheme so that our websocket library knows how to connect
+        // Append the Secure Websocket scheme so that our websocket library knows how to
+        // connect
         if (url.startsWith("wss://")) {
             wssEndpoint = url;
         } else {
@@ -123,37 +139,100 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
 
     /* Used by AudioConnection */
 
+    protected void send(DataObject message) {
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("<- {}", message);
+        }
+        if (channel != null && channel.isActive()) {
+            ByteBuf buf = channel.alloc().buffer();
+            SerializationUtil.writeJson(buf, message.toMap());
+            channel.writeAndFlush(new TextWebSocketFrame(buf));
+        }
+    }
+
     protected void send(String message) {
         LOG.trace("<- {}", message);
-        socket.sendText(message);
+        if (channel != null && channel.isActive()) {
+            ByteBuf buf = ByteBufUtil.writeUtf8(channel.alloc(), message);
+            channel.writeAndFlush(new TextWebSocketFrame(buf));
+        }
     }
 
     protected void send(int op, Object data) {
-        send(DataObject.empty().put("op", op).put("d", data).toString());
+        send(DataObject.empty().put("op", op).put("d", data));
+    }
+
+    protected void clearCloseFrames() {
+        serverCloseFrame = null;
+        clientCloseFrame = null;
     }
 
     protected void startConnection() {
-        if (!reconnecting && socket != null) {
+        clearCloseFrames();
+        if (!reconnecting && channel != null && channel.isActive()) {
             throw new IllegalStateException(
                     "Somehow, someway, this AudioWebSocket has already attempted to start a connection!");
         }
 
         try {
-            WebSocketFactory socketFactory = new WebSocketFactory(getJDA().getWebSocketFactory());
-            IOUtil.setServerName(socketFactory, wssEndpoint);
-            if (socketFactory.getSocketTimeout() > 0) {
-                socketFactory.setSocketTimeout(Math.max(1000, socketFactory.getSocketTimeout()));
+            URI uri = URI.create(wssEndpoint);
+            String scheme = uri.getScheme() == null ? "wss" : uri.getScheme();
+            String host = uri.getHost() == null ? "127.0.0.1" : uri.getHost();
+            int defaultPort = "ws".equalsIgnoreCase(scheme) ? 80 : 443;
+            final int port = uri.getPort() != -1 ? uri.getPort() : defaultPort;
+            boolean ssl = "wss".equalsIgnoreCase(scheme);
+            final SslContext sslCtx;
+            if (ssl) {
+                sslCtx = NettyUtils.createSslContext();
             } else {
-                socketFactory.setSocketTimeout(10000);
+                sslCtx = null;
             }
-            socket = socketFactory.createSocket(wssEndpoint);
-            socket.setDirectTextMessage(true);
-            socket.addListener(this);
+
+            NettyConfig nettyConfig = getJDA().getNettyConfig();
+            this.group = getJDA().getAudioEventLoopGroup();
+            this.ownsEventLoopGroup = false;
+
+            HttpHeaders customHeaders = new DefaultHttpHeaders();
+            customHeaders.add(
+                    HttpHeaderNames.USER_AGENT, getJDA().getRequester().getUserAgent());
+            WebSocketClientHandshaker handshaker =
+                    NettyUtils.newHandshaker(uri, customHeaders, nettyConfig.getMaxFramePayloadLength());
+
             changeStatus(ConnectionStatus.CONNECTING_AWAITING_WEBSOCKET_CONNECT);
-            socket.connectAsynchronously();
-        } catch (IOException e) {
+
+            Bootstrap b = new Bootstrap();
+            b.group(group);
+            NettyUtils.configureBootstrap(b, nettyConfig);
+            b.handler(new ChannelInitializer<SocketChannel>() {
+                @Override
+                protected void initChannel(SocketChannel ch) {
+                    ChannelPipeline p = ch.pipeline();
+                    if (sslCtx != null) {
+                        p.addLast("ssl", sslCtx.newHandler(ch.alloc(), host, port));
+                    }
+                    p.addLast("http-codec", new HttpClientCodec());
+                    p.addLast(
+                            "http-aggregator",
+                            new HttpObjectAggregator(nettyConfig.getHttpAggregatorMaxContentLength()));
+                    p.addLast("ws-handler", new AudioWebSocketHandler(handshaker));
+                }
+            });
+
+            ChannelFuture connectFuture = b.connect(host, port);
+            this.channel = connectFuture.channel();
+            connectFuture.addListener((ChannelFutureListener) future -> {
+                if (!future.isSuccess()) {
+                    LOG.warn(
+                            "Failed to establish websocket connection to {}: {}\n"
+                                    + "Closing connection and attempting to reconnect.",
+                            wssEndpoint,
+                            future.cause().getMessage());
+                    close(ConnectionStatus.ERROR_WEBSOCKET_UNABLE_TO_CONNECT);
+                }
+            });
+        } catch (Exception e) {
             LOG.warn(
-                    "Encountered IOException while attempting to connect to {}: {}\n"
+                    "Encountered exception while attempting to connect to {}: {}\n"
                             + "Closing connection and attempting to reconnect.",
                     wssEndpoint,
                     e.getMessage());
@@ -176,11 +255,16 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
             shutdown = true;
             stopKeepAlive();
 
-            if (audioConnection.udpSocket != null) {
-                audioConnection.udpSocket.close();
+            if (audioConnection.udpChannel != null) {
+                audioConnection.udpChannel.close();
             }
-            if (socket != null) {
-                socket.sendClose();
+            if (channel != null && channel.isActive()) {
+                clientCloseFrame = new CloseFrameInfo(1000, null);
+                channel.writeAndFlush(new CloseWebSocketFrame(1000, null)).addListener(ChannelFutureListener.CLOSE);
+            }
+            clearCloseFrames();
+            if (ownsEventLoopGroup && group != null) {
+                group.shutdownGracefully();
             }
 
             audioConnection.shutdown();
@@ -265,17 +349,11 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
 
     /* TCP Listeners */
 
-    @Override
-    public void onThreadStarted(WebSocket websocket, ThreadType threadType, Thread thread) {
-        getJDA().setContext();
-    }
-
-    @Override
-    public void onConnected(WebSocket websocket, Map<String, List<String>> headers) {
+    public void onConnected(HttpHeaders headers) {
         if (shutdown) {
-            // Somehow this AudioWebSocket was shutdown before we finished connecting....
-            // thus we just disconnect here since we were asked to shutdown
-            socket.sendClose(1000);
+            if (channel != null && channel.isActive()) {
+                channel.writeAndFlush(new CloseWebSocketFrame(1000, null)).addListener(ChannelFutureListener.CLOSE);
+            }
             return;
         }
 
@@ -289,33 +367,39 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
         reconnecting = false;
     }
 
-    @Override
-    public void onTextMessage(WebSocket websocket, byte[] data) {
+    public void onTextMessage(ByteBuf data) {
         try {
-            handleEvent(DataObject.fromJson(data));
+            boolean deduplicate = getJDA().getSessionConfig().isStringDeduplication();
+            handleEvent(DataObject.fromJson(data, deduplicate));
         } catch (Exception ex) {
-            String message = "malformed";
-            try {
-                message = new String(data, StandardCharsets.UTF_8);
-            } catch (Exception ignored) {
-            }
-            LOG.error("Encountered exception trying to handle an event message: {}", message, ex);
+            LOG.error("Encountered exception trying to handle an event message", ex);
         }
     }
 
-    @Override
     public void onDisconnected(
-            WebSocket websocket,
-            WebSocketFrame serverCloseFrame,
-            WebSocketFrame clientCloseFrame,
-            boolean closedByServer) {
+            CloseFrameInfo serverCloseFrame, CloseFrameInfo clientCloseFrame, boolean closedByServer) {
+        if (shutdown) {
+            return;
+        }
+        Thread.ofVirtual()
+                .name(guild.getId() + " AudioWS-DisconnectThread")
+                .uncaughtExceptionHandler((thread, throwable) -> {
+                    LOG.error("Uncaught exception in AudioWS disconnect-thread", throwable);
+                    JDAImpl api = getJDA();
+                    api.handleEvent(new ExceptionEvent(api, throwable, true));
+                })
+                .start(() -> handleDisconnect(serverCloseFrame, clientCloseFrame, closedByServer));
+    }
+
+    private void handleDisconnect(
+            CloseFrameInfo serverCloseFrame, CloseFrameInfo clientCloseFrame, boolean closedByServer) {
         if (shutdown) {
             return;
         }
         LOG.debug("The Audio connection was closed!\nBy remote? {}", closedByServer);
         if (serverCloseFrame != null) {
-            LOG.debug("Reason: {}\nClose code: {}", serverCloseFrame.getCloseReason(), serverCloseFrame.getCloseCode());
-            int code = serverCloseFrame.getCloseCode();
+            LOG.debug("Reason: {}\nClose code: {}", serverCloseFrame.reason(), serverCloseFrame.statusCode());
+            int code = serverCloseFrame.statusCode();
             VoiceCode.Close closeCode = VoiceCode.Close.from(code);
             switch (closeCode) {
                 case RATE_LIMIT_EXCEEDED:
@@ -337,11 +421,8 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
             return;
         }
         if (clientCloseFrame != null) {
-            LOG.debug(
-                    "ClientReason: {}\nClientCode: {}",
-                    clientCloseFrame.getCloseReason(),
-                    clientCloseFrame.getCloseCode());
-            if (clientCloseFrame.getCloseCode() != 1000) {
+            LOG.debug("ClientReason: {}\nClientCode: {}", clientCloseFrame.reason(), clientCloseFrame.statusCode());
+            if (clientCloseFrame.statusCode() != 1000) {
                 // unexpected close -> error -> attempt resume
                 this.reconnect();
                 return;
@@ -350,49 +431,10 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
         this.close(ConnectionStatus.NOT_CONNECTED);
     }
 
-    @Override
-    public void onUnexpectedError(WebSocket websocket, WebSocketException cause) {
-        handleCallbackError(websocket, cause);
-    }
-
-    @Override
-    public void handleCallbackError(WebSocket websocket, Throwable cause) {
+    public void handleCallbackError(Throwable cause) {
         LOG.error("There was some audio websocket error", cause);
         JDAImpl api = getJDA();
         api.handleEvent(new ExceptionEvent(api, cause, true));
-    }
-
-    @Override
-    public void onThreadCreated(WebSocket websocket, ThreadType threadType, Thread thread) {
-        String identifier = getJDA().getIdentifierString();
-        String guildId = guild.getId();
-        switch (threadType) {
-            case CONNECT_THREAD:
-                thread.setName(identifier + " AudioWS-ConnectThread (guildId: " + guildId + ')');
-                break;
-            case FINISH_THREAD:
-                thread.setName(identifier + " AudioWS-FinishThread (guildId: " + guildId + ')');
-                break;
-            case WRITING_THREAD:
-                thread.setName(identifier + " AudioWS-WriteThread (guildId: " + guildId + ')');
-                break;
-            case READING_THREAD:
-                thread.setName(identifier + " AudioWS-ReadThread (guildId: " + guildId + ')');
-                break;
-            default:
-                thread.setName(identifier + " AudioWS-" + threadType + " (guildId: " + guildId + ')');
-        }
-    }
-
-    @Override
-    public void onConnectError(WebSocket webSocket, WebSocketException e) {
-        LOG.warn(
-                "Failed to establish websocket connection to {}: {} - {}\n"
-                        + "Closing connection and attempting to reconnect.",
-                wssEndpoint,
-                e.getError(),
-                e.getMessage());
-        this.close(ConnectionStatus.ERROR_WEBSOCKET_UNABLE_TO_CONNECT);
     }
 
     /* Dave Protocol */
@@ -402,48 +444,72 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
     }
 
     private void sendBinary(int opcode, ByteBuffer payload) {
-        ByteBuffer buffer =
-                ByteBuffer.allocate(1 + payload.remaining()).put((byte) opcode).put(payload);
-        buffer.flip();
-        socket.sendBinary(buffer.array());
+        if (channel != null && channel.isActive()) {
+            ByteBuf buffer = channel.alloc().buffer(1 + payload.remaining());
+            buffer.writeByte(opcode);
+            buffer.writeBytes(payload);
+            channel.writeAndFlush(new BinaryWebSocketFrame(buffer));
+        }
     }
 
-    @Override
-    public void onBinaryMessage(WebSocket websocket, byte[] binary) {
-        ByteBuffer message = ByteBuffer.allocateDirect(binary.length);
-        message.put(binary);
-        message.flip();
+    private void sendBinary(int opcode, ByteBuf payload) {
+        if (channel != null && channel.isActive()) {
+            ByteBuf buffer = channel.alloc().buffer(1 + payload.readableBytes());
+            buffer.writeByte(opcode);
+            buffer.writeBytes(payload);
+            channel.writeAndFlush(new BinaryWebSocketFrame(buffer));
+        }
+    }
 
-        short sequence = message.getShort();
-        this.sequence = ((long) sequence) & 0xFFFF;
-        int opcode = ((int) message.get()) & 0xFF;
+    public void onBinaryMessage(ByteBuf message) {
+        this.sequence = message.readUnsignedShort();
+        int opcode = message.readUnsignedByte();
 
         switch (opcode) {
             case VoiceCode.MLS_EXTERNAL_SENDER: {
                 LOG.trace("-> MLS_EXTERNAL_SENDER");
-                daveSession.onDaveProtocolMLSExternalSenderPackage(message);
+                daveSession.onDaveProtocolMLSExternalSenderPackage(toByteBuffer(message));
                 break;
             }
             case VoiceCode.MLS_PROPOSALS: {
                 LOG.trace("-> MLS_PROPOSALS");
-                daveSession.onMLSProposals(message);
+                daveSession.onMLSProposals(toByteBuffer(message));
                 break;
             }
             case VoiceCode.MLS_ANNOUNCE_COMMIT_TRANSITION: {
                 LOG.trace("-> MLS_ANNOUNCE_COMMIT_TRANSITION");
-                int transitionId = ((int) message.getShort()) & 0xFFFF;
-                daveSession.onMLSPrepareCommitTransition(transitionId, message);
+                int transitionId = message.readUnsignedShort();
+                daveSession.onMLSPrepareCommitTransition(transitionId, toByteBuffer(message));
                 break;
             }
             case VoiceCode.MLS_WELCOME: {
                 LOG.trace("-> MLS_WELCOME");
-                int transitionId = ((int) message.getShort()) & 0xFFFF;
-                daveSession.onMLSWelcome(transitionId, message);
+                int transitionId = message.readUnsignedShort();
+                daveSession.onMLSWelcome(transitionId, toByteBuffer(message));
                 break;
             }
             default:
                 LOG.trace("-> UNKNOWN OP {}", opcode);
         }
+    }
+
+    private static ByteBuffer toByteBuffer(ByteBuf buf) {
+        if (buf.nioBufferCount() == 1) {
+            return buf.nioBuffer();
+        }
+        // Consolidate multiple NIO buffers into a single contiguous ByteBuffer
+        // without leaking a copy() ByteBuf
+        ByteBuffer[] nioBuffers = buf.nioBuffers();
+        int totalLen = 0;
+        for (ByteBuffer b : nioBuffers) {
+            totalLen += b.remaining();
+        }
+        ByteBuffer combined = ByteBuffer.allocateDirect(totalLen);
+        for (ByteBuffer b : nioBuffers) {
+            combined.put(b);
+        }
+        combined.flip();
+        return combined;
     }
 
     @Override
@@ -695,65 +761,41 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
         // We will now send a packet to discord to punch a port hole in the NAT wall.
         // This is called UDP hole punching.
         try {
-            // First close existing socket from possible previous attempts
-            if (audioConnection.udpSocket != null) {
-                audioConnection.udpSocket.close();
+            // First close existing channel from possible previous attempts
+            if (audioConnection.udpChannel != null) {
+                audioConnection.udpChannel.close();
             }
-            // Create new UDP socket for communication
-            audioConnection.udpSocket = new DatagramSocket();
 
-            // Create a byte array of length 74 containing our ssrc.
-            ByteBuffer buffer = ByteBuffer.allocate(74); // 74 taken from documentation
-            buffer.putShort((short) 1); // 1 = send (receive will be 2)
-            buffer.putShort((short) 70); // length = 70 bytes (required)
-            // Put the ssrc that we were given into the packet to send back to discord.
-            // rest of the bytes are used only in the response (address/port)
-            buffer.putInt(ssrc);
+            NettyConfig nettyConfig = getJDA().getNettyConfig();
+            AudioDatagramHandler datagramHandler = new AudioDatagramHandler(audioConnection);
+            CompletableFuture<InetSocketAddress> discoveryFuture = new CompletableFuture<>();
+            datagramHandler.setDiscoveryFuture(discoveryFuture);
 
-            // Construct our packet to be sent loaded with the byte buffer we store the ssrc in.
-            DatagramPacket discoveryPacket = new DatagramPacket(buffer.array(), buffer.array().length, address);
-            audioConnection.udpSocket.send(discoveryPacket);
+            Bootstrap udpBootstrap = new Bootstrap();
+            udpBootstrap
+                    .group(this.group)
+                    .channel(NettyUtils.getDatagramChannelClass(nettyConfig.isUseNativeTransport()))
+                    .handler(datagramHandler);
 
-            // Discord responds to our packet, returning a packet containing our external ip and the
-            // port we connected through.
-            // Give a buffer the same size as the one we sent.
-            DatagramPacket receivedPacket = new DatagramPacket(new byte[74], 74);
-            audioConnection.udpSocket.setSoTimeout(1000);
-            audioConnection.udpSocket.receive(receivedPacket);
+            ChannelFuture bindFuture = udpBootstrap.bind(0).sync();
+            DatagramChannel udpChannel = (DatagramChannel) bindFuture.channel();
+            audioConnection.udpChannel = udpChannel;
 
-            // The byte array returned by discord containing our external ip and the port
-            // that we used to connect to discord with.
-            byte[] received = receivedPacket.getData();
+            // Create a byte buffer of length 74 containing our ssrc.
+            ByteBuf buffer = udpChannel.alloc().buffer(74);
+            buffer.writeShort(1); // 1 = send (receive will be 2)
+            buffer.writeShort(70); // length = 70 bytes (required)
+            buffer.writeInt(ssrc);
+            buffer.writeZero(66);
 
-            // Example string:"   121.83.253.66 ��"
-            // You'll notice that there are 4 leading nulls and a large amount of nulls
-            // between the the ip and the last 2 bytes.
-            // Not sure why these exist.
-            // The last 2 bytes are the port. More info below.
+            udpChannel.writeAndFlush(new DatagramPacket(buffer, address));
 
-            // Take bytes between SSRC and PORT and put them into a string
-            // null bytes at the beginning are skipped
-            // and the rest are appended to the end of the string
-            String ourIP = new String(received, 8, received.length - 10, StandardCharsets.UTF_8);
-            // Removes the extra nulls attached to the end of the IP string
-            ourIP = ourIP.trim();
-
-            // The port exists as the last 2 bytes in the packet data,
-            // and is encoded as an UNSIGNED short.
-            // Furthermore, it is stored in Little Endian instead of normal Big Endian.
-            // We will first need to convert the byte order from Little Endian to Big Endian
-            // (reverse the order)
-            // Then we will need to deal with the fact that the bytes represent an unsigned short.
-            // Java cannot deal with unsigned types, so we will have to promote the short to a
-            // higher type.
-
-            // Get our port which is stored as little endian at the end of the packet
-            // We AND it with 0xFFFF to ensure that it isn't sign extended
-            int ourPort = (int) IOUtil.getShortBigEndian(received, received.length - 2) & 0xFFFF;
+            InetSocketAddress ourAddress = discoveryFuture.get(2, TimeUnit.SECONDS);
+            datagramHandler.setDiscoveryFuture(null);
             this.address = address;
-            return new InetSocketAddress(ourIP, ourPort);
-        } catch (IOException e) {
-            // We either timed out or the socket could not be created (firewall?)
+            return ourAddress;
+        } catch (Exception e) {
+            LOG.error("Failed to perform UDP hole punching", e);
             return null;
         }
     }
@@ -770,20 +812,9 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
             LOG.error("Setting up a KeepAlive runnable while the previous one seems to still be active!!");
         }
 
-        try {
-            if (socket != null) {
-                Socket rawSocket = this.socket.getSocket();
-                if (rawSocket != null) {
-                    rawSocket.setSoTimeout(keepAliveInterval + 10000);
-                }
-            }
-        } catch (SocketException ex) {
-            LOG.warn("Failed to setup timeout for socket", ex);
-        }
-
         Runnable keepAliveRunnable = () -> {
             getJDA().setContext();
-            if (socket != null && socket.isOpen()) // TCP keep-alive
+            if (channel != null && channel.isActive()) // TCP keep-alive
             {
                 DataObject packet = DataObject.empty().put("t", System.currentTimeMillis());
                 if (sequence > 0) {
@@ -791,19 +822,10 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
                 }
                 send(VoiceCode.HEARTBEAT, packet);
             }
-            if (audioConnection.udpSocket != null && !audioConnection.udpSocket.isClosed()) // UDP keep-alive
+            if (audioConnection.udpChannel != null && audioConnection.udpChannel.isActive()) // UDP keep-alive
             {
-                try {
-                    DatagramPacket keepAlivePacket = new DatagramPacket(UDP_KEEP_ALIVE, UDP_KEEP_ALIVE.length, address);
-                    audioConnection.udpSocket.send(keepAlivePacket);
-                } catch (NoRouteToHostException e) {
-                    LOG.warn("Closing AudioConnection due to inability to ping audio packets.");
-                    LOG.warn("Cannot send audio packet because JDA navigate the route to Discord.\n"
-                            + "Are you sure you have internet connection? It is likely that you've lost connection.");
-                    this.close(ConnectionStatus.ERROR_LOST_CONNECTION);
-                } catch (IOException e) {
-                    LOG.error("There was some error sending an audio keepalive packet", e);
-                }
+                ByteBuf keepAliveBuf = Unpooled.wrappedBuffer(UDP_KEEP_ALIVE);
+                audioConnection.udpChannel.writeAndFlush(new DatagramPacket(keepAliveBuf, address));
             }
         };
 
@@ -815,16 +837,84 @@ class AudioWebSocket extends WebSocketAdapter implements DaveProtocolCallbacks {
         // related to the threadpool shutdown.
     }
 
-    private User getUser(long userId) {
-        return getJDA().getUserById(userId);
+    private class AudioWebSocketHandler extends SimpleChannelInboundHandler<Object> {
+        private final WebSocketClientHandshaker handshaker;
+        private boolean disconnectedHandled = false;
+
+        public AudioWebSocketHandler(WebSocketClientHandshaker handshaker) {
+            this.handshaker = handshaker;
+        }
+
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) {
+            getJDA().setContext();
+            handshaker.handshake(ctx.channel());
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) {
+            getJDA().setContext();
+            if (!disconnectedHandled) {
+                disconnectedHandled = true;
+                onDisconnected(
+                        serverCloseFrame, clientCloseFrame, serverCloseFrame != null || clientCloseFrame == null);
+            }
+        }
+
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
+            getJDA().setContext();
+            if (!handshaker.isHandshakeComplete()) {
+                if (msg instanceof FullHttpResponse response) {
+                    handshaker.finishHandshake(ctx.channel(), response);
+                    ChannelHandler httpAggregator = ctx.pipeline().get("http-aggregator");
+                    if (httpAggregator != null) {
+                        ctx.pipeline().remove(httpAggregator);
+                    }
+                    int maxPayload = getJDA().getNettyConfig().getMaxFramePayloadLength();
+                    if (ctx.pipeline().get("ws-decoder") != null) {
+                        ctx.pipeline()
+                                .addAfter("ws-decoder", "ws-aggregator", new WebSocketFrameAggregator(maxPayload));
+                    } else {
+                        ctx.pipeline()
+                                .addBefore("ws-handler", "ws-aggregator", new WebSocketFrameAggregator(maxPayload));
+                    }
+                    onConnected(response.headers());
+                    return;
+                }
+            }
+
+            if (msg instanceof WebSocketFrame frame) {
+                switch (frame) {
+                    case TextWebSocketFrame textFrame -> onTextMessage(textFrame.content());
+                    case BinaryWebSocketFrame binaryFrame -> onBinaryMessage(binaryFrame.content());
+                    case CloseWebSocketFrame closeFrame -> {
+                        int rawCode = closeFrame.statusCode();
+                        String reason = closeFrame.reasonText();
+                        serverCloseFrame = new CloseFrameInfo(rawCode, reason);
+                        if (!disconnectedHandled) {
+                            disconnectedHandled = true;
+                            onDisconnected(serverCloseFrame, clientCloseFrame, true);
+                        }
+                        ctx.close();
+                    }
+                    case PingWebSocketFrame pingFrame ->
+                        ctx.writeAndFlush(
+                                new PongWebSocketFrame(pingFrame.content().retain()));
+                    default -> {}
+                }
+            }
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            getJDA().setContext();
+            handleCallbackError(cause);
+            ctx.close();
+        }
     }
 
-    @Override
-    @SuppressWarnings("deprecation") /* If this was in JDK9 we would be using java.lang.ref.Cleaner instead! */
-    protected void finalize() {
-        if (!shutdown) {
-            LOG.error("Finalization hook of AudioWebSocket was triggered without properly shutting down");
-            close(ConnectionStatus.NOT_CONNECTED);
-        }
+    private User getUser(long userId) {
+        return getJDA().getUserById(userId);
     }
 }

@@ -16,19 +16,20 @@
 
 package net.dv8tion.jda.test.audio;
 
+import io.netty.buffer.ByteBuf;
 import net.dv8tion.jda.api.audio.dave.PassthroughDaveSessionFactory;
 import net.dv8tion.jda.internal.audio.AudioEncryption;
 import net.dv8tion.jda.internal.audio.AudioPacket;
 import net.dv8tion.jda.internal.audio.CryptoAdapter;
 import net.dv8tion.jda.internal.audio.DaveCryptoAdapter;
-import net.dv8tion.jda.internal.utils.ResizingByteBuffer;
+import net.dv8tion.jda.internal.utils.ResizingByteBuf;
 import net.dv8tion.jda.test.Constants;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -59,6 +60,89 @@ public class CryptoAdapterTest {
         doRoundTripAndAssertPayload(adapter, original);
     }
 
+    @EnumSource
+    @ParameterizedTest
+    void testMinimalRoundtripNettyByteBuf(AudioEncryption encryption) {
+        AudioPacket original = getMinimalPacket();
+        byte[] key = getKey();
+
+        CryptoAdapter adapter = getAdapter(encryption, key);
+        doRoundTripNettyByteBufAndAssertPayload(adapter, original);
+    }
+
+    @EnumSource
+    @ParameterizedTest
+    void testRoundtripWithExtensionNettyByteBuf(AudioEncryption encryption) {
+        AudioPacket original = getPacketWithExtension();
+        byte[] key = getKey();
+
+        CryptoAdapter adapter = getAdapter(encryption, key);
+        doRoundTripNettyByteBufAndAssertPayload(adapter, original);
+    }
+
+    @EnumSource
+    @ParameterizedTest
+    void testMinimalRoundtripResizingByteBuf(AudioEncryption encryption) {
+        AudioPacket original = getMinimalPacket();
+        byte[] key = getKey();
+
+        CryptoAdapter adapter = getAdapter(encryption, key);
+        doRoundTripResizingByteBufAndAssertPayload(adapter, original);
+    }
+
+    @EnumSource
+    @ParameterizedTest
+    void testRoundtripWithExtensionResizingByteBuf(AudioEncryption encryption) {
+        AudioPacket original = getPacketWithExtension();
+        byte[] key = getKey();
+
+        CryptoAdapter adapter = getAdapter(encryption, key);
+        doRoundTripResizingByteBufAndAssertPayload(adapter, original);
+    }
+
+    private void doRoundTripResizingByteBufAndAssertPayload(CryptoAdapter adapter, AudioPacket original) {
+        try (ResizingByteBuf buffer = new ResizingByteBuf(512);
+                ResizingByteBuf decryptBuffer = new ResizingByteBuf(512)) {
+            original.asEncryptedPacket(adapter, buffer);
+
+            AudioPacket decrypted = new AudioPacket(buffer.buffer())
+                    .asDecryptAudioPacket(adapter, Constants.MINN_USER_ID, decryptBuffer);
+            assertThat(decrypted).isNotNull();
+
+            byte[] payload = new byte[4];
+            decrypted.getEncodedAudio().get(payload);
+
+            assertThat(new String(payload, StandardCharsets.UTF_8)).isEqualTo(TEST_PAYLOAD);
+
+            assertThat(decrypted.getSequence()).isEqualTo(TEST_SEQ);
+            assertThat(decrypted.getTimestamp()).isEqualTo(TEST_TIMESTAMP);
+            assertThat(decrypted.getSSRC()).isEqualTo(TEST_SSRC);
+        }
+    }
+
+    private void doRoundTripNettyByteBufAndAssertPayload(CryptoAdapter adapter, AudioPacket original) {
+        try (ResizingByteBuf buffer = new ResizingByteBuf(512);
+                ResizingByteBuf decryptBuffer = new ResizingByteBuf(512)) {
+            original.asEncryptedPacket(adapter, buffer);
+
+            ByteBuf nettyBuf = buffer.buffer().retainedSlice();
+
+            AudioPacket decrypted =
+                    new AudioPacket(nettyBuf).asDecryptAudioPacket(adapter, Constants.MINN_USER_ID, decryptBuffer);
+            nettyBuf.release();
+            assertThat(decrypted).isNotNull();
+
+            byte[] payload = new byte[4];
+            decrypted.getEncodedAudio().get(payload);
+
+            assertThat(new String(payload, StandardCharsets.UTF_8)).isEqualTo(TEST_PAYLOAD);
+
+            assertThat(decrypted.getSequence()).isEqualTo(TEST_SEQ);
+            assertThat(decrypted.getTimestamp()).isEqualTo(TEST_TIMESTAMP);
+            assertThat(decrypted.getSSRC()).isEqualTo(TEST_SSRC);
+        }
+    }
+
     private CryptoAdapter getAdapter(AudioEncryption encryption, byte[] key) {
         return new DaveCryptoAdapter(
                 CryptoAdapter.getAdapter(encryption, key),
@@ -68,26 +152,26 @@ public class CryptoAdapterTest {
     }
 
     private void doRoundTripAndAssertPayload(CryptoAdapter adapter, AudioPacket original) {
-        ResizingByteBuffer buffer = new ResizingByteBuffer(ByteBuffer.allocateDirect(512));
-        ResizingByteBuffer decryptBuffer = new ResizingByteBuffer(ByteBuffer.allocateDirect(512));
+        try (ResizingByteBuf buffer = new ResizingByteBuf(512);
+                ResizingByteBuf decryptBuffer = new ResizingByteBuf(512)) {
+            original.asEncryptedPacket(adapter, buffer);
 
-        original.asEncryptedPacket(adapter, buffer);
+            byte[] rawPacket = new byte[buffer.buffer().readableBytes()];
+            buffer.buffer().getBytes(0, rawPacket);
 
-        byte[] rawPacket = new byte[buffer.buffer().remaining()];
-        buffer.buffer().get(rawPacket);
+            AudioPacket decrypted =
+                    new AudioPacket(rawPacket).asDecryptAudioPacket(adapter, Constants.MINN_USER_ID, decryptBuffer);
+            assertThat(decrypted).isNotNull();
 
-        AudioPacket decrypted =
-                new AudioPacket(rawPacket).asDecryptAudioPacket(adapter, Constants.MINN_USER_ID, decryptBuffer);
-        assertThat(decrypted).isNotNull();
+            byte[] payload = new byte[4];
+            decrypted.getEncodedAudio().get(payload);
 
-        byte[] payload = new byte[4];
-        decrypted.getEncodedAudio().get(payload);
+            assertThat(new String(payload, StandardCharsets.UTF_8)).isEqualTo(TEST_PAYLOAD);
 
-        assertThat(new String(payload, StandardCharsets.UTF_8)).isEqualTo(TEST_PAYLOAD);
-
-        assertThat(decrypted.getSequence()).isEqualTo(TEST_SEQ);
-        assertThat(decrypted.getTimestamp()).isEqualTo(TEST_TIMESTAMP);
-        assertThat(decrypted.getSSRC()).isEqualTo(TEST_SSRC);
+            assertThat(decrypted.getSequence()).isEqualTo(TEST_SEQ);
+            assertThat(decrypted.getTimestamp()).isEqualTo(TEST_TIMESTAMP);
+            assertThat(decrypted.getSSRC()).isEqualTo(TEST_SSRC);
+        }
     }
 
     private static AudioPacket getMinimalPacket() {
@@ -118,9 +202,8 @@ public class CryptoAdapterTest {
     }
 
     private static byte[] getKey() {
-        SecureRandom random = new SecureRandom();
         byte[] key = new byte[32];
-        random.nextBytes(key);
+        ThreadLocalRandom.current().nextBytes(key);
         return key;
     }
 }

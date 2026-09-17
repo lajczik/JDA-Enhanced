@@ -16,8 +16,9 @@
 
 package net.dv8tion.jda.internal.audio;
 
+import io.netty.buffer.ByteBuf;
 import net.dv8tion.jda.internal.utils.JDALogger;
-import net.dv8tion.jda.internal.utils.ResizingByteBuffer;
+import net.dv8tion.jda.internal.utils.ResizingByteBuf;
 import org.slf4j.Logger;
 
 import java.net.DatagramPacket;
@@ -61,6 +62,35 @@ public class AudioPacket {
 
     public AudioPacket(DatagramPacket packet) {
         this(ByteBuffer.wrap(packet.getData(), packet.getOffset(), packet.getLength()));
+    }
+
+    public AudioPacket(ByteBuf buffer) {
+        int startIndex = buffer.readerIndex();
+        byte first = buffer.readByte();
+        this.hasExtension = (first & 0b0001_0000) != 0;
+        int cc = first & 0x0f;
+
+        this.type = buffer.readByte();
+        this.seq = (char) buffer.readUnsignedShort();
+        this.timestamp = buffer.readInt();
+        this.ssrc = buffer.readInt();
+
+        this.csrc = new int[cc];
+        for (int i = 0; i < cc; i++) {
+            this.csrc[i] = buffer.readInt();
+        }
+
+        if (this.hasExtension) {
+            this.extensionLength = (short) buffer.readInt();
+        } else {
+            this.extensionLength = 0;
+        }
+
+        int headerLength = buffer.readerIndex() - startIndex;
+        int totalLength = headerLength + buffer.readableBytes();
+        ByteBuffer nio = buffer.nioBuffer(startIndex, totalLength);
+        nio.position(headerLength);
+        this.encodedAudio = nio;
     }
 
     public AudioPacket(byte[] rawPacket) {
@@ -124,14 +154,14 @@ public class AudioPacket {
         return timestamp;
     }
 
-    public void asEncryptedPacket(CryptoAdapter crypto, ResizingByteBuffer buffer) {
+    public void asEncryptedPacket(CryptoAdapter crypto, ResizingByteBuf buffer) {
         buffer.prepareWrite(RTP_HEADER_SIZE);
         writeHeader(seq, timestamp, ssrc, buffer.buffer());
         crypto.encrypt(buffer, encodedAudio);
     }
 
     @Nullable
-    public AudioPacket asDecryptAudioPacket(CryptoAdapter crypto, long userId, ResizingByteBuffer decryptBuffer) {
+    public AudioPacket asDecryptAudioPacket(CryptoAdapter crypto, long userId, ResizingByteBuf decryptBuffer) {
         if (type != RTP_PAYLOAD_TYPE) {
             return null;
         }
@@ -142,7 +172,15 @@ public class AudioPacket {
             return null;
         }
 
-        return new AudioPacket(seq, timestamp, ssrc, decryptBuffer.buffer());
+        return new AudioPacket(seq, timestamp, ssrc, decryptBuffer.nioBuffer());
+    }
+
+    private static void writeHeader(char seq, int timestamp, int ssrc, ByteBuf buffer) {
+        buffer.writeByte(RTP_VERSION_PAD_EXTEND);
+        buffer.writeByte(RTP_PAYLOAD_TYPE);
+        buffer.writeChar(seq);
+        buffer.writeInt(timestamp);
+        buffer.writeInt(ssrc);
     }
 
     private static void writeHeader(char seq, int timestamp, int ssrc, ByteBuffer buffer) {
