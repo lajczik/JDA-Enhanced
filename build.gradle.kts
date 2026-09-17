@@ -85,8 +85,16 @@ artifactFilters {
         "io.netty:netty-transport-native-kqueue",
         "io.netty:netty-tcnative-classes",
         "com.github.luben:zstd-jni",
+        // Reactor Netty transitive modules unused by JDA
+        "io.netty:netty-resolver-dns",
+        "io.netty:netty-codec-dns",
+        "io.netty:netty-handler-proxy",
+        "io.netty:netty-codec-socks",
+        "io.netty:netty-codec-http2",
+        "io.netty:netty-codec-compression",
     )
 }
+
 
 apiModelGenerator {
     outputDirectory = layout.buildDirectory.dir("generated/rest-api-models")
@@ -398,13 +406,14 @@ val minimalJar = tasks.register<ShadowJar>("minimalJar") {
 }
 
 tasks.withType<ShadowJar>().configureEach {
-    duplicatesStrategy = DuplicatesStrategy.FAIL
+    duplicatesStrategy = DuplicatesStrategy.WARN
     mergeServiceFiles()
 
     exclude("**/LICENSE*")
     exclude("**/LICENCE*")
     exclude("**/README*")
     exclude("**/NOTICE*")
+
 
     if (this != shadowJar) {
         manifest.from(shadowJar.manifest)
