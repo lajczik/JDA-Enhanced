@@ -16,176 +16,299 @@
 
 package net.dv8tion.jda.internal.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.type.CollectionType;
-import com.fasterxml.jackson.databind.type.MapType;
-import net.dv8tion.jda.api.exceptions.ParsingException;
+import io.netty.buffer.ByteBuf;
+import net.dv8tion.jda.api.utils.JsonEngineType;
+import net.dv8tion.jda.internal.utils.json.Jackson3Engine;
+import net.dv8tion.jda.internal.utils.json.JsonEngine;
+import net.dv8tion.jda.internal.utils.json.NanojsonEngine;
+import org.slf4j.Logger;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.ObjectWriter;
+import tools.jackson.databind.type.CollectionType;
+import tools.jackson.databind.type.MapType;
 
-import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Reader;
-import java.io.UncheckedIOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
 
 public class SerializationUtil {
-    private static final String TRUNCATED_ARRAY = "[…truncated array…]";
-    private static final String TRUNCATED_OBJECT = "{…truncated object…}";
+    private static final Logger log = JDALogger.getLog(SerializationUtil.class);
+    private static volatile JsonEngine ENGINE = resolveEngine(System.getProperty("net.dv8tion.jda.json.engine"));
 
-    private static final ObjectMapper mapper;
-    private static final SimpleModule module;
-    private static final MapType mapType;
-    private static final CollectionType listType;
+    public static JsonEngine resolveEngine(String forced) {
+        if (forced != null && !forced.isBlank()) {
+            JsonEngineType type = JsonEngineType.fromKey(forced.trim());
+            if (type != null) {
+                if (type.isSupported()) {
+                    log.info("Using {} for JSON serialization (configured via system property)", type.getKey());
+                    return type.createEngine();
+                } else {
+                    throw new IllegalStateException("JSON engine '" + type
+                            + "' explicitly requested but not available on classpath (missing dependency: "
+                            + type.getDependencyExample() + ")");
+                }
+            } else {
+                log.warn(
+                        "Unknown JSON engine requested via system property: {}. Falling back to default (nanojson).",
+                        forced);
+            }
+        }
 
-    static {
-        mapper = new ObjectMapper();
-        module = new SimpleModule();
-        module.addAbstractTypeMapping(Map.class, HashMap.class);
-        module.addAbstractTypeMapping(List.class, ArrayList.class);
-        mapper.registerModule(module);
-        mapType = mapper.getTypeFactory().constructMapType(HashMap.class, String.class, Object.class);
-        listType = mapper.getTypeFactory().constructRawCollectionType(ArrayList.class);
+        // Default from the beginning is nanojson
+        log.debug("Using nanojson for JSON serialization (default)");
+        return new NanojsonEngine();
     }
 
-    @Nonnull
-    public static MapType getMapType() {
-        return mapType;
+    /**
+     * Changes the active JSON engine to the specified {@link JsonEngineType}.
+     *
+     * @param  type
+     *         The {@link JsonEngineType} to use
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided
+     * @throws IllegalStateException
+     *         If the requested engine is not supported on this classpath
+     */
+    public static void setEngine(@Nonnull JsonEngineType type) {
+        Checks.notNull(type, "JsonEngineType");
+        setEngine(type.createEngine());
     }
 
+    /**
+     * Changes the active JSON engine to the specified {@link JsonEngine}.
+     *
+     * @param  engine
+     *         The {@link JsonEngine} instance to use
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided
+     */
+    public static void setEngine(@Nonnull JsonEngine engine) {
+        Checks.notNull(engine, "JsonEngine");
+        log.info("Switching JSON engine to {}", engine.getName());
+        ENGINE = engine;
+    }
+
+    @SuppressWarnings("UnsafeReflectiveConstructionCast")
+    private static JsonEngine instantiateEngine(String className) throws Exception {
+        Class<? extends JsonEngine> clazz = Class.forName(className).asSubclass(JsonEngine.class);
+        return clazz.getDeclaredConstructor().newInstance();
+    }
+
+    // Returns the active JsonEngine used by this serializer.
     @Nonnull
-    public static CollectionType getListType() {
-        return listType;
+    public static JsonEngine getEngine() {
+        return ENGINE;
+    }
+
+    // Returns the human-readable name of the active JSON engine.
+    @Nonnull
+    public static String getEngineName() {
+        return ENGINE.getName();
     }
 
     @Nonnull
     public static byte[] toJson(@Nonnull Object data) {
         Checks.notNull(data, "Data");
-        try {
-            return mapper.writeValueAsBytes(data);
-        } catch (IOException ex) {
-            throw new ParsingException(ex);
-        }
+        return ENGINE.toJson(data);
     }
 
     @Nonnull
     public static String toJsonString(@Nonnull Object data, boolean pretty) {
         Checks.notNull(data, "Data");
-
-        try {
-            ObjectWriter writer = getObjectWriter(pretty);
-            return writer.writeValueAsString(data);
-        } catch (IOException ex) {
-            throw new UncheckedIOException(ex);
-        }
+        return ENGINE.toJsonString(data, pretty);
     }
 
-    @Nonnull
-    public static ObjectWriter getObjectWriter(boolean pretty) {
-        return !pretty
-                ? mapper.writer()
-                : mapper.writerWithDefaultPrettyPrinter()
-                        .with(SerializationFeature.INDENT_OUTPUT)
-                        .with(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+    public static void writeJson(@Nonnull OutputStream out, @Nonnull Object data) {
+        Checks.notNull(out, "OutputStream");
+        Checks.notNull(data, "Data");
+        ENGINE.writeJson(out, data);
+    }
+
+    public static void writeJson(@Nonnull ByteBuf target, @Nonnull Object data) {
+        Checks.notNull(target, "ByteBuf");
+        Checks.notNull(data, "Data");
+        ENGINE.writeJson(target, data);
     }
 
     @Nonnull
     public static <T> T fromJson(@Nonnull Class<T> clazz, @Nonnull byte[] data) {
         Checks.notNull(clazz, "Class");
-        return fromJson(mapper.constructType(clazz), data);
+        Checks.notNull(data, "Data");
+        return ENGINE.fromJson(clazz, data);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void deduplicateMap(Map<String, Object> map) {
+        if (map == null || map.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            switch (entry.getValue()) {
+                case String s -> entry.setValue(s.intern());
+                case Map<?, ?> m -> deduplicateMap((Map<String, Object>) m);
+                case List<?> l -> deduplicateList((List<Object>) l);
+                case null, default -> {}
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void deduplicateList(List<Object> list) {
+        if (list == null || list.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < list.size(); i++) {
+            switch (list.get(i)) {
+                case String s -> list.set(i, s.intern());
+                case Map<?, ?> m -> deduplicateMap((Map<String, Object>) m);
+                case List<?> l -> deduplicateList((List<Object>) l);
+                case null, default -> {}
+            }
+        }
+    }
+
+    @Nonnull
+    public static Map<String, Object> fromJsonMap(@Nonnull ByteBuf data, boolean deduplicateStrings) {
+        Checks.notNull(data, "ByteBuf");
+        Map<String, Object> map = ENGINE.fromJsonMap(data);
+        if (deduplicateStrings) {
+            deduplicateMap(map);
+        }
+        return map;
+    }
+
+    @Nonnull
+    public static Map<String, Object> fromJsonMap(@Nonnull String json, boolean deduplicateStrings) {
+        Checks.notNull(json, "JSON String");
+        Map<String, Object> map = ENGINE.fromJsonMap(json);
+        if (deduplicateStrings) {
+            deduplicateMap(map);
+        }
+        return map;
+    }
+
+    @Nonnull
+    public static Map<String, Object> fromJsonMap(@Nonnull InputStream stream, boolean deduplicateStrings) {
+        Checks.notNull(stream, "InputStream");
+        Map<String, Object> map = ENGINE.fromJsonMap(stream);
+        if (deduplicateStrings) {
+            deduplicateMap(map);
+        }
+        return map;
+    }
+
+    @Nonnull
+    public static Map<String, Object> fromJsonMap(@Nonnull Reader reader, boolean deduplicateStrings) {
+        Checks.notNull(reader, "Reader");
+        Map<String, Object> map = ENGINE.fromJsonMap(reader);
+        if (deduplicateStrings) {
+            deduplicateMap(map);
+        }
+        return map;
+    }
+
+    @Nonnull
+    public static List<Object> fromJsonList(@Nonnull ByteBuf data, boolean deduplicateStrings) {
+        Checks.notNull(data, "ByteBuf");
+        List<Object> list = ENGINE.fromJsonList(data);
+        if (deduplicateStrings) {
+            deduplicateList(list);
+        }
+        return list;
+    }
+
+    @Nonnull
+    public static List<Object> fromJsonList(@Nonnull String json, boolean deduplicateStrings) {
+        Checks.notNull(json, "JSON String");
+        List<Object> list = ENGINE.fromJsonList(json);
+        if (deduplicateStrings) {
+            deduplicateList(list);
+        }
+        return list;
+    }
+
+    @Nonnull
+    public static List<Object> fromJsonList(@Nonnull InputStream stream, boolean deduplicateStrings) {
+        Checks.notNull(stream, "InputStream");
+        List<Object> list = ENGINE.fromJsonList(stream);
+        if (deduplicateStrings) {
+            deduplicateList(list);
+        }
+        return list;
+    }
+
+    @Nonnull
+    public static List<Object> fromJsonList(@Nonnull Reader reader, boolean deduplicateStrings) {
+        Checks.notNull(reader, "Reader");
+        List<Object> list = ENGINE.fromJsonList(reader);
+        if (deduplicateStrings) {
+            deduplicateList(list);
+        }
+        return list;
+    }
+
+    @Nonnull
+    public static String toShallowJsonString(@Nonnull Object object) {
+        Checks.notNull(object, "Object");
+        return ENGINE.toShallowJsonString(object);
+    }
+
+    // --- Backwards Compatibility for Jackson 3 Types ---
+
+    private static Jackson3Engine getOrLoadJackson3() {
+        if (ENGINE instanceof Jackson3Engine j3) {
+            return j3;
+        }
+        try {
+            return (Jackson3Engine) instantiateEngine("net.dv8tion.jda.internal.utils.json.Jackson3Engine");
+        } catch (Exception e) {
+            throw new UnsupportedOperationException("Jackson 3.x is not available on the classpath", e);
+        }
+    }
+
+    @Nonnull
+    public static MapType getMapType() {
+        return getOrLoadJackson3().getMapType();
+    }
+
+    @Nonnull
+    public static CollectionType getListType() {
+        return getOrLoadJackson3().getListType();
+    }
+
+    @Nonnull
+    public static ObjectWriter getObjectWriter(boolean pretty) {
+        return getOrLoadJackson3().getObjectWriter(pretty);
     }
 
     @Nonnull
     public static <T> T fromJson(@Nonnull JavaType type, @Nonnull byte[] data) {
-        Checks.notNull(type, "Type");
-        Checks.notNull(data, "Data");
+        return getOrLoadJackson3().fromJson(type, data);
+    }
 
-        try {
-            return mapper.readValue(data, type);
-        } catch (IOException ex) {
-            throw new ParsingException(ex);
-        }
+    @Nonnull
+    public static <T> T fromJson(@Nonnull JavaType type, @Nonnull ByteBuf data) {
+        return getOrLoadJackson3().fromJson(type, data);
     }
 
     @Nonnull
     public static <T> T fromJson(@Nonnull JavaType type, @Nonnull InputStream data) {
-        Checks.notNull(type, "Type");
-        Checks.notNull(data, "Data");
-
-        try {
-            return mapper.readValue(data, type);
-        } catch (IOException ex) {
-            throw new ParsingException(ex);
-        }
+        return getOrLoadJackson3().fromJson(type, data);
     }
 
     @Nonnull
     public static <T> T fromJson(@Nonnull JavaType type, @Nonnull Reader data) {
-        Checks.notNull(type, "Type");
-        Checks.notNull(data, "Data");
-
-        try {
-            return mapper.readValue(data, type);
-        } catch (IOException ex) {
-            throw new ParsingException(ex);
-        }
+        return getOrLoadJackson3().fromJson(type, data);
     }
 
     @Nonnull
     public static <T> T fromJson(@Nonnull JavaType type, @Nonnull String data) {
-        Checks.notNull(type, "Type");
-        Checks.notNull(data, "Data");
-
-        try {
-            return mapper.readValue(data, type);
-        } catch (IOException ex) {
-            throw new ParsingException(ex);
-        }
-    }
-
-    @Nonnull
-    public static String toShallowJsonString(@Nonnull Object object) throws JsonProcessingException {
-        JsonNode root = mapper.valueToTree(object);
-        JsonNode shallowRoot = pruneOneLevel(root);
-        return mapper.writer()
-                .with(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-                .writeValueAsString(shallowRoot);
-    }
-
-    private static JsonNode pruneOneLevel(JsonNode n) {
-        if (n.isObject()) {
-            ObjectNode out = mapper.createObjectNode();
-            for (Map.Entry<String, JsonNode> e : n.properties()) {
-                JsonNode v = e.getValue();
-                if (v.isValueNode()) {
-                    out.set(e.getKey(), v);
-                } else if (v.isArray()) {
-                    out.put(e.getKey(), TRUNCATED_ARRAY);
-                } else {
-                    out.put(e.getKey(), TRUNCATED_OBJECT);
-                }
-            }
-            return out;
-        } else if (n.isArray()) {
-            ArrayNode out = mapper.createArrayNode();
-            n.values().forEachRemaining(v -> {
-                if (v.isValueNode()) {
-                    out.add(v);
-                } else if (v.isArray()) {
-                    out.add(TRUNCATED_ARRAY);
-                } else {
-                    out.add(TRUNCATED_OBJECT);
-                }
-            });
-            return out;
-        }
-        return n;
+        return getOrLoadJackson3().fromJson(type, data);
     }
 }

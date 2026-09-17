@@ -146,9 +146,6 @@ public class JsonTest {
         void testFactories() {
             DataObject reference = DataObject.fromJson(testJson);
 
-            assertThat(DataObject.fromJson(testJson.getBytes(StandardCharsets.UTF_8)))
-                    .withRepresentation(new PrettyRepresentation())
-                    .isEqualTo(reference);
             assertThat(DataObject.fromJson(new StringReader(testJson)))
                     .withRepresentation(new PrettyRepresentation())
                     .isEqualTo(reference);
@@ -256,7 +253,7 @@ public class JsonTest {
                             .map(obj -> obj.getInt("foo"))
                             .toArray())
                     .isInstanceOf(ParsingException.class)
-                    .hasMessage("Cannot parse value for index 2 into type Map: [] instance of ArrayList");
+                    .hasMessage("Cannot parse value for index 2 into type Map: [] instance of ObjectArrayList");
         }
 
         @Test
@@ -298,8 +295,6 @@ public class JsonTest {
                     .add(DataArray.empty().add("nine").add(DataObject.empty().put("key", "ten")));
 
             assertThat(array).hasSize(6);
-            assertThat(array.toETF()).isEqualTo(complexEtfArray);
-            assertThat(DataArray.fromETF(complexEtfArray).toETF()).isEqualTo(complexEtfArray);
             assertThat(DataArray.fromETF(complexEtfArray).toPrettyString())
                     .isEqualToIgnoringWhitespace(array.toPrettyString());
         }

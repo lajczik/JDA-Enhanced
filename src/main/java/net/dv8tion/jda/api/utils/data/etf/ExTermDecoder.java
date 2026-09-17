@@ -16,7 +16,10 @@
 
 package net.dv8tion.jda.api.utils.data.etf;
 
-import java.io.ByteArrayOutputStream;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufOutputStream;
+import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
@@ -32,24 +35,165 @@ import static net.dv8tion.jda.api.utils.data.etf.ExTermTag.*;
 /**
  * Decodes an ETF encoded payload to a java object representation.
  *
+ * @see #unpack(ByteBuf)
+ * @see #unpackMap(ByteBuf)
+ * @see #unpackList(ByteBuf)
  * @see #unpack(ByteBuffer)
  * @see #unpackMap(ByteBuffer)
  * @see #unpackList(ByteBuffer)
  */
 public class ExTermDecoder {
+    private static final int STRING_CACHE_SIZE = 2048;
+    private static final int STRING_CACHE_MASK = STRING_CACHE_SIZE - 1;
+
+    private static class CachedEntry {
+        final byte[] bytes;
+        final String value;
+
+        CachedEntry(byte[] bytes, String value) {
+            this.bytes = bytes;
+            this.value = value;
+        }
+    }
+
+    private static final CachedEntry[] STRING_CACHE = new CachedEntry[STRING_CACHE_SIZE];
+
+    private static int computeByteBufHash(ByteBuf buffer, int readerIndex, int length) {
+        int h = 1;
+        for (int i = 0; i < length; i++) {
+            h = 31 * h + buffer.getByte(readerIndex + i);
+        }
+        return h;
+    }
+
+    private static boolean equalsBytes(ByteBuf buffer, int readerIndex, byte[] cachedBytes) {
+        for (int i = 0; i < cachedBytes.length; i++) {
+            if (buffer.getByte(readerIndex + i) != cachedBytes[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * Unpacks the provided term into a java object.
      *
-     * <p><b>The mapping is as follows:</b><br>
-     * <ul>
-     *     <li>{@code Small Int | Int -> Integer}</li>
-     *     <li>{@code Small BigInt -> Long}</li>
-     *     <li>{@code Float | New Float -> Double}</li>
-     *     <li>{@code Small Atom | Atom -> Boolean | null | String}</li>
-     *     <li>{@code Binary | String -> String}</li>
-     *     <li>{@code List | NIL -> List}</li>
-     *     <li>{@code Map -> Map}</li>
-     * </ul>
+     * @param  buffer
+     *         The {@link ByteBuf} containing the encoded term
+     *
+     * @throws IllegalArgumentException
+     *         If the buffer does not start with the version byte {@code 131} or contains an unsupported tag
+     *
+     * @return The java object
+     */
+    @Nonnull
+    public static Object unpack(@Nonnull ByteBuf buffer) {
+        return unpack(buffer, true);
+    }
+
+    /**
+     * Unpacks the provided term into a java object.
+     *
+     * @param  buffer
+     *         The {@link ByteBuf} containing the encoded term
+     * @param  deduplicateStrings
+     *         Whether to intern/deduplicate parsed strings
+     *
+     * @throws IllegalArgumentException
+     *         If the buffer does not start with the version byte {@code 131} or contains an unsupported tag
+     *
+     * @return The java object
+     */
+    @Nonnull
+    public static Object unpack(@Nonnull ByteBuf buffer, boolean deduplicateStrings) {
+        if (buffer.readByte() != -125) {
+            throw new IllegalArgumentException("Failed header check");
+        }
+
+        return unpack0(buffer, deduplicateStrings);
+    }
+
+    /**
+     * Unpacks the provided term into a java {@link Map}.
+     *
+     * @param  buffer
+     *         The {@link ByteBuf} containing the encoded term
+     *
+     * @throws IllegalArgumentException
+     *         If the buffer does not start with a Map term, does not have the right version byte, or the format includes an unsupported tag
+     *
+     * @return The parsed {@link Map} instance
+     */
+    @Nonnull
+    public static Map<String, Object> unpackMap(@Nonnull ByteBuf buffer) {
+        return unpackMap(buffer, true);
+    }
+
+    /**
+     * Unpacks the provided term into a java {@link Map}.
+     *
+     * @param  buffer
+     *         The {@link ByteBuf} containing the encoded term
+     * @param  deduplicateStrings
+     *         Whether to intern/deduplicate parsed strings
+     *
+     * @throws IllegalArgumentException
+     *         If the buffer does not start with a Map term, does not have the right version byte, or the format includes an unsupported tag
+     *
+     * @return The parsed {@link Map} instance
+     */
+    @Nonnull
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> unpackMap(@Nonnull ByteBuf buffer, boolean deduplicateStrings) {
+        byte tag = buffer.getByte(buffer.readerIndex() + 1);
+        if (tag != MAP) {
+            throw new IllegalArgumentException("Cannot unpack map from tag " + tag);
+        }
+        return (Map<String, Object>) unpack(buffer, deduplicateStrings);
+    }
+
+    /**
+     * Unpacks the provided term into a java {@link List}.
+     *
+     * @param  buffer
+     *         The {@link ByteBuf} containing the encoded term
+     *
+     * @throws IllegalArgumentException
+     *         If the buffer does not start with a List or NIL term, does not have the right version byte, or the format includes an unsupported tag
+     *
+     * @return The parsed {@link List} instance
+     */
+    @Nonnull
+    public static List<Object> unpackList(@Nonnull ByteBuf buffer) {
+        return unpackList(buffer, true);
+    }
+
+    /**
+     * Unpacks the provided term into a java {@link List}.
+     *
+     * @param  buffer
+     *         The {@link ByteBuf} containing the encoded term
+     * @param  deduplicateStrings
+     *         Whether to intern/deduplicate parsed strings
+     *
+     * @throws IllegalArgumentException
+     *         If the buffer does not start with a List or NIL term, does not have the right version byte, or the format includes an unsupported tag
+     *
+     * @return The parsed {@link List} instance
+     */
+    @Nonnull
+    @SuppressWarnings("unchecked")
+    public static List<Object> unpackList(@Nonnull ByteBuf buffer, boolean deduplicateStrings) {
+        byte tag = buffer.getByte(buffer.readerIndex() + 1);
+        if (tag != LIST) {
+            throw new IllegalArgumentException("Cannot unpack list from tag " + tag);
+        }
+
+        return (List<Object>) unpack(buffer, deduplicateStrings);
+    }
+
+    /**
+     * Unpacks the provided term into a java object.
      *
      * @param  buffer
      *         The {@link ByteBuffer} containing the encoded term
@@ -61,26 +205,29 @@ public class ExTermDecoder {
      */
     @Nonnull
     public static Object unpack(@Nonnull ByteBuffer buffer) {
-        if (buffer.get() != -125) {
-            throw new IllegalArgumentException("Failed header check");
-        }
+        return unpack(Unpooled.wrappedBuffer(buffer), true);
+    }
 
-        return unpack0(buffer);
+    /**
+     * Unpacks the provided term into a java object.
+     *
+     * @param  buffer
+     *         The {@link ByteBuffer} containing the encoded term
+     * @param  deduplicateStrings
+     *         Whether to intern/deduplicate parsed strings
+     *
+     * @throws IllegalArgumentException
+     *         If the buffer does not start with the version byte {@code 131} or contains an unsupported tag
+     *
+     * @return The java object
+     */
+    @Nonnull
+    public static Object unpack(@Nonnull ByteBuffer buffer, boolean deduplicateStrings) {
+        return unpack(Unpooled.wrappedBuffer(buffer), deduplicateStrings);
     }
 
     /**
      * Unpacks the provided term into a java {@link Map}.
-     *
-     * <p><b>The mapping is as follows:</b><br>
-     * <ul>
-     *     <li>{@code Small Int | Int -> Integer}</li>
-     *     <li>{@code Small BigInt -> Long}</li>
-     *     <li>{@code Float | New Float -> Double}</li>
-     *     <li>{@code Small Atom | Atom -> Boolean | null | String}</li>
-     *     <li>{@code Binary | String -> String}</li>
-     *     <li>{@code List | NIL -> List}</li>
-     *     <li>{@code Map -> Map}</li>
-     * </ul>
      *
      * @param  buffer
      *         The {@link ByteBuffer} containing the encoded term
@@ -91,28 +238,30 @@ public class ExTermDecoder {
      * @return The parsed {@link Map} instance
      */
     @Nonnull
-    @SuppressWarnings("unchecked")
     public static Map<String, Object> unpackMap(@Nonnull ByteBuffer buffer) {
-        byte tag = buffer.get(1);
-        if (tag != MAP) {
-            throw new IllegalArgumentException("Cannot unpack map from tag " + tag);
-        }
-        return (Map<String, Object>) unpack(buffer);
+        return unpackMap(Unpooled.wrappedBuffer(buffer), true);
+    }
+
+    /**
+     * Unpacks the provided term into a java {@link Map}.
+     *
+     * @param  buffer
+     *         The {@link ByteBuffer} containing the encoded term
+     * @param  deduplicateStrings
+     *         Whether to intern/deduplicate parsed strings
+     *
+     * @throws IllegalArgumentException
+     *         If the buffer does not start with a Map term, does not have the right version byte, or the format includes an unsupported tag
+     *
+     * @return The parsed {@link Map} instance
+     */
+    @Nonnull
+    public static Map<String, Object> unpackMap(@Nonnull ByteBuffer buffer, boolean deduplicateStrings) {
+        return unpackMap(Unpooled.wrappedBuffer(buffer), deduplicateStrings);
     }
 
     /**
      * Unpacks the provided term into a java {@link List}.
-     *
-     * <p><b>The mapping is as follows:</b><br>
-     * <ul>
-     *     <li>{@code Small Int | Int -> Integer}</li>
-     *     <li>{@code Small BigInt -> Long}</li>
-     *     <li>{@code Float | New Float -> Double}</li>
-     *     <li>{@code Small Atom | Atom -> Boolean | null | String}</li>
-     *     <li>{@code Binary | String -> String}</li>
-     *     <li>{@code List | NIL -> List}</li>
-     *     <li>{@code Map -> Map}</li>
-     * </ul>
      *
      * @param  buffer
      *         The {@link ByteBuffer} containing the encoded term
@@ -123,165 +272,219 @@ public class ExTermDecoder {
      * @return The parsed {@link List} instance
      */
     @Nonnull
-    @SuppressWarnings("unchecked")
     public static List<Object> unpackList(@Nonnull ByteBuffer buffer) {
-        byte tag = buffer.get(1);
-        if (tag != LIST) {
-            throw new IllegalArgumentException("Cannot unpack list from tag " + tag);
-        }
-
-        return (List<Object>) unpack(buffer);
+        return unpackList(Unpooled.wrappedBuffer(buffer), true);
     }
 
-    private static Object unpack0(@Nonnull ByteBuffer buffer) {
-        int tag = buffer.get();
-        switch (tag) {
-            case COMPRESSED:
-                return unpackCompressed(buffer);
-            case SMALL_INT:
-                return unpackSmallInt(buffer);
-            case SMALL_BIGINT:
-                return unpackSmallBigint(buffer);
-            case INT:
-                return unpackInt(buffer);
-
-            case FLOAT:
-                return unpackOldFloat(buffer);
-            case NEW_FLOAT:
-                return unpackFloat(buffer);
-
-            case SMALL_ATOM_UTF8:
-                return unpackSmallAtom(buffer, StandardCharsets.UTF_8);
-            case SMALL_ATOM:
-                return unpackSmallAtom(buffer, StandardCharsets.ISO_8859_1);
-            case ATOM_UTF8:
-                return unpackAtom(buffer, StandardCharsets.UTF_8);
-            case ATOM:
-                return unpackAtom(buffer, StandardCharsets.ISO_8859_1);
-
-            case MAP:
-                return unpackMap0(buffer);
-            case LIST:
-                return unpackList0(buffer);
-            case NIL:
-                return Collections.emptyList();
-
-            case STRING:
-                return unpackString(buffer);
-            case BINARY:
-                return unpackBinary(buffer);
-            default:
-                throw new IllegalArgumentException("Unknown tag " + tag);
-        }
+    /**
+     * Unpacks the provided term into a java {@link List}.
+     *
+     * @param  buffer
+     *         The {@link ByteBuffer} containing the encoded term
+     * @param  deduplicateStrings
+     *         Whether to intern/deduplicate parsed strings
+     *
+     * @throws IllegalArgumentException
+     *         If the buffer does not start with a List or NIL term, does not have the right version byte, or the format includes an unsupported tag
+     *
+     * @return The parsed {@link List} instance
+     */
+    @Nonnull
+    public static List<Object> unpackList(@Nonnull ByteBuffer buffer, boolean deduplicateStrings) {
+        return unpackList(Unpooled.wrappedBuffer(buffer), deduplicateStrings);
     }
 
-    private static Object unpackCompressed(@Nonnull ByteBuffer buffer) {
-        int size = buffer.getInt();
-        ByteArrayOutputStream decompressed = new ByteArrayOutputStream(size);
-        try (InflaterOutputStream inflater = new InflaterOutputStream(decompressed)) {
-            inflater.write(buffer.array(), buffer.position(), buffer.remaining());
+    private static Object unpack0(@Nonnull ByteBuf buffer, boolean deduplicateStrings) {
+        int tag = buffer.readByte();
+        return switch (tag) {
+            case COMPRESSED -> unpackCompressed(buffer, deduplicateStrings);
+            case SMALL_INT -> unpackSmallInt(buffer);
+            case SMALL_BIGINT -> unpackSmallBigint(buffer);
+            case INT -> unpackInt(buffer);
+            case FLOAT -> unpackOldFloat(buffer);
+            case NEW_FLOAT -> unpackFloat(buffer);
+            case SMALL_ATOM_UTF8 -> unpackSmallAtom(buffer, StandardCharsets.UTF_8, deduplicateStrings);
+            case SMALL_ATOM -> unpackSmallAtom(buffer, StandardCharsets.ISO_8859_1, deduplicateStrings);
+            case ATOM_UTF8 -> unpackAtom(buffer, StandardCharsets.UTF_8, deduplicateStrings);
+            case ATOM -> unpackAtom(buffer, StandardCharsets.ISO_8859_1, deduplicateStrings);
+            case MAP -> unpackMap0(buffer, deduplicateStrings);
+            case LIST -> unpackList0(buffer, deduplicateStrings);
+            case NIL -> List.of();
+            case STRING -> unpackString(buffer);
+            case BINARY -> unpackBinary(buffer, deduplicateStrings);
+            default -> throw new IllegalArgumentException("Unknown tag " + tag);
+        };
+    }
+
+    private static Object unpackCompressed(@Nonnull ByteBuf buffer, boolean deduplicateStrings) {
+        int size = buffer.readInt();
+        ByteBuf decompressed = buffer.alloc().buffer(size);
+        try (InflaterOutputStream inflater = new InflaterOutputStream(new ByteBufOutputStream(decompressed))) {
+            buffer.readBytes(inflater, buffer.readableBytes());
         } catch (IOException e) {
+            decompressed.release();
             throw new UncheckedIOException(e);
         }
 
-        buffer = ByteBuffer.wrap(decompressed.toByteArray());
-        return unpack0(buffer);
+        try {
+            return unpack0(decompressed, deduplicateStrings);
+        } finally {
+            decompressed.release();
+        }
     }
 
-    private static double unpackOldFloat(@Nonnull ByteBuffer buffer) {
-        String bytes = getString(buffer, StandardCharsets.ISO_8859_1, 31);
+    private static double unpackOldFloat(@Nonnull ByteBuf buffer) {
+        String bytes = buffer.readCharSequence(31, StandardCharsets.ISO_8859_1).toString();
         return Double.parseDouble(bytes);
     }
 
-    private static double unpackFloat(@Nonnull ByteBuffer buffer) {
-        return buffer.getDouble();
+    private static double unpackFloat(@Nonnull ByteBuf buffer) {
+        return buffer.readDouble();
     }
 
-    private static long unpackSmallBigint(@Nonnull ByteBuffer buffer) {
-        int arity = Byte.toUnsignedInt(buffer.get());
-        int sign = Byte.toUnsignedInt(buffer.get());
+    private static long unpackSmallBigint(@Nonnull ByteBuf buffer) {
+        int arity = buffer.readUnsignedByte();
+        int sign = buffer.readUnsignedByte();
+        if (arity == 8) {
+            long sum = buffer.readLongLE();
+            return sign == 0 ? sum : -sum;
+        }
+        if (arity == 4) {
+            long sum = buffer.readUnsignedIntLE();
+            return sign == 0 ? sum : -sum;
+        }
         long sum = 0;
         long offset = 0;
         while (arity-- > 0) {
-            sum += Byte.toUnsignedLong(buffer.get()) << offset;
+            sum += ((long) buffer.readUnsignedByte()) << offset;
             offset += 8;
         }
 
         return sign == 0 ? sum : -sum;
     }
 
-    private static int unpackSmallInt(@Nonnull ByteBuffer buffer) {
-        return Byte.toUnsignedInt(buffer.get());
+    private static int unpackSmallInt(@Nonnull ByteBuf buffer) {
+        return buffer.readUnsignedByte();
     }
 
-    private static int unpackInt(@Nonnull ByteBuffer buffer) {
-        return buffer.getInt();
+    private static int unpackInt(@Nonnull ByteBuf buffer) {
+        return buffer.readInt();
     }
 
-    private static List<Object> unpackString(@Nonnull ByteBuffer buffer) {
-        int length = Short.toUnsignedInt(buffer.getShort());
+    private static List<Object> unpackString(@Nonnull ByteBuf buffer) {
+        int length = buffer.readUnsignedShort();
         List<Object> bytes = new ArrayList<>(length);
         while (length-- > 0) {
-            bytes.add(buffer.get());
+            bytes.add(buffer.readByte());
         }
         return bytes;
     }
 
-    private static String unpackBinary(@Nonnull ByteBuffer buffer) {
-        int length = buffer.getInt();
-        return getString(buffer, StandardCharsets.UTF_8, length);
-    }
-
-    private static Object unpackSmallAtom(@Nonnull ByteBuffer buffer, @Nonnull Charset charset) {
-        int length = Byte.toUnsignedInt(buffer.get());
-        return unpackAtom(buffer, charset, length);
-    }
-
-    private static Object unpackAtom(@Nonnull ByteBuffer buffer, @Nonnull Charset charset) {
-        int length = Short.toUnsignedInt(buffer.getShort());
-        return unpackAtom(buffer, charset, length);
-    }
-
-    private static Object unpackAtom(@Nonnull ByteBuffer buffer, @Nonnull Charset charset, int length) {
-        String value = getString(buffer, charset, length);
-        switch (value) {
-            case "true":
-                return true;
-            case "false":
-                return false;
-            case "nil":
-                return null;
-            default:
-                return value.intern();
+    private static String unpackBinary(@Nonnull ByteBuf buffer, boolean deduplicateStrings) {
+        int length = buffer.readInt();
+        int readerIndex = buffer.readerIndex();
+        if (deduplicateStrings && length <= 64) {
+            int hash = computeByteBufHash(buffer, readerIndex, length);
+            int slot = (hash ^ (hash >>> 16)) & STRING_CACHE_MASK;
+            CachedEntry entry = STRING_CACHE[slot];
+            if (entry != null && entry.bytes.length == length && equalsBytes(buffer, readerIndex, entry.bytes)) {
+                buffer.skipBytes(length);
+                return entry.value;
+            }
+            String str = buffer.readCharSequence(length, StandardCharsets.UTF_8)
+                    .toString()
+                    .intern();
+            byte[] keyBytes = new byte[length];
+            buffer.getBytes(readerIndex, keyBytes);
+            STRING_CACHE[slot] = new CachedEntry(keyBytes, str);
+            return str;
         }
+        String str = buffer.readCharSequence(length, StandardCharsets.UTF_8).toString();
+        return deduplicateStrings ? str.intern() : str;
     }
 
-    private static String getString(@Nonnull ByteBuffer buffer, @Nonnull Charset charset, int length) {
-        byte[] array = new byte[length];
-        buffer.get(array);
-        return new String(array, charset);
+    private static Object unpackSmallAtom(
+            @Nonnull ByteBuf buffer, @Nonnull Charset charset, boolean deduplicateStrings) {
+        int length = buffer.readUnsignedByte();
+        return unpackAtom(buffer, charset, length, deduplicateStrings);
     }
 
-    private static List<Object> unpackList0(@Nonnull ByteBuffer buffer) {
-        int length = buffer.getInt();
+    private static Object unpackAtom(@Nonnull ByteBuf buffer, @Nonnull Charset charset, boolean deduplicateStrings) {
+        int length = buffer.readUnsignedShort();
+        return unpackAtom(buffer, charset, length, deduplicateStrings);
+    }
+
+    private static Object unpackAtom(
+            @Nonnull ByteBuf buffer, @Nonnull Charset charset, int length, boolean deduplicateStrings) {
+        int readerIndex = buffer.readerIndex();
+        if (length == 3) {
+            if (buffer.getByte(readerIndex) == 'n'
+                    && buffer.getByte(readerIndex + 1) == 'i'
+                    && buffer.getByte(readerIndex + 2) == 'l') {
+                buffer.skipBytes(3);
+                return null;
+            }
+        } else if (length == 4) {
+            if (buffer.getByte(readerIndex) == 't'
+                    && buffer.getByte(readerIndex + 1) == 'r'
+                    && buffer.getByte(readerIndex + 2) == 'u'
+                    && buffer.getByte(readerIndex + 3) == 'e') {
+                buffer.skipBytes(4);
+                return true;
+            }
+        } else if (length == 5) {
+            if (buffer.getByte(readerIndex) == 'f'
+                    && buffer.getByte(readerIndex + 1) == 'a'
+                    && buffer.getByte(readerIndex + 2) == 'l'
+                    && buffer.getByte(readerIndex + 3) == 's'
+                    && buffer.getByte(readerIndex + 4) == 'e') {
+                buffer.skipBytes(5);
+                return false;
+            }
+        }
+
+        if (deduplicateStrings && length <= 128) {
+            int hash = computeByteBufHash(buffer, readerIndex, length);
+            int slot = (hash ^ (hash >>> 16)) & STRING_CACHE_MASK;
+            CachedEntry entry = STRING_CACHE[slot];
+            if (entry != null && entry.bytes.length == length && equalsBytes(buffer, readerIndex, entry.bytes)) {
+                buffer.skipBytes(length);
+                return entry.value;
+            }
+            String value = buffer.readCharSequence(length, charset).toString().intern();
+            byte[] keyBytes = new byte[length];
+            buffer.getBytes(readerIndex, keyBytes);
+            STRING_CACHE[slot] = new CachedEntry(keyBytes, value);
+            return value;
+        }
+
+        String value = buffer.readCharSequence(length, charset).toString();
+        return deduplicateStrings ? value.intern() : value;
+    }
+
+    private static List<Object> unpackList0(@Nonnull ByteBuf buffer, boolean deduplicateStrings) {
+        int length = buffer.readInt();
         List<Object> list = new ArrayList<>(length);
         while (length-- > 0) {
-            list.add(unpack0(buffer));
+            list.add(unpack0(buffer, deduplicateStrings));
         }
-        Object tail = unpack0(buffer);
-        if (!Objects.equals(tail, Collections.emptyList())) {
+        Object tail = unpack0(buffer, deduplicateStrings);
+        if (!Objects.equals(tail, List.of())) {
             throw new IllegalArgumentException("Unexpected tail " + tail);
         }
         return list;
     }
 
-    private static Map<String, Object> unpackMap0(@Nonnull ByteBuffer buffer) {
-        Map<String, Object> map = new HashMap<>();
-        int arity = buffer.getInt();
+    private static Map<String, Object> unpackMap0(@Nonnull ByteBuf buffer, boolean deduplicateStrings) {
+        int arity = buffer.readInt();
+        Map<String, Object> map = HashMap.newHashMap(arity);
         while (arity-- > 0) {
-            Object rawKey = unpack0(buffer);
-            String key = String.valueOf(rawKey);
-            Object value = unpack0(buffer);
+            Object rawKey = unpack0(buffer, deduplicateStrings);
+            String key = rawKey instanceof String s ? s : String.valueOf(rawKey);
+            if (deduplicateStrings && !(rawKey instanceof String)) {
+                key = key.intern();
+            }
+            Object value = unpack0(buffer, deduplicateStrings);
             map.put(key, value);
         }
         return map;

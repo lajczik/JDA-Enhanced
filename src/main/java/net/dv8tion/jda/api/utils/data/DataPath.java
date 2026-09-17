@@ -21,7 +21,6 @@ import net.dv8tion.jda.api.exceptions.ParsingException;
 import net.dv8tion.jda.internal.utils.Checks;
 import org.jetbrains.annotations.Contract;
 
-import java.nio.charset.StandardCharsets;
 import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 
@@ -119,9 +118,9 @@ public class DataPath {
             String path,
             BiFunction<DataObject, String, ? extends T> fromObject,
             BiFunction<DataArray, Integer, ? extends T> fromArray) {
-        String[] parts = path.split("\\.", 2);
-        String current = parts[0];
-        String child = parts.length > 1 ? parts[1] : null;
+        int dotIndex = path.indexOf('.');
+        String current = dotIndex > -1 ? path.substring(0, dotIndex) : path;
+        String child = dotIndex > -1 ? path.substring(dotIndex + 1) : null;
 
         // if key is array according to index in path
         if (current.indexOf('[') > -1) {
@@ -208,16 +207,16 @@ public class DataPath {
             String path,
             BiFunction<DataObject, String, ? extends T> fromObject,
             BiFunction<DataArray, Integer, ? extends T> fromArray) {
-        byte[] chars = path.getBytes(StandardCharsets.UTF_8);
+        int length = path.length();
         int offset = 0;
 
         // This is just to prevent infinite loop if some strange thing happens, should be impossible
-        for (int i = 0; i < chars.length; i++) {
-            int end = indexOf(chars, offset + 1, ']');
+        for (int i = 0; i < length; i++) {
+            int end = path.indexOf(']', offset + 1);
             int index = Integer.parseInt(path.substring(offset + 1, end));
 
-            offset = Math.min(chars.length, end + 1);
-            boolean optional = offset != chars.length && chars[offset] == '?';
+            offset = Math.min(length, end + 1);
+            boolean optional = offset != length && path.charAt(offset) == '?';
 
             boolean isMissing = root.length() <= index || root.isNull(index);
             if (optional) {
@@ -227,11 +226,11 @@ public class DataPath {
                 }
             }
 
-            if (offset == chars.length) {
+            if (offset == length) {
                 return fromArray.apply(root, index);
             }
 
-            if (chars[offset] == '[') {
+            if (path.charAt(offset) == '[') {
                 root = root.getArray(index);
             } else {
                 return getUnchecked(root.getObject(index), path.substring(offset + 1), fromObject, fromArray);
@@ -239,17 +238,7 @@ public class DataPath {
         }
 
         throw new ParsingException(
-                "Array path nesting seems to be way too deep, we went " + chars.length + " arrays deep. Path: " + path);
-    }
-
-    private static int indexOf(byte[] chars, int offset, char c) {
-        byte b = (byte) c;
-        for (int i = offset; i < chars.length; i++) {
-            if (chars[i] == b) {
-                return i;
-            }
-        }
-        return -1;
+                "Array path nesting seems to be way too deep, we went " + length + " arrays deep. Path: " + path);
     }
 
     /**

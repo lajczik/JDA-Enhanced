@@ -19,12 +19,12 @@ package net.dv8tion.jda.test.data;
 import net.dv8tion.jda.api.exceptions.DataObjectParsingException;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
-import net.dv8tion.jda.test.AbstractSnapshotTest;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-public class DataObjectTest extends AbstractSnapshotTest {
+public class DataObjectTest {
     @Test
     void testMissingKeyException() {
         DataObject data = DataObject.empty()
@@ -34,7 +34,15 @@ public class DataObjectTest extends AbstractSnapshotTest {
 
         assertThatExceptionOfType(DataObjectParsingException.class)
                 .isThrownBy(() -> data.get("bar"))
-                .satisfies(exception -> snapshotHandler.compareWithSnapshot(exception.toString(), null));
+                .satisfies(exception -> {
+                    assertThat(exception.getData()).isEqualTo(data);
+                    String[] lines = exception.getMessage().split("\n", 2);
+                    assertThat(lines[0]).isEqualTo("Missing value for key 'bar' with expected type any");
+                    DataObject shallow = DataObject.fromJson(lines[1]);
+                    assertThat(shallow.getInt("foo")).isEqualTo(1);
+                    assertThat(shallow.getString("nested_object")).isEqualTo("{…truncated object…}");
+                    assertThat(shallow.getString("nested_array")).isEqualTo("[…truncated array…]");
+                });
     }
 
     @Test
@@ -46,6 +54,14 @@ public class DataObjectTest extends AbstractSnapshotTest {
 
         assertThatExceptionOfType(DataObjectParsingException.class)
                 .isThrownBy(() -> data.getInt("foo"))
-                .satisfies(exception -> snapshotHandler.compareWithSnapshot(exception.toString(), null));
+                .satisfies(exception -> {
+                    assertThat(exception.getData()).isEqualTo(data);
+                    String[] lines = exception.getMessage().split("\n", 2);
+                    assertThat(lines[0]).isEqualTo("Unable to resolve value with key 'foo' to type int: null");
+                    DataObject shallow = DataObject.fromJson(lines[1]);
+                    assertThat(shallow.isNull("foo")).isTrue();
+                    assertThat(shallow.getString("nested_object")).isEqualTo("{…truncated object…}");
+                    assertThat(shallow.getString("nested_array")).isEqualTo("[…truncated array…]");
+                });
     }
 }

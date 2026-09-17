@@ -23,7 +23,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Enum constants representing possible types for a {@link net.dv8tion.jda.api.utils.data.DataObject} value.
+ * Enum constants representing possible types for a {@link DataObject} value.
  */
 public enum DataType {
     INT,
@@ -45,12 +45,20 @@ public enum DataType {
      */
     @Nonnull
     public static DataType getType(@Nullable Object value) {
-        for (DataType type : values()) {
-            if (type.isType(value)) {
-                return type;
-            }
-        }
-        return UNKNOWN;
+        return switch (value) {
+            case null -> NULL;
+            case Integer i -> INT;
+            case Long l -> INT;
+            case Short s -> INT;
+            case Byte b -> INT;
+            case Double d -> FLOAT;
+            case Float f -> FLOAT;
+            case String s -> STRING;
+            case Boolean b -> BOOLEAN;
+            case List<?> list -> ARRAY;
+            case Map<?, ?> map -> OBJECT;
+            default -> UNKNOWN;
+        };
     }
 
     /**
@@ -63,26 +71,16 @@ public enum DataType {
      * @return True, if the value is of this type
      */
     public boolean isType(@Nullable Object value) {
-        switch (this) {
-            case INT:
-                return value instanceof Integer
-                        || value instanceof Long
-                        || value instanceof Short
-                        || value instanceof Byte;
-            case FLOAT:
-                return value instanceof Double || value instanceof Float;
-            case STRING:
-                return value instanceof String;
-            case BOOLEAN:
-                return value instanceof Boolean;
-            case ARRAY:
-                return value instanceof List;
-            case OBJECT:
-                return value instanceof Map;
-            case NULL:
-                return value == null;
-            default:
-                return false;
-        }
+        return switch (this) {
+            case INT ->
+                value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte;
+            case FLOAT -> value instanceof Double || value instanceof Float;
+            case STRING -> value instanceof String;
+            case BOOLEAN -> value instanceof Boolean;
+            case ARRAY -> value instanceof List;
+            case OBJECT -> value instanceof Map;
+            case NULL -> value == null;
+            case UNKNOWN -> false;
+        };
     }
 }

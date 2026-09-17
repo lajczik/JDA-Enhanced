@@ -19,12 +19,12 @@ package net.dv8tion.jda.test.data;
 import net.dv8tion.jda.api.exceptions.DataArrayParsingException;
 import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.api.utils.data.DataObject;
-import net.dv8tion.jda.test.AbstractSnapshotTest;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-public class DataArrayTest extends AbstractSnapshotTest {
+public class DataArrayTest {
     @Test
     void testUnexpectedNullException() {
         DataArray data = DataArray.empty()
@@ -35,6 +35,15 @@ public class DataArrayTest extends AbstractSnapshotTest {
 
         assertThatExceptionOfType(DataArrayParsingException.class)
                 .isThrownBy(() -> data.getInt(3))
-                .satisfies(exception -> snapshotHandler.compareWithSnapshot(exception.toString(), null));
+                .satisfies(exception -> {
+                    assertThat(exception.getData()).isEqualTo(data);
+                    String[] lines = exception.getMessage().split("\n", 2);
+                    assertThat(lines[0]).isEqualTo("Unable to resolve value at 3 to type int: null");
+                    DataArray shallow = DataArray.fromJson(lines[1]);
+                    assertThat(shallow.getInt(0)).isEqualTo(1);
+                    assertThat(shallow.getString(1)).isEqualTo("{…truncated object…}");
+                    assertThat(shallow.getString(2)).isEqualTo("[…truncated array…]");
+                    assertThat(shallow.isNull(3)).isTrue();
+                });
     }
 }
