@@ -83,70 +83,6 @@ public class ErrorResponseException extends RuntimeException {
         this.schemaErrors = cause.schemaErrors;
     }
 
-    /**
-     * Whether this is an internal server error from discord (status 500)
-     *
-     * @return True, if this is an internal server error
-     *         {@link ErrorResponse#SERVER_ERROR ErrorResponse.SERVER_ERROR}
-     */
-    public boolean isServerError() {
-        return errorResponse == ErrorResponse.SERVER_ERROR;
-    }
-
-    /**
-     * The meaning for this error.
-     * <br>It is possible that the value from this method is different for {@link #isServerError() server errors}
-     *
-     * @return Never-null meaning of this error.
-     */
-    @Nonnull
-    public String getMeaning() {
-        return meaning;
-    }
-
-    /**
-     * The discord error code for this error response.
-     *
-     * @return The discord error code.
-     *
-     * @see <a href="https://discord.com/developers/docs/topics/opcodes-and-status-codes#json-json-error-codes" target="_blank">Discord Error Codes</a>
-     */
-    public int getErrorCode() {
-        return code;
-    }
-
-    /**
-     * The {@link ErrorResponse} corresponding
-     * for the received error response from Discord
-     *
-     * @return {@link ErrorResponse}
-     */
-    @Nonnull
-    public ErrorResponse getErrorResponse() {
-        return errorResponse;
-    }
-
-    /**
-     * The Discord Response causing the ErrorResponse
-     *
-     * @return {@link Response}
-     */
-    @Nonnull
-    public Response getResponse() {
-        return response;
-    }
-
-    /**
-     * The {@link SchemaError SchemaErrors} for this error response.
-     * <br>These errors provide more context of what part in the body caused the error, and more explanation for the error itself.
-     *
-     * @return Possibly-empty list of {@link SchemaError SchemaError}
-     */
-    @Nonnull
-    public List<SchemaError> getSchemaErrors() {
-        return schemaErrors;
-    }
-
     @Nonnull
     public static ErrorResponseException create(@Nonnull String message, @Nonnull ErrorResponseException cause) {
         return new ErrorResponseException(message, cause);
@@ -236,14 +172,14 @@ public class ErrorResponseException extends RuntimeException {
      * Ignore the specified set of error responses.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Creates a message with the provided content and deletes it 30 seconds later
      * public static void selfDestruct(MessageChannel channel, String content) {
      *     channel.sendMessage(content).queue((message) ->
      *         message.delete().queueAfter(30, SECONDS, null, ignore(EnumSet.of(UNKNOWN_MESSAGE)))
      *     );
      * }
-     * }
+     *}
      *
      * @param  set
      *         Set of ignored error responses
@@ -263,14 +199,14 @@ public class ErrorResponseException extends RuntimeException {
      * Ignore the specified set of error responses.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Creates a message with the provided content and deletes it 30 seconds later
      * public static void selfDestruct(MessageChannel channel, String content) {
      *     channel.sendMessage(content).queue((message) ->
      *         message.delete().queueAfter(30, SECONDS, null, ignore(UNKNOWN_MESSAGE))
      *     );
      * }
-     * }
+     *}
      *
      * @param  ignored
      *         Ignored error response
@@ -292,14 +228,14 @@ public class ErrorResponseException extends RuntimeException {
      * Ignore the specified set of error responses.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Creates a message with the provided content and deletes it 30 seconds later
      * public static void selfDestruct(MessageChannel channel, String content) {
      *     channel.sendMessage(content).queue((message) ->
      *         message.delete().queueAfter(30, SECONDS, null, ignore(Throwable::printStackTrace, UNKNOWN_MESSAGE))
      *     );
      * }
-     * }
+     *}
      *
      * @param  orElse
      *         Behavior to default to if the error response is not ignored
@@ -326,14 +262,14 @@ public class ErrorResponseException extends RuntimeException {
      * Ignore the specified set of error responses.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Creates a message with the provided content and deletes it 30 seconds later
      * public static void selfDestruct(MessageChannel channel, String content) {
      *     channel.sendMessage(content).queue((message) ->
      *         message.delete().queueAfter(30, SECONDS, null, ignore(Throwable::printStackTrace, EnumSet.of(UNKNOWN_MESSAGE)))
      *     );
      * }
-     * }
+     *}
      *
      * @param  orElse
      *         Behavior to default to if the error response is not ignored
@@ -354,6 +290,69 @@ public class ErrorResponseException extends RuntimeException {
         // Make an enum set copy (for performance, memory efficiency, and thread-safety)
         EnumSet<ErrorResponse> ignored = EnumSet.copyOf(set);
         return new ErrorHandler(orElse).ignore(ignored);
+    }
+
+    /**
+     * Whether this is an internal server error from discord (status 500)
+     *
+     * @return True, if this is an internal server error
+     * {@link ErrorResponse#SERVER_ERROR ErrorResponse.SERVER_ERROR}
+     */
+    public boolean isServerError() {
+        return errorResponse == ErrorResponse.SERVER_ERROR;
+    }
+
+    /**
+     * The meaning for this error.
+     * <br>It is possible that the value from this method is different for {@link #isServerError() server errors}
+     *
+     * @return Never-null meaning of this error.
+     */
+    @Nonnull
+    public String getMeaning() {
+        return meaning;
+    }
+
+    /**
+     * The discord error code for this error response.
+     *
+     * @return The discord error code.
+     * @see <a href="https://discord.com/developers/docs/topics/opcodes-and-status-codes#json-json-error-codes" target="_blank">Discord Error Codes</a>
+     */
+    public int getErrorCode() {
+        return code;
+    }
+
+    /**
+     * The {@link ErrorResponse} corresponding
+     * for the received error response from Discord
+     *
+     * @return {@link ErrorResponse}
+     */
+    @Nonnull
+    public ErrorResponse getErrorResponse() {
+        return errorResponse;
+    }
+
+    /**
+     * The Discord Response causing the ErrorResponse
+     *
+     * @return {@link Response}
+     */
+    @Nonnull
+    public Response getResponse() {
+        return response;
+    }
+
+    /**
+     * The {@link SchemaError SchemaErrors} for this error response.
+     * <br>These errors provide more context of what part in the body caused the error, and more explanation for the error itself.
+     *
+     * @return Possibly-empty list of {@link SchemaError SchemaError}
+     */
+    @Nonnull
+    public List<SchemaError> getSchemaErrors() {
+        return schemaErrors;
     }
 
     /**

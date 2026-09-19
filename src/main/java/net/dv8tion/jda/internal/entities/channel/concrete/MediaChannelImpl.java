@@ -47,7 +47,7 @@ public class MediaChannelImpl extends AbstractGuildChannelImpl<MediaChannelImpl>
     private final Long2ObjectMap<PermissionOverride> overrides = MiscUtil.newLongMap();
     private final SortedSnowflakeCacheViewImpl<ForumTag> tagCache =
             new SortedSnowflakeCacheViewImpl<>(ForumTag.class, ForumTag::getName, Comparator.naturalOrder());
-
+    protected int defaultThreadSlowmode;
     private Emoji defaultReaction;
     private String topic;
     private long parentCategoryId;
@@ -56,7 +56,6 @@ public class MediaChannelImpl extends AbstractGuildChannelImpl<MediaChannelImpl>
     private int flags;
     private int slowmode;
     private int defaultSortOrder;
-    protected int defaultThreadSlowmode;
 
     public MediaChannelImpl(long id, GuildImpl guild) {
         super(id, guild);
@@ -93,6 +92,12 @@ public class MediaChannelImpl extends AbstractGuildChannelImpl<MediaChannelImpl>
         return ChannelFlag.fromRaw(flags);
     }
 
+    @Override
+    public MediaChannelImpl setFlags(int flags) {
+        this.flags = flags;
+        return this;
+    }
+
     @Nonnull
     @Override
     public SortedSnowflakeCacheViewImpl<ForumTag> getAvailableTagCache() {
@@ -107,6 +112,12 @@ public class MediaChannelImpl extends AbstractGuildChannelImpl<MediaChannelImpl>
     @Override
     public boolean isNSFW() {
         return nsfw;
+    }
+
+    @Override
+    public MediaChannelImpl setNSFW(boolean nsfw) {
+        this.nsfw = nsfw;
+        return this;
     }
 
     @Override
@@ -125,66 +136,14 @@ public class MediaChannelImpl extends AbstractGuildChannelImpl<MediaChannelImpl>
     }
 
     @Override
-    public String getTopic() {
-        return topic;
-    }
-
-    @Override
-    public EmojiUnion getDefaultReaction() {
-        return (EmojiUnion) defaultReaction;
-    }
-
-    @Override
-    public int getDefaultThreadSlowmode() {
-        return defaultThreadSlowmode;
-    }
-
-    @Nonnull
-    @Override
-    public SortOrder getDefaultSortOrder() {
-        return SortOrder.fromKey(defaultSortOrder);
-    }
-
-    @Override
-    public int getRawFlags() {
-        return flags;
-    }
-
-    @Override
-    public int getRawSortOrder() {
-        return defaultSortOrder;
-    }
-
-    // Setters
-
-    @Override
-    public MediaChannelImpl setParentCategory(long parentCategoryId) {
-        this.parentCategoryId = parentCategoryId;
-        return this;
-    }
-
-    @Override
-    public MediaChannelImpl setPosition(int position) {
-        this.position = position;
-        return this;
-    }
-
-    @Override
-    public MediaChannelImpl setDefaultThreadSlowmode(int defaultThreadSlowmode) {
-        this.defaultThreadSlowmode = defaultThreadSlowmode;
-        return this;
-    }
-
-    @Override
-    public MediaChannelImpl setNSFW(boolean nsfw) {
-        this.nsfw = nsfw;
-        return this;
-    }
-
-    @Override
     public MediaChannelImpl setSlowmode(int slowmode) {
         this.slowmode = slowmode;
         return this;
+    }
+
+    @Override
+    public String getTopic() {
+        return topic;
     }
 
     @Override
@@ -194,10 +153,11 @@ public class MediaChannelImpl extends AbstractGuildChannelImpl<MediaChannelImpl>
     }
 
     @Override
-    public MediaChannelImpl setFlags(int flags) {
-        this.flags = flags;
-        return this;
+    public EmojiUnion getDefaultReaction() {
+        return (EmojiUnion) defaultReaction;
     }
+
+    // Setters
 
     @Override
     public MediaChannelImpl setDefaultReaction(DataObject emoji) {
@@ -212,8 +172,47 @@ public class MediaChannelImpl extends AbstractGuildChannelImpl<MediaChannelImpl>
     }
 
     @Override
+    public int getDefaultThreadSlowmode() {
+        return defaultThreadSlowmode;
+    }
+
+    @Override
+    public MediaChannelImpl setDefaultThreadSlowmode(int defaultThreadSlowmode) {
+        this.defaultThreadSlowmode = defaultThreadSlowmode;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public SortOrder getDefaultSortOrder() {
+        return SortOrder.fromKey(defaultSortOrder);
+    }
+
+    @Override
     public MediaChannelImpl setDefaultSortOrder(int defaultSortOrder) {
         this.defaultSortOrder = defaultSortOrder;
+        return this;
+    }
+
+    @Override
+    public int getRawFlags() {
+        return flags;
+    }
+
+    @Override
+    public int getRawSortOrder() {
+        return defaultSortOrder;
+    }
+
+    @Override
+    public MediaChannelImpl setParentCategory(long parentCategoryId) {
+        this.parentCategoryId = parentCategoryId;
+        return this;
+    }
+
+    @Override
+    public MediaChannelImpl setPosition(int position) {
+        this.position = position;
         return this;
     }
 }

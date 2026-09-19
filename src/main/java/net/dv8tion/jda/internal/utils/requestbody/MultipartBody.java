@@ -45,6 +45,10 @@ import javax.annotation.Nullable;
 
 public class MultipartBody extends RequestBody implements ReferenceCounted, Closeable {
     private static final VarHandle REF_CNT_HANDLE;
+    private static final ByteBuf CRLF_BUF =
+            Unpooled.unreleasableBuffer(Unpooled.wrappedBuffer("\r\n".getBytes(StandardCharsets.UTF_8)));
+    private static final ByteBuf DASHDASH_BUF =
+            Unpooled.unreleasableBuffer(Unpooled.wrappedBuffer("--".getBytes(StandardCharsets.UTF_8)));
 
     static {
         try {
@@ -53,12 +57,6 @@ public class MultipartBody extends RequestBody implements ReferenceCounted, Clos
             throw new ExceptionInInitializerError(e);
         }
     }
-
-    private static final ByteBuf CRLF_BUF =
-            Unpooled.unreleasableBuffer(Unpooled.wrappedBuffer("\r\n".getBytes(StandardCharsets.UTF_8)));
-
-    private static final ByteBuf DASHDASH_BUF =
-            Unpooled.unreleasableBuffer(Unpooled.wrappedBuffer("--".getBytes(StandardCharsets.UTF_8)));
 
     private final String boundary;
     private final ByteBuf boundaryBuf;
@@ -256,10 +254,10 @@ public class MultipartBody extends RequestBody implements ReferenceCounted, Clos
     }
 
     public static class Part {
+        final ByteBuf headerBuf;
         private final String name;
         private final String filename;
         private final RequestBody body;
-        final ByteBuf headerBuf;
 
         public Part(@Nonnull String name, @Nullable String filename, @Nonnull RequestBody body) {
             Checks.notNull(name, "Part name");
@@ -277,21 +275,6 @@ public class MultipartBody extends RequestBody implements ReferenceCounted, Clos
             this.filename = filename;
             this.body = body;
             this.headerBuf = buildHeaderBuf(name, filename, body.contentType(), boundary);
-        }
-
-        @Nonnull
-        public String getName() {
-            return name;
-        }
-
-        @Nullable
-        public String getFilename() {
-            return filename;
-        }
-
-        @Nonnull
-        public RequestBody getBody() {
-            return body;
         }
 
         static ByteBuf buildHeaderBuf(
@@ -320,6 +303,21 @@ public class MultipartBody extends RequestBody implements ReferenceCounted, Clos
             sb.append("\r\n");
             return Unpooled.unreleasableBuffer(
                     Unpooled.wrappedBuffer(sb.toString().getBytes(StandardCharsets.UTF_8)));
+        }
+
+        @Nonnull
+        public String getName() {
+            return name;
+        }
+
+        @Nullable
+        public String getFilename() {
+            return filename;
+        }
+
+        @Nonnull
+        public RequestBody getBody() {
+            return body;
         }
     }
 

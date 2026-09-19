@@ -42,14 +42,6 @@ public class ButtonTests {
     private static final String EXAMPLE_LABEL = "Label";
     private static final SkuSnowflake EXAMPLE_SKU = SkuSnowflake.fromId(1234);
 
-    @MethodSource("validButtons")
-    @ParameterizedTest
-    void testButtonValid(ButtonStyle style, String id, String label, String url, SkuSnowflake sku, Emoji emoji) {
-        ButtonImpl button = new ButtonImpl(id, label, style, url, sku, false, emoji);
-        assertDoesNotThrow(button::checkValid);
-        assertDoesNotThrow(button::toData);
-    }
-
     static Stream<Arguments> validButtons() {
         // The following button configurations are valid:
         return Stream.of(
@@ -63,13 +55,6 @@ public class ButtonTests {
                 arguments(LINK, null, null, EXAMPLE_URL, null, EXAMPLE_EMOJI),
                 // Premium button doesn't have anything
                 arguments(PREMIUM, null, null, null, EXAMPLE_SKU, null));
-    }
-
-    @MethodSource("testButtonInvalidArguments")
-    @ParameterizedTest
-    void testButtonInvalid(ButtonStyle style, String id, String label, String url, SkuSnowflake sku, Emoji emoji) {
-        ButtonImpl button = new ButtonImpl(id, label, style, url, sku, false, emoji);
-        assertThatIllegalArgumentException().isThrownBy(button::checkValid);
     }
 
     static Stream<Arguments> testButtonInvalidArguments() {
@@ -92,6 +77,56 @@ public class ButtonTests {
                 arguments(PREMIUM, null, "", null, EXAMPLE_SKU, EXAMPLE_EMOJI));
     }
 
+    static Stream<Arguments> testWithId() {
+        return Stream.of(
+                arguments(Button.primary(EXAMPLE_ID, "Primary"), false),
+                arguments(Button.link(EXAMPLE_URL, "Link"), true),
+                arguments(Button.premium(EXAMPLE_SKU), true));
+    }
+
+    static Stream<Arguments> testWithUrl() {
+        return Stream.of(
+                arguments(Button.primary(EXAMPLE_ID, "Primary"), true),
+                arguments(Button.link(EXAMPLE_URL, "Link"), false),
+                arguments(Button.premium(EXAMPLE_SKU), true));
+    }
+
+    static Stream<Arguments> testWithSku() {
+        return Stream.of(
+                arguments(Button.primary(EXAMPLE_ID, "Primary"), true),
+                arguments(Button.link(EXAMPLE_URL, "Link"), true),
+                arguments(Button.premium(EXAMPLE_SKU), false));
+    }
+
+    static Stream<Arguments> testWithLabel() {
+        return Stream.of(
+                arguments(Button.primary(EXAMPLE_ID, "Primary"), false),
+                arguments(Button.link(EXAMPLE_URL, "Link"), false),
+                arguments(Button.premium(EXAMPLE_SKU), true));
+    }
+
+    static Stream<Arguments> testWithEmoji() {
+        return Stream.of(
+                arguments(Button.primary(EXAMPLE_ID, "Primary"), false),
+                arguments(Button.link(EXAMPLE_URL, "Link"), false),
+                arguments(Button.premium(EXAMPLE_SKU), true));
+    }
+
+    @MethodSource("validButtons")
+    @ParameterizedTest
+    void testButtonValid(ButtonStyle style, String id, String label, String url, SkuSnowflake sku, Emoji emoji) {
+        ButtonImpl button = new ButtonImpl(id, label, style, url, sku, false, emoji);
+        assertDoesNotThrow(button::checkValid);
+        assertDoesNotThrow(button::toData);
+    }
+
+    @MethodSource("testButtonInvalidArguments")
+    @ParameterizedTest
+    void testButtonInvalid(ButtonStyle style, String id, String label, String url, SkuSnowflake sku, Emoji emoji) {
+        ButtonImpl button = new ButtonImpl(id, label, style, url, sku, false, emoji);
+        assertThatIllegalArgumentException().isThrownBy(button::checkValid);
+    }
+
     @MethodSource
     @ParameterizedTest
     void testWithId(Button button, boolean shouldThrow) {
@@ -100,13 +135,6 @@ public class ButtonTests {
         } else {
             assertDoesNotThrow(() -> button.withCustomId("valid-id"));
         }
-    }
-
-    static Stream<Arguments> testWithId() {
-        return Stream.of(
-                arguments(Button.primary(EXAMPLE_ID, "Primary"), false),
-                arguments(Button.link(EXAMPLE_URL, "Link"), true),
-                arguments(Button.premium(EXAMPLE_SKU), true));
     }
 
     @MethodSource
@@ -119,13 +147,6 @@ public class ButtonTests {
         }
     }
 
-    static Stream<Arguments> testWithUrl() {
-        return Stream.of(
-                arguments(Button.primary(EXAMPLE_ID, "Primary"), true),
-                arguments(Button.link(EXAMPLE_URL, "Link"), false),
-                arguments(Button.premium(EXAMPLE_SKU), true));
-    }
-
     @MethodSource
     @ParameterizedTest
     void testWithSku(Button button, boolean shouldThrow) {
@@ -134,13 +155,6 @@ public class ButtonTests {
         } else {
             assertDoesNotThrow(() -> button.withSku(EXAMPLE_SKU));
         }
-    }
-
-    static Stream<Arguments> testWithSku() {
-        return Stream.of(
-                arguments(Button.primary(EXAMPLE_ID, "Primary"), true),
-                arguments(Button.link(EXAMPLE_URL, "Link"), true),
-                arguments(Button.premium(EXAMPLE_SKU), false));
     }
 
     @MethodSource
@@ -153,13 +167,6 @@ public class ButtonTests {
         }
     }
 
-    static Stream<Arguments> testWithLabel() {
-        return Stream.of(
-                arguments(Button.primary(EXAMPLE_ID, "Primary"), false),
-                arguments(Button.link(EXAMPLE_URL, "Link"), false),
-                arguments(Button.premium(EXAMPLE_SKU), true));
-    }
-
     @MethodSource
     @ParameterizedTest
     void testWithEmoji(Button button, boolean shouldThrow) {
@@ -168,13 +175,6 @@ public class ButtonTests {
         } else {
             assertDoesNotThrow(() -> button.withEmoji(EXAMPLE_EMOJI));
         }
-    }
-
-    static Stream<Arguments> testWithEmoji() {
-        return Stream.of(
-                arguments(Button.primary(EXAMPLE_ID, "Primary"), false),
-                arguments(Button.link(EXAMPLE_URL, "Link"), false),
-                arguments(Button.premium(EXAMPLE_SKU), true));
     }
 
     @EnumSource

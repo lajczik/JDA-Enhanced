@@ -28,12 +28,7 @@ import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.util.AsciiString;
 import io.netty.util.ReferenceCountUtil;
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.requests.Method;
-import net.dv8tion.jda.api.requests.Request;
-import net.dv8tion.jda.api.requests.Response;
-import net.dv8tion.jda.api.requests.RestConfig;
-import net.dv8tion.jda.api.requests.RestRateLimiter;
-import net.dv8tion.jda.api.requests.Route;
+import net.dv8tion.jda.api.requests.*;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
 import net.dv8tion.jda.internal.utils.JDALogger;
@@ -64,6 +59,8 @@ import javax.annotation.Nullable;
 import javax.net.ssl.SSLPeerUnverifiedException;
 
 public class Requester {
+    public static final Logger LOG = JDALogger.getLog(Requester.class);
+    public static final RequestBody EMPTY_BODY = new ByteBufRequestBody(Unpooled.EMPTY_BUFFER, null);
     private static final int[] RETRY_ERROR_CODES = {
         502, // bad gateway
         503, // service temporarily unavailable
@@ -75,11 +72,6 @@ public class Requester {
         524, // a timeout occurred
         529, // The service is overloaded
     };
-
-    public static final Logger LOG = JDALogger.getLog(Requester.class);
-
-    public static final RequestBody EMPTY_BODY = new ByteBufRequestBody(Unpooled.EMPTY_BUFFER, null);
-
     private static final AsciiString X_RATELIMIT_PRECISION = AsciiString.cached("x-ratelimit-precision");
     private static final AsciiString MILLISECOND = AsciiString.cached("millisecond");
     private static final AsciiString CF_RAY = AsciiString.cached("cf-ray");
@@ -112,6 +104,34 @@ public class Requester {
         this.userAgent = config.getUserAgent();
         this.customBuilder = config.getCustomBuilder();
         this.httpClient = this.api.getHttpClient();
+    }
+
+    private static boolean isRetry(Throwable e) {
+        return e instanceof SocketException // Socket couldn't be created or access failed
+                || e instanceof SocketTimeoutException // Connection timed out
+                || e instanceof ConnectTimeoutException
+                || e instanceof ReadTimeoutException
+                || e instanceof SSLPeerUnverifiedException; // SSL Certificate was wrong
+    }
+
+    private static boolean shouldRetry(int code) {
+        if (code < RETRY_ERROR_CODES[0] || code > RETRY_ERROR_CODES[RETRY_ERROR_CODES.length - 1]) {
+            return false;
+        }
+        for (int retryCode : RETRY_ERROR_CODES) {
+            if (retryCode == code) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String getContentType(RawHttpResponse response) {
+        if (response == null || response.headers == null) {
+            return "";
+        }
+        String type = response.headers.get(HttpHeaderNames.CONTENT_TYPE);
+        return type == null ? "" : type.toLowerCase(Locale.ROOT);
     }
 
     public void setContextReady(boolean ready) {
@@ -147,14 +167,6 @@ public class Requester {
                 execute(new WorkTask(apiRequest), true);
             }
         }
-    }
-
-    private static boolean isRetry(Throwable e) {
-        return e instanceof SocketException // Socket couldn't be created or access failed
-                || e instanceof SocketTimeoutException // Connection timed out
-                || e instanceof ConnectTimeoutException
-                || e instanceof ReadTimeoutException
-                || e instanceof SSLPeerUnverifiedException; // SSL Certificate was wrong
     }
 
     private Response execute(WorkTask task) {
@@ -392,18 +404,6 @@ public class Requester {
         rateLimiter.stop(shutdown, callback);
     }
 
-    private static boolean shouldRetry(int code) {
-        if (code < RETRY_ERROR_CODES[0] || code > RETRY_ERROR_CODES[RETRY_ERROR_CODES.length - 1]) {
-            return false;
-        }
-        for (int retryCode : RETRY_ERROR_CODES) {
-            if (retryCode == code) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private long parseRetry(RawHttpResponse response) {
         if (response == null || response.headers == null) {
             return 0;
@@ -417,14 +417,6 @@ public class Requester {
         } catch (NumberFormatException e) {
             return 0;
         }
-    }
-
-    private static String getContentType(RawHttpResponse response) {
-        if (response == null || response.headers == null) {
-            return "";
-        }
-        String type = response.headers.get(HttpHeaderNames.CONTENT_TYPE);
-        return type == null ? "" : type.toLowerCase(Locale.ROOT);
     }
 
     private static class RawHttpResponse {

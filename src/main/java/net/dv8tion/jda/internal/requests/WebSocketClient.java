@@ -86,7 +86,8 @@ public class WebSocketClient {
 
     protected static final String INVALIDATE_REASON = "INVALIDATE_SESSION";
     protected static final long IDENTIFY_BACKOFF = TimeUnit.SECONDS.toMillis(SessionController.IDENTIFY_DELAY);
-
+    private static final int PAYLOAD_HIGH_WATERMARK = 512;
+    private static final int PAYLOAD_LOW_WATERMARK = 256;
     protected final JDAImpl api;
     protected final JDA.ShardInfo shardInfo;
     protected final Map<String, SocketHandler> handlers = new Object2ObjectOpenHashMap<>();
@@ -94,56 +95,41 @@ public class WebSocketClient {
     protected final int gatewayIntents;
     protected final MemberChunkManager chunkManager;
     protected final GatewayEncoding encoding;
-
+    protected final ReentrantLock queueLock = new ReentrantLock();
+    protected final ScheduledExecutorService executor;
+    protected final ReentrantLock reconnectLock = new ReentrantLock();
+    protected final Condition reconnectCondvar = reconnectLock.newCondition();
+    protected final BlockingQueue<Runnable> payloadQueue = new LinkedBlockingQueue<>();
+    protected final ExecutorService payloadProcessor;
+    protected final Long2ObjectMap<ConnectionRequest> queuedAudioConnections = MiscUtil.newLongMap();
+    protected final Queue<DataObject> chunkSyncQueue = new ConcurrentLinkedQueue<>();
+    protected final Queue<DataObject> ratelimitQueue = new ConcurrentLinkedQueue<>();
+    protected final AtomicInteger messagesSent = new AtomicInteger(0);
     public volatile Channel channel;
     protected EventLoopGroup group;
     protected boolean ownsEventLoopGroup;
     protected volatile CloseFrameInfo serverCloseFrame;
     protected volatile CloseFrameInfo clientCloseFrame;
-
     protected String traceMetadata = null;
     protected volatile String sessionId = null;
     protected String resumeUrl = null;
-
-    protected final ReentrantLock queueLock = new ReentrantLock();
-    protected final ScheduledExecutorService executor;
-    private WebSocketSendingThread ratelimitThread;
     protected volatile Future<?> keepAliveThread;
-
-    protected final ReentrantLock reconnectLock = new ReentrantLock();
-    protected final Condition reconnectCondvar = reconnectLock.newCondition();
-
-    private static final int PAYLOAD_HIGH_WATERMARK = 512;
-    private static final int PAYLOAD_LOW_WATERMARK = 256;
-
-    protected final BlockingQueue<Runnable> payloadQueue = new LinkedBlockingQueue<>();
-    protected final ExecutorService payloadProcessor;
-
     protected boolean initiating;
-
     protected int missedHeartbeats = 0;
     protected int reconnectTimeoutS = 2;
     protected volatile long heartbeatStartTime;
     protected long identifyTime = 0;
-
-    protected final Long2ObjectMap<ConnectionRequest> queuedAudioConnections = MiscUtil.newLongMap();
-    protected final Queue<DataObject> chunkSyncQueue = new ConcurrentLinkedQueue<>();
-    protected final Queue<DataObject> ratelimitQueue = new ConcurrentLinkedQueue<>();
-
     protected volatile long ratelimitResetTime;
-    protected final AtomicInteger messagesSent = new AtomicInteger(0);
-
     protected volatile boolean shutdown = false;
     protected boolean shouldReconnect;
     protected boolean handleIdentifyRateLimit = false;
     protected boolean connected = false;
-
     protected volatile boolean printedRateLimitMessage = false;
     protected volatile boolean sentAuthInfo = false;
     protected boolean firstInit = true;
     protected boolean processingReady = true;
-
     protected volatile ConnectNode connectNode;
+    private WebSocketSendingThread ratelimitThread;
 
     public WebSocketClient(JDAImpl api, Compression compression, int gatewayIntents, GatewayEncoding encoding) {
         this.api = api;
@@ -1227,6 +1213,154 @@ public class WebSocketClient {
         return null;
     }
 
+    protected void queuePayload(ByteBuf buf, boolean isBinary) {
+        buf.retain();
+        try {
+            payloadProcessor.execute(new PayloadTask(this, buf, isBinary));
+            Channel ch = this.channel;
+            if (ch != null
+                    && payloadQueue.size() >= PAYLOAD_HIGH_WATERMARK
+                    && ch.config().isAutoRead()) {
+                ch.config().setAutoRead(false);
+            }
+        } catch (RejectedExecutionException ex) {
+            ReferenceCountUtil.safeRelease(buf);
+        }
+    }
+
+    public Map<String, SocketHandler> getHandlers() {
+        return handlers;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends SocketHandler> T getHandler(String type) {
+        try {
+            return (T) handlers.get(type);
+        } catch (ClassCastException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    protected void setupHandlers() {
+        SocketHandler.NOPHandler nopHandler = new SocketHandler.NOPHandler(api);
+        handlers.put("APPLICATION_COMMAND_PERMISSIONS_UPDATE", new ApplicationCommandPermissionsUpdateHandler(api));
+        handlers.put("AUTO_MODERATION_RULE_CREATE", new AutoModRuleHandler(api, "CREATE"));
+        handlers.put("AUTO_MODERATION_RULE_UPDATE", new AutoModRuleHandler(api, "UPDATE"));
+        handlers.put("AUTO_MODERATION_RULE_DELETE", new AutoModRuleHandler(api, "DELETE"));
+        handlers.put("AUTO_MODERATION_ACTION_EXECUTION", new AutoModExecutionHandler(api));
+        handlers.put("CHANNEL_CREATE", new ChannelCreateHandler(api));
+        handlers.put("CHANNEL_DELETE", new ChannelDeleteHandler(api));
+        handlers.put("CHANNEL_UPDATE", new ChannelUpdateHandler(api));
+        handlers.put("ENTITLEMENT_CREATE", new EntitlementCreateHandler(api));
+        handlers.put("ENTITLEMENT_UPDATE", new EntitlementUpdateHandler(api));
+        handlers.put("ENTITLEMENT_DELETE", new EntitlementDeleteHandler(api));
+        handlers.put("GUILD_AUDIT_LOG_ENTRY_CREATE", new GuildAuditLogEntryCreateHandler(api));
+        handlers.put("GUILD_BAN_ADD", new GuildBanHandler(api, true));
+        handlers.put("GUILD_BAN_REMOVE", new GuildBanHandler(api, false));
+        handlers.put("GUILD_CREATE", new GuildCreateHandler(api));
+        handlers.put("GUILD_DELETE", new GuildDeleteHandler(api));
+        handlers.put("GUILD_EMOJIS_UPDATE", new GuildEmojisUpdateHandler(api));
+        handlers.put("GUILD_SCHEDULED_EVENT_CREATE", new ScheduledEventCreateHandler(api));
+        handlers.put("GUILD_SCHEDULED_EVENT_UPDATE", new ScheduledEventUpdateHandler(api));
+        handlers.put("GUILD_SCHEDULED_EVENT_DELETE", new ScheduledEventDeleteHandler(api));
+        handlers.put("GUILD_SCHEDULED_EVENT_USER_ADD", new ScheduledEventUserHandler(api, true));
+        handlers.put("GUILD_SCHEDULED_EVENT_USER_REMOVE", new ScheduledEventUserHandler(api, false));
+        handlers.put("GUILD_MEMBER_ADD", new GuildMemberAddHandler(api));
+        handlers.put("GUILD_MEMBER_REMOVE", new GuildMemberRemoveHandler(api));
+        handlers.put("GUILD_MEMBER_UPDATE", new GuildMemberUpdateHandler(api));
+        handlers.put("GUILD_MEMBERS_CHUNK", new GuildMembersChunkHandler(api));
+        handlers.put("GUILD_ROLE_CREATE", new GuildRoleCreateHandler(api));
+        handlers.put("GUILD_ROLE_DELETE", new GuildRoleDeleteHandler(api));
+        handlers.put("GUILD_ROLE_UPDATE", new GuildRoleUpdateHandler(api));
+        handlers.put("GUILD_SYNC", new GuildSyncHandler(api));
+        handlers.put("GUILD_STICKERS_UPDATE", new GuildStickersUpdateHandler(api));
+        handlers.put("GUILD_SOUNDBOARD_SOUND_CREATE", new GuildSoundboardSoundCreateHandler(api));
+        GuildSoundboardSoundUpdateHandler soundboardSoundUpdateHandler = new GuildSoundboardSoundUpdateHandler(api);
+        handlers.put("GUILD_SOUNDBOARD_SOUND_UPDATE", soundboardSoundUpdateHandler);
+        handlers.put(
+                "GUILD_SOUNDBOARD_SOUNDS_UPDATE",
+                new GuildSoundboardSoundsUpdateHandler(api, soundboardSoundUpdateHandler));
+        handlers.put("GUILD_SOUNDBOARD_SOUND_DELETE", new GuildSoundboardSoundDeleteHandler(api));
+        handlers.put("VOICE_CHANNEL_EFFECT_SEND", new VoiceChannelEffectSendHandler(api));
+        handlers.put("GUILD_UPDATE", new GuildUpdateHandler(api));
+        handlers.put("INTERACTION_CREATE", new InteractionCreateHandler(api));
+        handlers.put("INVITE_CREATE", new InviteCreateHandler(api));
+        handlers.put("INVITE_DELETE", new InviteDeleteHandler(api));
+        handlers.put("MESSAGE_CREATE", new MessageCreateHandler(api));
+        handlers.put("MESSAGE_DELETE", new MessageDeleteHandler(api));
+        handlers.put("MESSAGE_DELETE_BULK", new MessageBulkDeleteHandler(api));
+        handlers.put("MESSAGE_REACTION_ADD", new MessageReactionHandler(api, true));
+        handlers.put("MESSAGE_REACTION_REMOVE", new MessageReactionHandler(api, false));
+        handlers.put("MESSAGE_REACTION_REMOVE_ALL", new MessageReactionBulkRemoveHandler(api));
+        handlers.put("MESSAGE_REACTION_REMOVE_EMOJI", new MessageReactionClearEmojiHandler(api));
+        handlers.put("MESSAGE_POLL_VOTE_ADD", new MessagePollVoteHandler(api, true));
+        handlers.put("MESSAGE_POLL_VOTE_REMOVE", new MessagePollVoteHandler(api, false));
+        handlers.put("MESSAGE_UPDATE", new MessageUpdateHandler(api));
+        handlers.put("PRESENCE_UPDATE", new PresenceUpdateHandler(api));
+        handlers.put("READY", new ReadyHandler(api));
+        handlers.put("STAGE_INSTANCE_CREATE", new StageInstanceCreateHandler(api));
+        handlers.put("STAGE_INSTANCE_DELETE", new StageInstanceDeleteHandler(api));
+        handlers.put("STAGE_INSTANCE_UPDATE", new StageInstanceUpdateHandler(api));
+        handlers.put("THREAD_CREATE", new ThreadCreateHandler(api));
+        handlers.put("THREAD_DELETE", new ThreadDeleteHandler(api));
+        handlers.put("THREAD_LIST_SYNC", new ThreadListSyncHandler(api));
+        handlers.put("THREAD_MEMBERS_UPDATE", new ThreadMembersUpdateHandler(api));
+        handlers.put("THREAD_MEMBER_UPDATE", new ThreadMemberUpdateHandler(api));
+        handlers.put("THREAD_UPDATE", new ThreadUpdateHandler(api));
+        handlers.put("TYPING_START", new TypingStartHandler(api));
+        handlers.put("USER_UPDATE", new UserUpdateHandler(api));
+        handlers.put("VOICE_SERVER_UPDATE", new VoiceServerUpdateHandler(api));
+        handlers.put("VOICE_STATE_UPDATE", new VoiceStateUpdateHandler(api));
+        handlers.put("VOICE_CHANNEL_STATUS_UPDATE", new VoiceChannelStatusUpdateHandler(api));
+
+        // Unused events
+        handlers.put("CHANNEL_PINS_ACK", nopHandler);
+        handlers.put("CHANNEL_PINS_UPDATE", nopHandler);
+        handlers.put("GUILD_INTEGRATIONS_UPDATE", nopHandler);
+        handlers.put("PRESENCES_REPLACE", nopHandler);
+        handlers.put("WEBHOOKS_UPDATE", nopHandler);
+    }
+
+    private static class PayloadTask implements Runnable {
+        private final WebSocketClient client;
+        private final ByteBuf buffer;
+        private final boolean isBinary;
+
+        PayloadTask(WebSocketClient client, ByteBuf buffer, boolean isBinary) {
+            this.client = client;
+            this.buffer = buffer;
+            this.isBinary = isBinary;
+        }
+
+        @Override
+        public void run() {
+            try {
+                client.api.setContext();
+                WS_THREAD.set(true);
+                if (isBinary) {
+                    client.onBinaryMessage(buffer);
+                } else {
+                    client.onTextMessage(buffer);
+                }
+            } catch (Throwable t) {
+                LOG.error("Encountered exception while processing gateway payload", t);
+            } finally {
+                WS_THREAD.remove();
+                release();
+                Channel ch = client.channel;
+                if (ch != null
+                        && client.payloadQueue.size() <= PAYLOAD_LOW_WATERMARK
+                        && !ch.config().isAutoRead()) {
+                    ch.eventLoop().execute(() -> ch.config().setAutoRead(true));
+                }
+            }
+        }
+
+        public void release() {
+            ReferenceCountUtil.safeRelease(buffer);
+        }
+    }
+
     private class GatewayWebSocketHandler extends SimpleChannelInboundHandler<Object> {
         private final WebSocketClientHandshaker handshaker;
         private final CompletableFuture<Void> handshakeFuture;
@@ -1324,154 +1458,6 @@ public class WebSocketClient {
             handleError(cause);
             ctx.close();
         }
-    }
-
-    protected void queuePayload(ByteBuf buf, boolean isBinary) {
-        buf.retain();
-        try {
-            payloadProcessor.execute(new PayloadTask(this, buf, isBinary));
-            Channel ch = this.channel;
-            if (ch != null
-                    && payloadQueue.size() >= PAYLOAD_HIGH_WATERMARK
-                    && ch.config().isAutoRead()) {
-                ch.config().setAutoRead(false);
-            }
-        } catch (RejectedExecutionException ex) {
-            ReferenceCountUtil.safeRelease(buf);
-        }
-    }
-
-    private static class PayloadTask implements Runnable {
-        private final WebSocketClient client;
-        private final ByteBuf buffer;
-        private final boolean isBinary;
-
-        PayloadTask(WebSocketClient client, ByteBuf buffer, boolean isBinary) {
-            this.client = client;
-            this.buffer = buffer;
-            this.isBinary = isBinary;
-        }
-
-        @Override
-        public void run() {
-            try {
-                client.api.setContext();
-                WS_THREAD.set(true);
-                if (isBinary) {
-                    client.onBinaryMessage(buffer);
-                } else {
-                    client.onTextMessage(buffer);
-                }
-            } catch (Throwable t) {
-                LOG.error("Encountered exception while processing gateway payload", t);
-            } finally {
-                WS_THREAD.remove();
-                release();
-                Channel ch = client.channel;
-                if (ch != null
-                        && client.payloadQueue.size() <= PAYLOAD_LOW_WATERMARK
-                        && !ch.config().isAutoRead()) {
-                    ch.eventLoop().execute(() -> ch.config().setAutoRead(true));
-                }
-            }
-        }
-
-        public void release() {
-            ReferenceCountUtil.safeRelease(buffer);
-        }
-    }
-
-    public Map<String, SocketHandler> getHandlers() {
-        return handlers;
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T extends SocketHandler> T getHandler(String type) {
-        try {
-            return (T) handlers.get(type);
-        } catch (ClassCastException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    protected void setupHandlers() {
-        SocketHandler.NOPHandler nopHandler = new SocketHandler.NOPHandler(api);
-        handlers.put("APPLICATION_COMMAND_PERMISSIONS_UPDATE", new ApplicationCommandPermissionsUpdateHandler(api));
-        handlers.put("AUTO_MODERATION_RULE_CREATE", new AutoModRuleHandler(api, "CREATE"));
-        handlers.put("AUTO_MODERATION_RULE_UPDATE", new AutoModRuleHandler(api, "UPDATE"));
-        handlers.put("AUTO_MODERATION_RULE_DELETE", new AutoModRuleHandler(api, "DELETE"));
-        handlers.put("AUTO_MODERATION_ACTION_EXECUTION", new AutoModExecutionHandler(api));
-        handlers.put("CHANNEL_CREATE", new ChannelCreateHandler(api));
-        handlers.put("CHANNEL_DELETE", new ChannelDeleteHandler(api));
-        handlers.put("CHANNEL_UPDATE", new ChannelUpdateHandler(api));
-        handlers.put("ENTITLEMENT_CREATE", new EntitlementCreateHandler(api));
-        handlers.put("ENTITLEMENT_UPDATE", new EntitlementUpdateHandler(api));
-        handlers.put("ENTITLEMENT_DELETE", new EntitlementDeleteHandler(api));
-        handlers.put("GUILD_AUDIT_LOG_ENTRY_CREATE", new GuildAuditLogEntryCreateHandler(api));
-        handlers.put("GUILD_BAN_ADD", new GuildBanHandler(api, true));
-        handlers.put("GUILD_BAN_REMOVE", new GuildBanHandler(api, false));
-        handlers.put("GUILD_CREATE", new GuildCreateHandler(api));
-        handlers.put("GUILD_DELETE", new GuildDeleteHandler(api));
-        handlers.put("GUILD_EMOJIS_UPDATE", new GuildEmojisUpdateHandler(api));
-        handlers.put("GUILD_SCHEDULED_EVENT_CREATE", new ScheduledEventCreateHandler(api));
-        handlers.put("GUILD_SCHEDULED_EVENT_UPDATE", new ScheduledEventUpdateHandler(api));
-        handlers.put("GUILD_SCHEDULED_EVENT_DELETE", new ScheduledEventDeleteHandler(api));
-        handlers.put("GUILD_SCHEDULED_EVENT_USER_ADD", new ScheduledEventUserHandler(api, true));
-        handlers.put("GUILD_SCHEDULED_EVENT_USER_REMOVE", new ScheduledEventUserHandler(api, false));
-        handlers.put("GUILD_MEMBER_ADD", new GuildMemberAddHandler(api));
-        handlers.put("GUILD_MEMBER_REMOVE", new GuildMemberRemoveHandler(api));
-        handlers.put("GUILD_MEMBER_UPDATE", new GuildMemberUpdateHandler(api));
-        handlers.put("GUILD_MEMBERS_CHUNK", new GuildMembersChunkHandler(api));
-        handlers.put("GUILD_ROLE_CREATE", new GuildRoleCreateHandler(api));
-        handlers.put("GUILD_ROLE_DELETE", new GuildRoleDeleteHandler(api));
-        handlers.put("GUILD_ROLE_UPDATE", new GuildRoleUpdateHandler(api));
-        handlers.put("GUILD_SYNC", new GuildSyncHandler(api));
-        handlers.put("GUILD_STICKERS_UPDATE", new GuildStickersUpdateHandler(api));
-        handlers.put("GUILD_SOUNDBOARD_SOUND_CREATE", new GuildSoundboardSoundCreateHandler(api));
-        GuildSoundboardSoundUpdateHandler soundboardSoundUpdateHandler = new GuildSoundboardSoundUpdateHandler(api);
-        handlers.put("GUILD_SOUNDBOARD_SOUND_UPDATE", soundboardSoundUpdateHandler);
-        handlers.put(
-                "GUILD_SOUNDBOARD_SOUNDS_UPDATE",
-                new GuildSoundboardSoundsUpdateHandler(api, soundboardSoundUpdateHandler));
-        handlers.put("GUILD_SOUNDBOARD_SOUND_DELETE", new GuildSoundboardSoundDeleteHandler(api));
-        handlers.put("VOICE_CHANNEL_EFFECT_SEND", new VoiceChannelEffectSendHandler(api));
-        handlers.put("GUILD_UPDATE", new GuildUpdateHandler(api));
-        handlers.put("INTERACTION_CREATE", new InteractionCreateHandler(api));
-        handlers.put("INVITE_CREATE", new InviteCreateHandler(api));
-        handlers.put("INVITE_DELETE", new InviteDeleteHandler(api));
-        handlers.put("MESSAGE_CREATE", new MessageCreateHandler(api));
-        handlers.put("MESSAGE_DELETE", new MessageDeleteHandler(api));
-        handlers.put("MESSAGE_DELETE_BULK", new MessageBulkDeleteHandler(api));
-        handlers.put("MESSAGE_REACTION_ADD", new MessageReactionHandler(api, true));
-        handlers.put("MESSAGE_REACTION_REMOVE", new MessageReactionHandler(api, false));
-        handlers.put("MESSAGE_REACTION_REMOVE_ALL", new MessageReactionBulkRemoveHandler(api));
-        handlers.put("MESSAGE_REACTION_REMOVE_EMOJI", new MessageReactionClearEmojiHandler(api));
-        handlers.put("MESSAGE_POLL_VOTE_ADD", new MessagePollVoteHandler(api, true));
-        handlers.put("MESSAGE_POLL_VOTE_REMOVE", new MessagePollVoteHandler(api, false));
-        handlers.put("MESSAGE_UPDATE", new MessageUpdateHandler(api));
-        handlers.put("PRESENCE_UPDATE", new PresenceUpdateHandler(api));
-        handlers.put("READY", new ReadyHandler(api));
-        handlers.put("STAGE_INSTANCE_CREATE", new StageInstanceCreateHandler(api));
-        handlers.put("STAGE_INSTANCE_DELETE", new StageInstanceDeleteHandler(api));
-        handlers.put("STAGE_INSTANCE_UPDATE", new StageInstanceUpdateHandler(api));
-        handlers.put("THREAD_CREATE", new ThreadCreateHandler(api));
-        handlers.put("THREAD_DELETE", new ThreadDeleteHandler(api));
-        handlers.put("THREAD_LIST_SYNC", new ThreadListSyncHandler(api));
-        handlers.put("THREAD_MEMBERS_UPDATE", new ThreadMembersUpdateHandler(api));
-        handlers.put("THREAD_MEMBER_UPDATE", new ThreadMemberUpdateHandler(api));
-        handlers.put("THREAD_UPDATE", new ThreadUpdateHandler(api));
-        handlers.put("TYPING_START", new TypingStartHandler(api));
-        handlers.put("USER_UPDATE", new UserUpdateHandler(api));
-        handlers.put("VOICE_SERVER_UPDATE", new VoiceServerUpdateHandler(api));
-        handlers.put("VOICE_STATE_UPDATE", new VoiceStateUpdateHandler(api));
-        handlers.put("VOICE_CHANNEL_STATUS_UPDATE", new VoiceChannelStatusUpdateHandler(api));
-
-        // Unused events
-        handlers.put("CHANNEL_PINS_ACK", nopHandler);
-        handlers.put("CHANNEL_PINS_UPDATE", nopHandler);
-        handlers.put("GUILD_INTEGRATIONS_UPDATE", nopHandler);
-        handlers.put("PRESENCES_REPLACE", nopHandler);
-        handlers.put("WEBHOOKS_UPDATE", nopHandler);
     }
 
     protected abstract class ConnectNode implements SessionController.SessionConnectNode {

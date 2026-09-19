@@ -46,10 +46,10 @@ public class DetachedForumChannelImpl extends AbstractGuildChannelImpl<DetachedF
                 GuildChannelUnion,
                 ForumChannelMixin<DetachedForumChannelImpl>,
                 IInteractionPermissionMixin<DetachedForumChannelImpl> {
-    private ChannelInteractionPermissions interactionPermissions;
     private final SortedSnowflakeCacheViewImpl<ForumTag> tagCache =
             new SortedSnowflakeCacheViewImpl<>(ForumTag.class, ForumTag::getName, Comparator.naturalOrder());
-
+    protected int defaultThreadSlowmode;
+    private ChannelInteractionPermissions interactionPermissions;
     private Emoji defaultReaction;
     private String topic;
     private long parentCategoryId;
@@ -59,7 +59,6 @@ public class DetachedForumChannelImpl extends AbstractGuildChannelImpl<DetachedF
     private int slowmode;
     private int defaultSortOrder;
     private int defaultLayout;
-    protected int defaultThreadSlowmode;
 
     public DetachedForumChannelImpl(long id, DetachedGuildImpl guild) {
         super(id, guild);
@@ -88,6 +87,12 @@ public class DetachedForumChannelImpl extends AbstractGuildChannelImpl<DetachedF
         return ChannelFlag.fromRaw(flags);
     }
 
+    @Override
+    public DetachedForumChannelImpl setFlags(int flags) {
+        this.flags = flags;
+        return this;
+    }
+
     @Nonnull
     @Override
     public SortedSnowflakeCacheViewImpl<ForumTag> getAvailableTagCache() {
@@ -105,9 +110,23 @@ public class DetachedForumChannelImpl extends AbstractGuildChannelImpl<DetachedF
         return interactionPermissions;
     }
 
+    @Nonnull
+    @Override
+    public DetachedForumChannelImpl setInteractionPermissions(
+            @Nonnull ChannelInteractionPermissions interactionPermissions) {
+        this.interactionPermissions = interactionPermissions;
+        return this;
+    }
+
     @Override
     public boolean isNSFW() {
         return nsfw;
+    }
+
+    @Override
+    public DetachedForumChannelImpl setNSFW(boolean nsfw) {
+        this.nsfw = nsfw;
+        return this;
     }
 
     @Override
@@ -126,8 +145,20 @@ public class DetachedForumChannelImpl extends AbstractGuildChannelImpl<DetachedF
     }
 
     @Override
+    public DetachedForumChannelImpl setSlowmode(int slowmode) {
+        this.slowmode = slowmode;
+        return this;
+    }
+
+    @Override
     public String getTopic() {
         return topic;
+    }
+
+    @Override
+    public DetachedForumChannelImpl setTopic(String topic) {
+        this.topic = topic;
+        return this;
     }
 
     @Override
@@ -136,8 +167,28 @@ public class DetachedForumChannelImpl extends AbstractGuildChannelImpl<DetachedF
     }
 
     @Override
+    public DetachedForumChannelImpl setDefaultReaction(DataObject emoji) {
+        if (emoji != null && !emoji.isNull("emoji_id")) {
+            this.defaultReaction = new CustomEmojiImpl("", emoji.getUnsignedLong("emoji_id"), false);
+        } else if (emoji != null && !emoji.isNull("emoji_name")) {
+            this.defaultReaction = Emoji.fromUnicode(emoji.getString("emoji_name"));
+        } else {
+            this.defaultReaction = null;
+        }
+        return this;
+    }
+
+    // Setters
+
+    @Override
     public int getDefaultThreadSlowmode() {
         return defaultThreadSlowmode;
+    }
+
+    @Override
+    public DetachedForumChannelImpl setDefaultThreadSlowmode(int defaultThreadSlowmode) {
+        this.defaultThreadSlowmode = defaultThreadSlowmode;
+        return this;
     }
 
     @Nonnull
@@ -146,10 +197,22 @@ public class DetachedForumChannelImpl extends AbstractGuildChannelImpl<DetachedF
         return SortOrder.fromKey(defaultSortOrder);
     }
 
+    @Override
+    public DetachedForumChannelImpl setDefaultSortOrder(int defaultSortOrder) {
+        this.defaultSortOrder = defaultSortOrder;
+        return this;
+    }
+
     @Nonnull
     @Override
     public Layout getDefaultLayout() {
         return Layout.fromKey(defaultLayout);
+    }
+
+    @Override
+    public DetachedForumChannelImpl setDefaultLayout(int layout) {
+        this.defaultLayout = layout;
+        return this;
     }
 
     @Override
@@ -166,8 +229,6 @@ public class DetachedForumChannelImpl extends AbstractGuildChannelImpl<DetachedF
         return defaultLayout;
     }
 
-    // Setters
-
     @Override
     public DetachedForumChannelImpl setParentCategory(long parentCategoryId) {
         this.parentCategoryId = parentCategoryId;
@@ -177,68 +238,6 @@ public class DetachedForumChannelImpl extends AbstractGuildChannelImpl<DetachedF
     @Override
     public DetachedForumChannelImpl setPosition(int position) {
         this.position = position;
-        return this;
-    }
-
-    @Override
-    public DetachedForumChannelImpl setDefaultThreadSlowmode(int defaultThreadSlowmode) {
-        this.defaultThreadSlowmode = defaultThreadSlowmode;
-        return this;
-    }
-
-    @Override
-    public DetachedForumChannelImpl setNSFW(boolean nsfw) {
-        this.nsfw = nsfw;
-        return this;
-    }
-
-    @Override
-    public DetachedForumChannelImpl setSlowmode(int slowmode) {
-        this.slowmode = slowmode;
-        return this;
-    }
-
-    @Override
-    public DetachedForumChannelImpl setTopic(String topic) {
-        this.topic = topic;
-        return this;
-    }
-
-    @Override
-    public DetachedForumChannelImpl setFlags(int flags) {
-        this.flags = flags;
-        return this;
-    }
-
-    @Override
-    public DetachedForumChannelImpl setDefaultReaction(DataObject emoji) {
-        if (emoji != null && !emoji.isNull("emoji_id")) {
-            this.defaultReaction = new CustomEmojiImpl("", emoji.getUnsignedLong("emoji_id"), false);
-        } else if (emoji != null && !emoji.isNull("emoji_name")) {
-            this.defaultReaction = Emoji.fromUnicode(emoji.getString("emoji_name"));
-        } else {
-            this.defaultReaction = null;
-        }
-        return this;
-    }
-
-    @Override
-    public DetachedForumChannelImpl setDefaultSortOrder(int defaultSortOrder) {
-        this.defaultSortOrder = defaultSortOrder;
-        return this;
-    }
-
-    @Override
-    public DetachedForumChannelImpl setDefaultLayout(int layout) {
-        this.defaultLayout = layout;
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public DetachedForumChannelImpl setInteractionPermissions(
-            @Nonnull ChannelInteractionPermissions interactionPermissions) {
-        this.interactionPermissions = interactionPermissions;
         return this;
     }
 }

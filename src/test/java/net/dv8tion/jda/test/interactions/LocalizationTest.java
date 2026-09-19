@@ -74,6 +74,24 @@ public class LocalizationTest {
         data = slashCommandData.toData();
     }
 
+    private static DataObject getOption(DataObject root, String name) {
+        Stream<DataObject> options = root.getArray("options").stream(DataArray::getObject)
+                .filter(option -> option.getString("name").equals(name));
+        return assertExactlyOne(options);
+    }
+
+    private static DataObject getChoice(DataObject root, String name) {
+        Stream<DataObject> choices = root.getArray("choices").stream(DataArray::getObject)
+                .filter(choice -> choice.getString("name").equals(name));
+        return assertExactlyOne(choices);
+    }
+
+    private static <T> T assertExactlyOne(Stream<T> stream) {
+        List<T> results = stream.collect(Collectors.toList());
+        assertThat(results).withRepresentation(new PrettyRepresentation()).hasSize(1);
+        return results.getFirst();
+    }
+
     @Test
     void commandLocalization() {
         assertThat(data.getString("name")).isEqualTo("ban");
@@ -176,23 +194,5 @@ public class LocalizationTest {
         DataObject data = slashCommandData.toData();
         DataObject reconstitutedData = CommandData.fromData(data).toData();
         assertThat(reconstitutedData.toMap()).isEqualTo(data.toMap());
-    }
-
-    private static DataObject getOption(DataObject root, String name) {
-        Stream<DataObject> options = root.getArray("options").stream(DataArray::getObject)
-                .filter(option -> option.getString("name").equals(name));
-        return assertExactlyOne(options);
-    }
-
-    private static DataObject getChoice(DataObject root, String name) {
-        Stream<DataObject> choices = root.getArray("choices").stream(DataArray::getObject)
-                .filter(choice -> choice.getString("name").equals(name));
-        return assertExactlyOne(choices);
-    }
-
-    private static <T> T assertExactlyOne(Stream<T> stream) {
-        List<T> results = stream.collect(Collectors.toList());
-        assertThat(results).withRepresentation(new PrettyRepresentation()).hasSize(1);
-        return results.getFirst();
     }
 }

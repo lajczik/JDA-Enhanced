@@ -39,6 +39,25 @@ public abstract class AbstractEntityBuilder {
         this.api = api;
     }
 
+    public static RoleColors createRoleColors(DataObject roleJson) {
+        if (roleJson == null) {
+            return RoleColors.DEFAULT;
+        }
+
+        DataObject colorsJson = roleJson.optObject("colors").orElse(null);
+        if (colorsJson != null) {
+            int primaryColor = colorsJson.getInt("primary_color", Role.DEFAULT_COLOR_RAW);
+            int secondaryColor = colorsJson.getInt("secondary_color", Role.DEFAULT_COLOR_RAW);
+            int tertiaryColor = colorsJson.getInt("tertiary_color", Role.DEFAULT_COLOR_RAW);
+            return new RoleColors(
+                    primaryColor == 0 ? Role.DEFAULT_COLOR_RAW : primaryColor, secondaryColor, tertiaryColor);
+        }
+
+        int color = roleJson.getInt("color", Role.DEFAULT_COLOR_RAW);
+        return new RoleColors(
+                color == 0 ? Role.DEFAULT_COLOR_RAW : color, Role.DEFAULT_COLOR_RAW, Role.DEFAULT_COLOR_RAW);
+    }
+
     public JDAImpl getJDA() {
         return api;
     }
@@ -65,25 +84,6 @@ public abstract class AbstractEntityBuilder {
                 .setTopic(json.getString("topic", null))
                 .setPosition(json.getInt("position"))
                 .setNSFW(json.getBoolean("nsfw"));
-    }
-
-    public static RoleColors createRoleColors(DataObject roleJson) {
-        if (roleJson == null) {
-            return RoleColors.DEFAULT;
-        }
-
-        DataObject colorsJson = roleJson.optObject("colors").orElse(null);
-        if (colorsJson != null) {
-            int primaryColor = colorsJson.getInt("primary_color", Role.DEFAULT_COLOR_RAW);
-            int secondaryColor = colorsJson.getInt("secondary_color", Role.DEFAULT_COLOR_RAW);
-            int tertiaryColor = colorsJson.getInt("tertiary_color", Role.DEFAULT_COLOR_RAW);
-            return new RoleColors(
-                    primaryColor == 0 ? Role.DEFAULT_COLOR_RAW : primaryColor, secondaryColor, tertiaryColor);
-        }
-
-        int color = roleJson.getInt("color", Role.DEFAULT_COLOR_RAW);
-        return new RoleColors(
-                color == 0 ? Role.DEFAULT_COLOR_RAW : color, Role.DEFAULT_COLOR_RAW, Role.DEFAULT_COLOR_RAW);
     }
 
     protected void configureVoiceChannel(DataObject json, VoiceChannelMixin<?> channel) {

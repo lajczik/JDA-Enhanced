@@ -38,6 +38,11 @@ public class PresetKeywordTriggerConfig extends AbstractKeywordTriggerConfig<Pre
         super(AutoModTriggerType.KEYWORD_PRESET);
     }
 
+    private static void checkKnown(AutoModRule.KeywordPreset preset) {
+        Checks.notNull(preset, "Presets");
+        Checks.check(preset != AutoModRule.KeywordPreset.UNKNOWN, "Cannot use unknown preset");
+    }
+
     /**
      * Enable the provided keyword preset lists.
      *
@@ -119,11 +124,6 @@ public class PresetKeywordTriggerConfig extends AbstractKeywordTriggerConfig<Pre
     @Override
     protected int maxAllowListAmount() {
         return AutoModRule.MAX_ALLOWLIST_PRESET_AMOUNT;
-    }
-
-    private static void checkKnown(AutoModRule.KeywordPreset preset) {
-        Checks.notNull(preset, "Presets");
-        Checks.check(preset != AutoModRule.KeywordPreset.UNKNOWN, "Cannot use unknown preset");
     }
 
     @Nonnull

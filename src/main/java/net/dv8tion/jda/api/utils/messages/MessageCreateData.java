@@ -197,6 +197,16 @@ public class MessageCreateData implements MessageData, AutoCloseable, Serializab
         return new MessageCreateBuilder().applyEditData(data).build();
     }
 
+    @Nonnull
+    private static Set<FileUpload> createAllDistinctFiles(
+            @Nonnull Collection<FileUpload> files, @Nonnull Collection<MessageTopLevelComponentUnion> components) {
+        List<FileUpload> indirectFiles = MessageUtil.getIndirectFiles(components);
+        Set<FileUpload> distinctFiles = new LinkedHashSet<>(files.size() + indirectFiles.size());
+        distinctFiles.addAll(files);
+        distinctFiles.addAll(indirectFiles);
+        return Collections.unmodifiableSet(distinctFiles);
+    }
+
     /**
      * The content of the message.
      *
@@ -366,16 +376,6 @@ public class MessageCreateData implements MessageData, AutoCloseable, Serializab
     @Nonnull
     public Set<? extends FileUpload> getAllDistinctFiles() {
         return allDistinctFiles;
-    }
-
-    @Nonnull
-    private static Set<FileUpload> createAllDistinctFiles(
-            @Nonnull Collection<FileUpload> files, @Nonnull Collection<MessageTopLevelComponentUnion> components) {
-        List<FileUpload> indirectFiles = MessageUtil.getIndirectFiles(components);
-        Set<FileUpload> distinctFiles = new LinkedHashSet<>(files.size() + indirectFiles.size());
-        distinctFiles.addAll(files);
-        distinctFiles.addAll(indirectFiles);
-        return Collections.unmodifiableSet(distinctFiles);
     }
 
     @Override

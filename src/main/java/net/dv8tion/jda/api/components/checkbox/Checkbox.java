@@ -41,6 +41,35 @@ public interface Checkbox extends ICustomId, LabelChildComponent {
      */
     int CUSTOM_ID_MAX_LENGTH = 100;
 
+    /**
+     * Creates a new checkbox with the provided custom ID, unselected by default.
+     *
+     * @param customId The custom ID
+     * @return The new instance
+     * @throws IllegalArgumentException If the provided custom ID is {@code null}, blank or longer than {@value #CUSTOM_ID_MAX_LENGTH} characters
+     */
+    @Nonnull
+    static Checkbox of(@Nonnull String customId) {
+        Checks.notBlank(customId, "Custom ID");
+        Checks.notLonger(customId, CUSTOM_ID_MAX_LENGTH, "Custom ID");
+        return new CheckboxImpl(-1, customId, false);
+    }
+
+    /**
+     * Creates a new checkbox with the provided custom ID and selected state.
+     *
+     * @param customId The custom ID
+     * @param isDefault Whether this checkbox will be selected by default
+     * @return The new instance
+     * @throws IllegalArgumentException If the provided custom ID is {@code null}, blank or longer than {@value #CUSTOM_ID_MAX_LENGTH} characters
+     */
+    @Nonnull
+    static Checkbox of(@Nonnull String customId, boolean isDefault) {
+        Checks.notBlank(customId, "Custom ID");
+        Checks.notLonger(customId, CUSTOM_ID_MAX_LENGTH, "Custom ID");
+        return new CheckboxImpl(-1, customId, isDefault);
+    }
+
     @Nonnull
     @Override
     @CheckReturnValue
@@ -86,42 +115,4 @@ public interface Checkbox extends ICustomId, LabelChildComponent {
      * @return {@code true} if this is checked by default
      */
     boolean isDefault();
-
-    /**
-     * Creates a new checkbox with the provided custom ID, unselected by default.
-     *
-     * @param customId
-     *        The custom ID
-     *
-     * @throws IllegalArgumentException
-     *         If the provided custom ID is {@code null}, blank or longer than {@value #CUSTOM_ID_MAX_LENGTH} characters
-     *
-     * @return The new instance
-     */
-    @Nonnull
-    static Checkbox of(@Nonnull String customId) {
-        Checks.notBlank(customId, "Custom ID");
-        Checks.notLonger(customId, CUSTOM_ID_MAX_LENGTH, "Custom ID");
-        return new CheckboxImpl(-1, customId, false);
-    }
-
-    /**
-     * Creates a new checkbox with the provided custom ID and selected state.
-     *
-     * @param  customId
-     *         The custom ID
-     * @param  isDefault
-     *         Whether this checkbox will be selected by default
-     *
-     * @throws IllegalArgumentException
-     *         If the provided custom ID is {@code null}, blank or longer than {@value #CUSTOM_ID_MAX_LENGTH} characters
-     *
-     * @return The new instance
-     */
-    @Nonnull
-    static Checkbox of(@Nonnull String customId, boolean isDefault) {
-        Checks.notBlank(customId, "Custom ID");
-        Checks.notLonger(customId, CUSTOM_ID_MAX_LENGTH, "Custom ID");
-        return new CheckboxImpl(-1, customId, isDefault);
-    }
 }

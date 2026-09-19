@@ -46,10 +46,10 @@ public class DetachedMediaChannelImpl extends AbstractGuildChannelImpl<DetachedM
                 GuildChannelUnion,
                 MediaChannelMixin<DetachedMediaChannelImpl>,
                 IInteractionPermissionMixin<DetachedMediaChannelImpl> {
-    private ChannelInteractionPermissions interactionPermissions;
     private final SortedSnowflakeCacheViewImpl<ForumTag> tagCache =
             new SortedSnowflakeCacheViewImpl<>(ForumTag.class, ForumTag::getName, Comparator.naturalOrder());
-
+    protected int defaultThreadSlowmode;
+    private ChannelInteractionPermissions interactionPermissions;
     private Emoji defaultReaction;
     private String topic;
     private long parentCategoryId;
@@ -58,7 +58,6 @@ public class DetachedMediaChannelImpl extends AbstractGuildChannelImpl<DetachedM
     private int flags;
     private int slowmode;
     private int defaultSortOrder;
-    protected int defaultThreadSlowmode;
 
     public DetachedMediaChannelImpl(long id, DetachedGuildImpl guild) {
         super(id, guild);
@@ -87,6 +86,12 @@ public class DetachedMediaChannelImpl extends AbstractGuildChannelImpl<DetachedM
         return ChannelFlag.fromRaw(flags);
     }
 
+    @Override
+    public DetachedMediaChannelImpl setFlags(int flags) {
+        this.flags = flags;
+        return this;
+    }
+
     @Nonnull
     @Override
     public SortedSnowflakeCacheViewImpl<ForumTag> getAvailableTagCache() {
@@ -104,9 +109,23 @@ public class DetachedMediaChannelImpl extends AbstractGuildChannelImpl<DetachedM
         return interactionPermissions;
     }
 
+    @Nonnull
+    @Override
+    public DetachedMediaChannelImpl setInteractionPermissions(
+            @Nonnull ChannelInteractionPermissions interactionPermissions) {
+        this.interactionPermissions = interactionPermissions;
+        return this;
+    }
+
     @Override
     public boolean isNSFW() {
         return nsfw;
+    }
+
+    @Override
+    public DetachedMediaChannelImpl setNSFW(boolean nsfw) {
+        this.nsfw = nsfw;
+        return this;
     }
 
     @Override
@@ -125,66 +144,14 @@ public class DetachedMediaChannelImpl extends AbstractGuildChannelImpl<DetachedM
     }
 
     @Override
-    public String getTopic() {
-        return topic;
-    }
-
-    @Override
-    public EmojiUnion getDefaultReaction() {
-        return (EmojiUnion) defaultReaction;
-    }
-
-    @Override
-    public int getDefaultThreadSlowmode() {
-        return defaultThreadSlowmode;
-    }
-
-    @Nonnull
-    @Override
-    public SortOrder getDefaultSortOrder() {
-        return SortOrder.fromKey(defaultSortOrder);
-    }
-
-    @Override
-    public int getRawFlags() {
-        return flags;
-    }
-
-    @Override
-    public int getRawSortOrder() {
-        return defaultSortOrder;
-    }
-
-    // Setters
-
-    @Override
-    public DetachedMediaChannelImpl setParentCategory(long parentCategoryId) {
-        this.parentCategoryId = parentCategoryId;
-        return this;
-    }
-
-    @Override
-    public DetachedMediaChannelImpl setPosition(int position) {
-        this.position = position;
-        return this;
-    }
-
-    @Override
-    public DetachedMediaChannelImpl setDefaultThreadSlowmode(int defaultThreadSlowmode) {
-        this.defaultThreadSlowmode = defaultThreadSlowmode;
-        return this;
-    }
-
-    @Override
-    public DetachedMediaChannelImpl setNSFW(boolean nsfw) {
-        this.nsfw = nsfw;
-        return this;
-    }
-
-    @Override
     public DetachedMediaChannelImpl setSlowmode(int slowmode) {
         this.slowmode = slowmode;
         return this;
+    }
+
+    @Override
+    public String getTopic() {
+        return topic;
     }
 
     @Override
@@ -193,10 +160,11 @@ public class DetachedMediaChannelImpl extends AbstractGuildChannelImpl<DetachedM
         return this;
     }
 
+    // Setters
+
     @Override
-    public DetachedMediaChannelImpl setFlags(int flags) {
-        this.flags = flags;
-        return this;
+    public EmojiUnion getDefaultReaction() {
+        return (EmojiUnion) defaultReaction;
     }
 
     @Override
@@ -212,16 +180,47 @@ public class DetachedMediaChannelImpl extends AbstractGuildChannelImpl<DetachedM
     }
 
     @Override
-    public DetachedMediaChannelImpl setDefaultSortOrder(int defaultSortOrder) {
-        this.defaultSortOrder = defaultSortOrder;
+    public int getDefaultThreadSlowmode() {
+        return defaultThreadSlowmode;
+    }
+
+    @Override
+    public DetachedMediaChannelImpl setDefaultThreadSlowmode(int defaultThreadSlowmode) {
+        this.defaultThreadSlowmode = defaultThreadSlowmode;
         return this;
     }
 
     @Nonnull
     @Override
-    public DetachedMediaChannelImpl setInteractionPermissions(
-            @Nonnull ChannelInteractionPermissions interactionPermissions) {
-        this.interactionPermissions = interactionPermissions;
+    public SortOrder getDefaultSortOrder() {
+        return SortOrder.fromKey(defaultSortOrder);
+    }
+
+    @Override
+    public DetachedMediaChannelImpl setDefaultSortOrder(int defaultSortOrder) {
+        this.defaultSortOrder = defaultSortOrder;
+        return this;
+    }
+
+    @Override
+    public int getRawFlags() {
+        return flags;
+    }
+
+    @Override
+    public int getRawSortOrder() {
+        return defaultSortOrder;
+    }
+
+    @Override
+    public DetachedMediaChannelImpl setParentCategory(long parentCategoryId) {
+        this.parentCategoryId = parentCategoryId;
+        return this;
+    }
+
+    @Override
+    public DetachedMediaChannelImpl setPosition(int position) {
+        this.position = position;
         return this;
     }
 }

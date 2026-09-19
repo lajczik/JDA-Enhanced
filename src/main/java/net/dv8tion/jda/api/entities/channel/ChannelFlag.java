@@ -50,15 +50,6 @@ public enum ChannelFlag {
     }
 
     /**
-     * The raw bitset value of this flag.
-     *
-     * @return The raw value
-     */
-    public int getRaw() {
-        return value;
-    }
-
-    /**
      * Parses the provided bitset to the corresponding enum constants.
      *
      * @param  bitset
@@ -94,5 +85,14 @@ public enum ChannelFlag {
             raw |= flag.getRaw();
         }
         return raw;
+    }
+
+    /**
+     * The raw bitset value of this flag.
+     *
+     * @return The raw value
+     */
+    public int getRaw() {
+        return value;
     }
 }

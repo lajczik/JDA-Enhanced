@@ -39,10 +39,6 @@ public enum InteractionType {
         this.key = key;
     }
 
-    public int getKey() {
-        return key;
-    }
-
     @Nonnull
     @CheckReturnValue
     public static InteractionType fromKey(int key) {
@@ -60,5 +56,9 @@ public enum InteractionType {
             default:
                 return UNKNOWN;
         }
+    }
+
+    public int getKey() {
+        return key;
     }
 }

@@ -36,11 +36,7 @@ import net.dv8tion.jda.internal.utils.UnlockHook;
 import net.dv8tion.jda.internal.utils.cache.SnowflakeCacheViewImpl;
 import org.slf4j.Logger;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -59,15 +55,12 @@ public class GuildSetupController {
     private final LongSet chunkingGuilds = new LongOpenHashSet();
     private final LongSet unavailableGuilds = new LongOpenHashSet();
     private final Long2ObjectMap<GuildImpl> cachedGuilds = new Long2ObjectOpenHashMap<>();
-
+    protected StatusListener listener =
+            (id, oldStatus, newStatus) -> log.trace("[{}] Updated status {}->{}", id, oldStatus, newStatus);
     // TODO: Rewrite this incompleteCount system to just rely on the state of each
     // node
     private int incompleteCount = 0;
-
     private Future<?> timeoutHandle;
-
-    protected StatusListener listener =
-            (id, oldStatus, newStatus) -> log.trace("[{}] Updated status {}->{}", id, oldStatus, newStatus);
 
     public GuildSetupController(JDAImpl api) {
         this.api = api;

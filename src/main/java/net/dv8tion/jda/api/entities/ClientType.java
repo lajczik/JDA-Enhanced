@@ -41,16 +41,6 @@ public enum ClientType {
     }
 
     /**
-     * The raw key used by the API to identify this type
-     *
-     * @return The raw key
-     */
-    @Nonnull
-    public String getKey() {
-        return key;
-    }
-
-    /**
      * Resolves the provided raw API key to the enum constant.
      *
      * @param  key
@@ -66,5 +56,15 @@ public enum ClientType {
             }
         }
         return UNKNOWN;
+    }
+
+    /**
+     * The raw key used by the API to identify this type
+     *
+     * @return The raw key
+     */
+    @Nonnull
+    public String getKey() {
+        return key;
     }
 }

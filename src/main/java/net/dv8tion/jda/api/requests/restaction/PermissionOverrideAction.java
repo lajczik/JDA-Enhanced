@@ -135,91 +135,6 @@ public interface PermissionOverrideAction extends AuditableRestAction<Permission
     long getAllowed();
 
     /**
-     * Set of {@link net.dv8tion.jda.api.Permission Permissions}
-     * that would be <b>granted</b> by the PermissionOverride that is created by this action.
-     * <br><u>Changes to the returned set do not affect this entity directly.</u>
-     *
-     * @return set of granted {@link net.dv8tion.jda.api.Permission Permissions}
-     */
-    @Nonnull
-    default EnumSet<Permission> getAllowedPermissions() {
-        return Permission.getPermissions(getAllowed());
-    }
-
-    /**
-     * The currently set of denied permission bits.
-     * <br>This value represents all <b>denied</b> permissions
-     * in the raw bitwise representation.
-     *
-     * <p>Use {@link #getDeniedPermissions()} to retrieve a {@link java.util.List List}
-     * with {@link net.dv8tion.jda.api.Permission Permissions} for this value
-     *
-     * @return long value of denied permissions
-     */
-    long getDenied();
-
-    /**
-     * Set of {@link net.dv8tion.jda.api.Permission Permissions}
-     * that would be <b>denied</b> by the PermissionOverride that is created by this action.
-     * <br><u>Changes to the returned set do not affect this entity directly.</u>
-     *
-     * @return set of denied {@link net.dv8tion.jda.api.Permission Permissions}
-     */
-    @Nonnull
-    default EnumSet<Permission> getDeniedPermissions() {
-        return Permission.getPermissions(getDenied());
-    }
-
-    /**
-     * The currently set of inherited permission bits.
-     * <br>This value represents all permissions that are not explicitly allowed or denied
-     * in their raw bitwise representation.
-     * <br>Inherited Permissions are permissions that are defined by other rules
-     * from maybe other PermissionOverrides or a Role.
-     *
-     * <p>Use {@link #getInheritedPermissions()} to retrieve a {@link java.util.List List}
-     * with {@link net.dv8tion.jda.api.Permission Permissions} for this value
-     *
-     * @return long value of inherited permissions
-     */
-    long getInherited();
-
-    /**
-     * Set of {@link net.dv8tion.jda.api.Permission Permissions}
-     * that would be <b>inherited</b> from other permission holders.
-     * <br>Permissions returned are not explicitly granted or denied!
-     * <br><u>Changes to the returned set do not affect this entity directly.</u>
-     *
-     * @return set of inherited {@link net.dv8tion.jda.api.Permission Permissions}
-     *
-     * @see    #getInherited()
-     */
-    @Nonnull
-    default EnumSet<Permission> getInheritedPermissions() {
-        return Permission.getPermissions(getInherited());
-    }
-
-    /**
-     * Whether this Action will
-     * create a {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverride}
-     * for a {@link net.dv8tion.jda.api.entities.Member Member} or not
-     *
-     * @return True, if this is targeting a Member
-     *         If this is {@code false} it is targeting a {@link net.dv8tion.jda.api.entities.Role Role}. ({@link #isRole()})
-     */
-    boolean isMember();
-
-    /**
-     * Whether this Action will
-     * create a {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverride}
-     * for a {@link net.dv8tion.jda.api.entities.Role Role} or not
-     *
-     * @return True, if this is targeting a Role.
-     *         If this is {@code false} it is targeting a {@link net.dv8tion.jda.api.entities.Member Member}. ({@link #isMember()})
-     */
-    boolean isRole();
-
-    /**
      * Sets the value of explicitly granted permissions
      * using the bitwise representation of a set of {@link net.dv8tion.jda.api.Permission Permissions}.
      * <br>This value can be retrieved through {@link net.dv8tion.jda.api.Permission#getRaw(net.dv8tion.jda.api.Permission...) Permissions.getRaw(Permission...)}!
@@ -307,63 +222,28 @@ public interface PermissionOverrideAction extends AuditableRestAction<Permission
     }
 
     /**
-     * Grants the specified permissions.
-     * <br>This does not override already granted permissions.
+     * Set of {@link net.dv8tion.jda.api.Permission Permissions}
+     * that would be <b>granted</b> by the PermissionOverride that is created by this action.
+     * <br><u>Changes to the returned set do not affect this entity directly.</u>
      *
-     * @param  allowBits
-     *         The permissions to grant, in addition to already allowed permissions
-     *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the currently logged in account does not have {@link Permission#MANAGE_PERMISSIONS Permission.MANAGE_PERMISSIONS}
-     *         on the channel and tries to set permissions it does not have in the channel
-     *
-     * @return The current PermissionOverrideAction - for chaining convenience
+     * @return set of granted {@link net.dv8tion.jda.api.Permission Permissions}
      */
     @Nonnull
-    @CheckReturnValue
-    PermissionOverrideAction grant(long allowBits);
-
-    /**
-     * Grants the specified permissions.
-     * <br>This does not override already granted permissions.
-     *
-     * @param  permissions
-     *         The permissions to grant, in addition to already allowed permissions
-     *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the currently logged in account does not have {@link Permission#MANAGE_PERMISSIONS Permission.MANAGE_PERMISSIONS}
-     *         on the channel and tries to set permissions it does not have in the channel
-     * @throws IllegalArgumentException
-     *         If any provided argument is null
-     *
-     * @return The current PermissionOverrideAction - for chaining convenience
-     */
-    @Nonnull
-    @CheckReturnValue
-    default PermissionOverrideAction grant(@Nonnull Collection<Permission> permissions) {
-        return grant(Permission.getRaw(permissions));
+    default EnumSet<Permission> getAllowedPermissions() {
+        return Permission.getPermissions(getAllowed());
     }
 
     /**
-     * Grants the specified permissions.
-     * <br>This does not override already granted permissions.
+     * The currently set of denied permission bits.
+     * <br>This value represents all <b>denied</b> permissions
+     * in the raw bitwise representation.
      *
-     * @param  permissions
-     *         The permissions to grant, in addition to already allowed permissions
+     * <p>Use {@link #getDeniedPermissions()} to retrieve a {@link java.util.List List}
+     * with {@link net.dv8tion.jda.api.Permission Permissions} for this value
      *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the currently logged in account does not have {@link Permission#MANAGE_PERMISSIONS Permission.MANAGE_PERMISSIONS}
-     *         on the channel and tries to set permissions it does not have in the channel
-     * @throws IllegalArgumentException
-     *         If any provided argument is null
-     *
-     * @return The current PermissionOverrideAction - for chaining convenience
+     * @return long value of denied permissions
      */
-    @Nonnull
-    @CheckReturnValue
-    default PermissionOverrideAction grant(@Nonnull Permission... permissions) {
-        return grant(Permission.getRaw(permissions));
-    }
+    long getDenied();
 
     /**
      * Sets the value of explicitly denied permissions
@@ -450,6 +330,111 @@ public interface PermissionOverrideAction extends AuditableRestAction<Permission
         }
         Checks.noneNull(permissions, "Permissions");
         return setDenied(Permission.getRaw(permissions));
+    }
+
+    /**
+     * Set of {@link net.dv8tion.jda.api.Permission Permissions}
+     * that would be <b>denied</b> by the PermissionOverride that is created by this action.
+     * <br><u>Changes to the returned set do not affect this entity directly.</u>
+     *
+     * @return set of denied {@link net.dv8tion.jda.api.Permission Permissions}
+     */
+    @Nonnull
+    default EnumSet<Permission> getDeniedPermissions() {
+        return Permission.getPermissions(getDenied());
+    }
+
+    /**
+     * The currently set of inherited permission bits.
+     * <br>This value represents all permissions that are not explicitly allowed or denied
+     * in their raw bitwise representation.
+     * <br>Inherited Permissions are permissions that are defined by other rules
+     * from maybe other PermissionOverrides or a Role.
+     *
+     * <p>Use {@link #getInheritedPermissions()} to retrieve a {@link java.util.List List}
+     * with {@link net.dv8tion.jda.api.Permission Permissions} for this value
+     *
+     * @return long value of inherited permissions
+     */
+    long getInherited();
+
+    /**
+     * Set of {@link net.dv8tion.jda.api.Permission Permissions}
+     * that would be <b>inherited</b> from other permission holders.
+     * <br>Permissions returned are not explicitly granted or denied!
+     * <br><u>Changes to the returned set do not affect this entity directly.</u>
+     *
+     * @return set of inherited {@link net.dv8tion.jda.api.Permission Permissions}
+     * @see #getInherited()
+     */
+    @Nonnull
+    default EnumSet<Permission> getInheritedPermissions() {
+        return Permission.getPermissions(getInherited());
+    }
+
+    /**
+     * Whether this Action will
+     * create a {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverride}
+     * for a {@link net.dv8tion.jda.api.entities.Member Member} or not
+     *
+     * @return True, if this is targeting a Member
+     * If this is {@code false} it is targeting a {@link net.dv8tion.jda.api.entities.Role Role}. ({@link #isRole()})
+     */
+    boolean isMember();
+
+    /**
+     * Whether this Action will
+     * create a {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionOverride}
+     * for a {@link net.dv8tion.jda.api.entities.Role Role} or not
+     *
+     * @return True, if this is targeting a Role.
+     * If this is {@code false} it is targeting a {@link net.dv8tion.jda.api.entities.Member Member}. ({@link #isMember()})
+     */
+    boolean isRole();
+
+    /**
+     * Grants the specified permissions.
+     * <br>This does not override already granted permissions.
+     *
+     * @param allowBits The permissions to grant, in addition to already allowed permissions
+     * @return The current PermissionOverrideAction - for chaining convenience
+     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException If the currently logged in account does not have {@link Permission#MANAGE_PERMISSIONS Permission.MANAGE_PERMISSIONS}
+     * on the channel and tries to set permissions it does not have in the channel
+     */
+    @Nonnull
+    @CheckReturnValue
+    PermissionOverrideAction grant(long allowBits);
+
+    /**
+     * Grants the specified permissions.
+     * <br>This does not override already granted permissions.
+     *
+     * @param permissions The permissions to grant, in addition to already allowed permissions
+     * @return The current PermissionOverrideAction - for chaining convenience
+     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException If the currently logged in account does not have {@link Permission#MANAGE_PERMISSIONS Permission.MANAGE_PERMISSIONS}
+     * on the channel and tries to set permissions it does not have in the channel
+     * @throws IllegalArgumentException If any provided argument is null
+     */
+    @Nonnull
+    @CheckReturnValue
+    default PermissionOverrideAction grant(@Nonnull Collection<Permission> permissions) {
+        return grant(Permission.getRaw(permissions));
+    }
+
+    /**
+     * Grants the specified permissions.
+     * <br>This does not override already granted permissions.
+     *
+     * @param permissions The permissions to grant, in addition to already allowed permissions
+     * @return The current PermissionOverrideAction - for chaining convenience
+     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException If the currently logged in account does not have {@link Permission#MANAGE_PERMISSIONS Permission.MANAGE_PERMISSIONS}
+     * on the channel and tries to set permissions it does not have in the channel
+     * @throws IllegalArgumentException If any provided argument is null
+     */
+    @Nonnull
+    @CheckReturnValue
+    default PermissionOverrideAction grant(@Nonnull Permission... permissions) {
+        return grant(Permission.getRaw(permissions));
     }
 
     /**

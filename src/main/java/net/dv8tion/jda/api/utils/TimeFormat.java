@@ -36,10 +36,10 @@ import javax.annotation.Nonnull;
  * Each timestamp can be displayed with different {@link TimeFormat TimeFormats}.
  *
  * <p><b>Example</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * channel.sendMessage("Current Time: " + TimeFormat.RELATIVE.now()).queue();
  * channel.sendMessage("Uptime: " + TimeFormat.RELATIVE.format(getStartTime())).queue();
- * }
+ *}
  */
 public enum TimeFormat {
     /** Formats time as {@code 18:49} or {@code 6:49 PM} */
@@ -106,17 +106,6 @@ public enum TimeFormat {
     }
 
     /**
-     * The display style flag used for the markdown representation.
-     * <br>This is encoded into the markdown to provide the client with rendering context.
-     *
-     * @return The style flag
-     */
-    @Nonnull
-    public String getStyle() {
-        return style;
-    }
-
-    /**
      * Returns the time format for the provided style flag.
      *
      * @param  style
@@ -167,6 +156,17 @@ public enum TimeFormat {
         String format = matcher.group("style");
         return new Timestamp(
                 format == null ? DEFAULT : fromStyle(format), Long.parseLong(matcher.group("time")) * 1000);
+    }
+
+    /**
+     * The display style flag used for the markdown representation.
+     * <br>This is encoded into the markdown to provide the client with rendering context.
+     *
+     * @return The style flag
+     */
+    @Nonnull
+    public String getStyle() {
+        return style;
     }
 
     /**

@@ -29,7 +29,7 @@ import javax.annotation.Nonnull;
  * Manager providing functionality to modify a {@link MediaChannel}.
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * manager.setName("Art Showcase")
  *  .setSlowmode(10)
  *  .setTopic("Showcase your art creations here.")
@@ -38,7 +38,7 @@ import javax.annotation.Nonnull;
  *  .setName("NSFW Art Showcase")
  *  .setNSFW(true)
  *  .queue();
- * }
+ *}
  */
 public interface MediaChannelManager
         extends StandardGuildChannelManager<MediaChannel, MediaChannelManager>,

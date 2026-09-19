@@ -49,6 +49,10 @@ class LabelTest extends AbstractSnapshotTest {
         assertWithSnapshot(DataObject.empty().put("components", DataArray.fromCollection(components.getComponents())));
     }
 
+    private void assertWithSnapshot(Label label) {
+        assertWithSnapshot((SerializableData) label);
+    }
+
     @Nested
     class ArgumentChecks {
         @Test
@@ -128,9 +132,5 @@ class LabelTest extends AbstractSnapshotTest {
 
             assertWithSnapshot(label);
         }
-    }
-
-    private void assertWithSnapshot(Label label) {
-        assertWithSnapshot((SerializableData) label);
     }
 }

@@ -16,11 +16,7 @@
 
 package net.dv8tion.jda.internal.utils.json;
 
-import com.grack.nanojson.JsonAppendableWriter;
-import com.grack.nanojson.JsonParser;
-import com.grack.nanojson.JsonStringWriter;
-import com.grack.nanojson.JsonWriter;
-import com.grack.nanojson.JsonWriterException;
+import com.grack.nanojson.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import net.dv8tion.jda.api.exceptions.ParsingException;
@@ -28,17 +24,8 @@ import net.dv8tion.jda.api.utils.data.SerializableArray;
 import net.dv8tion.jda.api.utils.data.SerializableData;
 import net.dv8tion.jda.internal.utils.Checks;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Reader;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.io.*;
+import java.util.*;
 
 import javax.annotation.Nonnull;
 
@@ -48,13 +35,6 @@ import javax.annotation.Nonnull;
 public class NanojsonEngine implements JsonEngine {
     private static final String TRUNCATED_ARRAY = "[…truncated array…]";
     private static final String TRUNCATED_OBJECT = "{…truncated object…}";
-
-    @Nonnull
-    @Override
-    public String getName() {
-        return "nanojson";
-    }
-
     private static volatile boolean jacksonCheckDone = false;
     private static volatile JsonEngine fallbackEngine = null;
 
@@ -88,6 +68,12 @@ public class NanojsonEngine implements JsonEngine {
             }
         }
         return fallbackEngine;
+    }
+
+    @Nonnull
+    @Override
+    public String getName() {
+        return "nanojson";
     }
 
     @Nonnull

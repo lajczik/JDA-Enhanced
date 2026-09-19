@@ -125,15 +125,50 @@ public interface AttachmentUpload extends Component, ICustomId, LabelChildCompon
      * Builder for {@link AttachmentUpload AttachmentUploads}.
      */
     class Builder implements IFilterableFileTypes<Builder> {
+        protected final FileTypesImpl fileTypes = FileTypesImpl.empty();
         protected int uniqueId = -1;
         protected String customId;
         protected int minValues = 1;
         protected int maxValues = 1;
-        protected final FileTypesImpl fileTypes = FileTypesImpl.empty();
         protected boolean required = true;
 
         protected Builder(@Nonnull String customId) {
             setCustomId(customId);
+        }
+
+        /**
+         * Changes the amounts of attachments the user can send.
+         * <br>Default: {@code [1 ; 1]}
+         *
+         * @param min The new minimum amount of attachments the user must send, must be >= 0 and less than {@value #MAX_UPLOADS}
+         * @param max The new maximum amount of attachments the user can send, must be positive and less than {@value #MAX_UPLOADS}
+         * @return The same instance, for chaining purposes
+         * @throws IllegalArgumentException <ul>
+         * <li>If {@code min} is negative or larger than {@value #MAX_UPLOADS}</li>
+         * <li>If {@code max} is negative, zero, or larger than {@value #MAX_UPLOADS}</li>
+         * </ul>
+         */
+        @Nonnull
+        public Builder setRequiredRange(int min, int max) {
+            return setMinValues(min).setMaxValues(max);
+        }
+
+        @Nonnull
+        @Override
+        public Builder addFileTypes(@Nonnull Collection<FileType> fileTypes) {
+            this.fileTypes.addAll(fileTypes);
+            return this;
+        }
+
+        /**
+         * The unique, numeric identifier of this component.
+         * <br>Can be set manually or automatically assigned by Discord (starting from {@code 1}).
+         * If it has not been assigned yet, this will return {@code -1}.
+         *
+         * @return The unique identifier of this component, or {@code -1} if not assigned yet
+         */
+        public int getUniqueId() {
+            return uniqueId;
         }
 
         @Nonnull
@@ -141,6 +176,16 @@ public interface AttachmentUpload extends Component, ICustomId, LabelChildCompon
             Checks.positive(uniqueId, "Unique ID");
             this.uniqueId = uniqueId;
             return this;
+        }
+
+        /**
+         * Returns the unique custom ID, this can be used to pass data, then read in an interaction.
+         *
+         * @return The custom ID
+         */
+        @Nonnull
+        public String getCustomId() {
+            return customId;
         }
 
         /**
@@ -164,6 +209,15 @@ public interface AttachmentUpload extends Component, ICustomId, LabelChildCompon
         }
 
         /**
+         * The minimum amount of attachments the user must send.
+         *
+         * @return Minimum amount of attachments the user must send
+         */
+        public int getMinValues() {
+            return minValues;
+        }
+
+        /**
          * Changes the minimum amount of attachments the user has to send.
          * <br>Default: {@code 1}
          *
@@ -181,6 +235,15 @@ public interface AttachmentUpload extends Component, ICustomId, LabelChildCompon
             Checks.check(minValues <= MAX_UPLOADS, "Min values (%s) must be lower than %s", minValues, MAX_UPLOADS);
             this.minValues = minValues;
             return this;
+        }
+
+        /**
+         * The maximum amount of attachments the user can send.
+         *
+         * @return Maximum amount of attachments the user can send
+         */
+        public int getMaxValues() {
+            return maxValues;
         }
 
         /**
@@ -204,32 +267,15 @@ public interface AttachmentUpload extends Component, ICustomId, LabelChildCompon
         }
 
         /**
-         * Changes the amounts of attachments the user can send.
-         * <br>Default: {@code [1 ; 1]}
+         * The <b>unmodifiable</b> list <b>view</b> of file types to filter for.
+         * Returns an empty list if any file is accepted.
          *
-         * @param  min
-         *         The new minimum amount of attachments the user must send, must be >= 0 and less than {@value #MAX_UPLOADS}
-         * @param  max
-         *         The new maximum amount of attachments the user can send, must be positive and less than {@value #MAX_UPLOADS}
-         *
-         * @throws IllegalArgumentException
-         *         <ul>
-         *             <li>If {@code min} is negative or larger than {@value #MAX_UPLOADS}</li>
-         *             <li>If {@code max} is negative, zero, or larger than {@value #MAX_UPLOADS}</li>
-         *         </ul>
-         *
-         * @return The same instance, for chaining purposes
+         * @return Unmodifiable list view of file types
          */
         @Nonnull
-        public Builder setRequiredRange(int min, int max) {
-            return setMinValues(min).setMaxValues(max);
-        }
-
-        @Nonnull
-        @Override
-        public Builder addFileTypes(@Nonnull Collection<FileType> fileTypes) {
-            this.fileTypes.addAll(fileTypes);
-            return this;
+        @UnmodifiableView
+        public List<FileType> getFileTypes() {
+            return fileTypes.asView();
         }
 
         @Nonnull
@@ -237,6 +283,19 @@ public interface AttachmentUpload extends Component, ICustomId, LabelChildCompon
         public Builder setFileTypes(@Nonnull Collection<FileType> fileTypes) {
             this.fileTypes.setAll(fileTypes);
             return this;
+        }
+
+        /**
+         * Whether the user must send attachments.
+         *
+         * <p>This attribute is completely separate from the value range,
+         * for example you can have an optional {@link AttachmentUpload} with the range set to {@code [2 ; 2]},
+         * meaning you accept either 0 attachments, or 2.
+         *
+         * @return {@code true} if files must be uploaded, {@code false} if not
+         */
+        public boolean isRequired() {
+            return required;
         }
 
         /**
@@ -256,70 +315,6 @@ public interface AttachmentUpload extends Component, ICustomId, LabelChildCompon
         public Builder setRequired(boolean required) {
             this.required = required;
             return this;
-        }
-
-        /**
-         * The unique, numeric identifier of this component.
-         * <br>Can be set manually or automatically assigned by Discord (starting from {@code 1}).
-         * If it has not been assigned yet, this will return {@code -1}.
-         *
-         * @return The unique identifier of this component, or {@code -1} if not assigned yet
-         */
-        public int getUniqueId() {
-            return uniqueId;
-        }
-
-        /**
-         * Returns the unique custom ID, this can be used to pass data, then read in an interaction.
-         *
-         * @return The custom ID
-         */
-        @Nonnull
-        public String getCustomId() {
-            return customId;
-        }
-
-        /**
-         * The minimum amount of attachments the user must send.
-         *
-         * @return Minimum amount of attachments the user must send
-         */
-        public int getMinValues() {
-            return minValues;
-        }
-
-        /**
-         * The maximum amount of attachments the user can send.
-         *
-         * @return Maximum amount of attachments the user can send
-         */
-        public int getMaxValues() {
-            return maxValues;
-        }
-
-        /**
-         * The <b>unmodifiable</b> list <b>view</b> of file types to filter for.
-         * Returns an empty list if any file is accepted.
-         *
-         * @return Unmodifiable list view of file types
-         */
-        @Nonnull
-        @UnmodifiableView
-        public List<FileType> getFileTypes() {
-            return fileTypes.asView();
-        }
-
-        /**
-         * Whether the user must send attachments.
-         *
-         * <p>This attribute is completely separate from the value range,
-         * for example you can have an optional {@link AttachmentUpload} with the range set to {@code [2 ; 2]},
-         * meaning you accept either 0 attachments, or 2.
-         *
-         * @return {@code true} if files must be uploaded, {@code false} if not
-         */
-        public boolean isRequired() {
-            return required;
         }
 
         /**

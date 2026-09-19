@@ -46,12 +46,9 @@ public class SessionConfig {
         this.largeThreshold = largeThreshold;
     }
 
-    public void setAutoReconnect(boolean autoReconnect) {
-        if (autoReconnect) {
-            flags.add(ConfigFlag.AUTO_RECONNECT);
-        } else {
-            flags.remove(ConfigFlag.AUTO_RECONNECT);
-        }
+    @Nonnull
+    public static SessionConfig getDefault() {
+        return new SessionConfig(null, null, ConfigFlag.getDefault(), 900, 250);
     }
 
     @Nonnull
@@ -66,6 +63,14 @@ public class SessionConfig {
 
     public boolean isAutoReconnect() {
         return flags.contains(ConfigFlag.AUTO_RECONNECT);
+    }
+
+    public void setAutoReconnect(boolean autoReconnect) {
+        if (autoReconnect) {
+            flags.add(ConfigFlag.AUTO_RECONNECT);
+        } else {
+            flags.remove(ConfigFlag.AUTO_RECONNECT);
+        }
     }
 
     public boolean isRetryOnTimeout() {
@@ -106,10 +111,5 @@ public class SessionConfig {
 
     public EnumSet<ConfigFlag> getFlags() {
         return flags;
-    }
-
-    @Nonnull
-    public static SessionConfig getDefault() {
-        return new SessionConfig(null, null, ConfigFlag.getDefault(), 900, 250);
     }
 }

@@ -63,6 +63,10 @@ public abstract class AbstractMentions implements Mentions {
         this.mentionsEveryone = mentionsEveryone;
     }
 
+    protected static <T> Collector<T, ?, HashBag<T>> toBag() {
+        return Collectors.toCollection(HashBag::new);
+    }
+
     @Nonnull
     @Override
     public JDA getJDA() {
@@ -265,6 +269,8 @@ public abstract class AbstractMentions implements Mentions {
         return Collections.unmodifiableList(mentions);
     }
 
+    // Internal parsing methods
+
     @Override
     public boolean isMentioned(@Nonnull IMentionable mentionable, @Nonnull Message.MentionType... types) {
         Checks.notNull(types, "Mention Types");
@@ -314,8 +320,6 @@ public abstract class AbstractMentions implements Mentions {
         return false;
     }
 
-    // Internal parsing methods
-
     protected <T, A, C extends Collection<T>> C processMentions(
             Message.MentionType type,
             boolean distinct,
@@ -334,10 +338,6 @@ public abstract class AbstractMentions implements Mentions {
             }
         }
         return collector.finisher().apply(accumulator);
-    }
-
-    protected static <T> Collector<T, ?, HashBag<T>> toBag() {
-        return Collectors.toCollection(HashBag::new);
     }
 
     protected abstract User matchUser(Matcher matcher);

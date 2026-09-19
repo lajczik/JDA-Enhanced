@@ -40,7 +40,7 @@ import javax.annotation.Nullable;
  * Other users cannot see the choices selected, and they will disappear when the client restarts or the message is reloaded.
  *
  * <p><b>Examples</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
  *   if (!event.getName().equals("class")) return;
  *
@@ -58,12 +58,25 @@ import javax.annotation.Nullable;
  *     .addComponents(ActionRow.of(menu))
  *     .queue();
  * }
- * }
+ *}
  *
  * @see StringSelectInteraction
  * @see EntitySelectMenu
  */
 public interface StringSelectMenu extends SelectMenu {
+    /**
+     * Creates a new {@link Builder} for a select menu with the provided custom id.
+     *
+     * @param customId The id used to identify this menu with {@link ActionComponent#getCustomId()} for component interactions
+     * @return The {@link Builder} used to create the select menu
+     * @throws IllegalArgumentException If the provided id is null, empty, or longer than {@value #ID_MAX_LENGTH} characters
+     */
+    @Nonnull
+    @CheckReturnValue
+    static Builder create(@Nonnull String customId) {
+        return new Builder(customId);
+    }
+
     @Nonnull
     @Override
     default StringSelectMenu asDisabled() {
@@ -117,23 +130,6 @@ public interface StringSelectMenu extends SelectMenu {
             builder.setUniqueId(getUniqueId());
         }
         return builder;
-    }
-
-    /**
-     * Creates a new {@link Builder} for a select menu with the provided custom id.
-     *
-     * @param  customId
-     *         The id used to identify this menu with {@link ActionComponent#getCustomId()} for component interactions
-     *
-     * @throws IllegalArgumentException
-     *         If the provided id is null, empty, or longer than {@value #ID_MAX_LENGTH} characters
-     *
-     * @return The {@link Builder} used to create the select menu
-     */
-    @Nonnull
-    @CheckReturnValue
-    static Builder create(@Nonnull String customId) {
-        return new Builder(customId);
     }
 
     /**

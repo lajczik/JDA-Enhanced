@@ -114,8 +114,20 @@ public class RoleImpl implements Role, RoleMixin<RoleImpl> {
     }
 
     @Override
+    public RoleImpl setName(String name) {
+        this.name = name;
+        return this;
+    }
+
+    @Override
     public boolean isManaged() {
         return managed;
+    }
+
+    @Override
+    public RoleImpl setManaged(boolean managed) {
+        this.managed = managed;
+        return this;
     }
 
     @Override
@@ -124,8 +136,20 @@ public class RoleImpl implements Role, RoleMixin<RoleImpl> {
     }
 
     @Override
+    public RoleImpl setHoisted(boolean hoisted) {
+        this.hoisted = hoisted;
+        return this;
+    }
+
+    @Override
     public boolean isMentionable() {
         return mentionable;
+    }
+
+    @Override
+    public RoleImpl setMentionable(boolean mentionable) {
+        this.mentionable = mentionable;
+        return this;
     }
 
     @Override
@@ -298,10 +322,27 @@ public class RoleImpl implements Role, RoleMixin<RoleImpl> {
         return tags == null ? RoleTagsImpl.EMPTY : tags;
     }
 
+    @Override
+    public RoleImpl setTags(DataObject tags) {
+        if (this.tags == null) {
+            return this;
+        }
+        this.tags = new RoleTagsImpl(tags);
+        return this;
+    }
+
     @Nullable
     @Override
     public RoleIcon getIcon() {
         return icon;
+    }
+
+    // -- Setters --
+
+    @Override
+    public RoleImpl setIcon(RoleIcon icon) {
+        this.icon = icon;
+        return this;
     }
 
     @Nonnull
@@ -337,14 +378,6 @@ public class RoleImpl implements Role, RoleMixin<RoleImpl> {
         return new EntityString(this).setName(getName()).toString();
     }
 
-    // -- Setters --
-
-    @Override
-    public RoleImpl setName(String name) {
-        this.name = name;
-        return this;
-    }
-
     @Override
     public RoleImpl setPrimaryColor(int color) {
         this.primaryColor = color;
@@ -364,24 +397,6 @@ public class RoleImpl implements Role, RoleMixin<RoleImpl> {
     }
 
     @Override
-    public RoleImpl setManaged(boolean managed) {
-        this.managed = managed;
-        return this;
-    }
-
-    @Override
-    public RoleImpl setHoisted(boolean hoisted) {
-        this.hoisted = hoisted;
-        return this;
-    }
-
-    @Override
-    public RoleImpl setMentionable(boolean mentionable) {
-        this.mentionable = mentionable;
-        return this;
-    }
-
-    @Override
     public RoleImpl setRawPermissions(long rawPermissions) {
         this.rawPermissions = rawPermissions;
         return this;
@@ -393,21 +408,6 @@ public class RoleImpl implements Role, RoleMixin<RoleImpl> {
                 (SortedSnowflakeCacheViewImpl<Role>) getGuild().getRoleCache();
         roleCache.clearCachedLists();
         this.rawPosition = rawPosition;
-        return this;
-    }
-
-    @Override
-    public RoleImpl setTags(DataObject tags) {
-        if (this.tags == null) {
-            return this;
-        }
-        this.tags = new RoleTagsImpl(tags);
-        return this;
-    }
-
-    @Override
-    public RoleImpl setIcon(RoleIcon icon) {
-        this.icon = icon;
         return this;
     }
 

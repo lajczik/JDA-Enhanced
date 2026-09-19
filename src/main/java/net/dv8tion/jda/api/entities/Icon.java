@@ -53,16 +53,6 @@ public class Icon {
     }
 
     /**
-     * The base64 encoded data for this Icon
-     *
-     * @return String representation of the encoded data for this icon
-     */
-    @Nonnull
-    public String getEncoding() {
-        return encoding;
-    }
-
-    /**
      * Creates an {@link Icon Icon} with the specified {@link File}.
      * <br>We here read the specified File and forward the retrieved byte data to {@link #from(byte[], IconType)}.
      *
@@ -255,6 +245,16 @@ public class Icon {
     }
 
     /**
+     * The base64 encoded data for this Icon
+     *
+     * @return String representation of the encoded data for this icon
+     */
+    @Nonnull
+    public String getEncoding() {
+        return encoding;
+    }
+
+    /**
      * Supported image types for the Discord API.
      */
     public enum IconType {
@@ -276,28 +276,6 @@ public class Icon {
         IconType(@Nonnull String mime) {
             this.mime = mime;
             this.header = "data:" + mime + ";base64,";
-        }
-
-        /**
-         * The MIME Type
-         *
-         * @return The MIME Type
-         *
-         * @see    <a href="https://en.wikipedia.org/wiki/MIME" target="_blank">MIME</a>
-         */
-        @Nonnull
-        public String getMIME() {
-            return mime;
-        }
-
-        /**
-         * The data header for the encoding of an image.
-         *
-         * @return The data header
-         */
-        @Nonnull
-        public String getHeader() {
-            return header;
         }
 
         /**
@@ -339,6 +317,27 @@ public class Icon {
                 case "gif" -> GIF;
                 default -> UNKNOWN;
             };
+        }
+
+        /**
+         * The MIME Type
+         *
+         * @return The MIME Type
+         * @see <a href="https://en.wikipedia.org/wiki/MIME" target="_blank">MIME</a>
+         */
+        @Nonnull
+        public String getMIME() {
+            return mime;
+        }
+
+        /**
+         * The data header for the encoding of an image.
+         *
+         * @return The data header
+         */
+        @Nonnull
+        public String getHeader() {
+            return header;
         }
     }
 }

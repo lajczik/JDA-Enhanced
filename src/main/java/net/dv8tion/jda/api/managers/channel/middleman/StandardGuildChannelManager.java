@@ -25,14 +25,14 @@ import net.dv8tion.jda.api.managers.channel.attribute.IPositionableChannelManage
  * Manager providing functionality common for all {@link net.dv8tion.jda.api.entities.channel.middleman.StandardGuildChannel StandardGuildChannels}.
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * manager.setName("help")
  *        .setParent(categoryChannel)
  *        .queue();
  * manager.reset(ChannelManager.PARENT | ChannelManager.NAME)
  *        .putPermissionOverride(member, 0, Permission.ALL_PERMISSIONS)
  *        .queue();
- * }
+ *}
  *
  * @see StandardGuildChannel#getManager()
  */

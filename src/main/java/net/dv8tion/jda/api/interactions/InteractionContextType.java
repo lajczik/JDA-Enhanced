@@ -62,16 +62,6 @@ public enum InteractionContextType {
     }
 
     /**
-     * The raw value of this interaction context.
-     *
-     * @return The raw value
-     */
-    @Nonnull
-    public String getType() {
-        return key;
-    }
-
-    /**
      * Gets the interaction context corresponding to the key,
      * returns {@link #UNKNOWN} if no entry matches.
      *
@@ -88,5 +78,15 @@ public enum InteractionContextType {
             }
         }
         return UNKNOWN;
+    }
+
+    /**
+     * The raw value of this interaction context.
+     *
+     * @return The raw value
+     */
+    @Nonnull
+    public String getType() {
+        return key;
     }
 }

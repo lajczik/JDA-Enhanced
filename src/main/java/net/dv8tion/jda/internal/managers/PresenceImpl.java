@@ -52,6 +52,31 @@ public class PresenceImpl implements Presence {
 
     /* -- Public Getters -- */
 
+    public static DataObject getGameJson(Activity activity) {
+        if (activity == null || activity.getName() == null || activity.getType() == null) {
+            return null;
+        }
+        DataObject gameObj = DataObject.empty();
+
+        if (activity.getType() == Activity.ActivityType.CUSTOM_STATUS) {
+            gameObj.put("name", "Custom Status");
+            gameObj.put("state", activity.getName());
+        } else {
+            gameObj.put("name", activity.getName());
+            String state = activity.getState();
+            if (state != null) {
+                gameObj.put("state", state);
+            }
+        }
+
+        gameObj.put("type", activity.getType().getKey());
+        if (activity.getUrl() != null) {
+            gameObj.put("url", activity.getUrl());
+        }
+
+        return gameObj;
+    }
+
     @Nonnull
     @Override
     public JDA getJDA() {
@@ -65,25 +90,25 @@ public class PresenceImpl implements Presence {
     }
 
     @Override
-    public Activity getActivity() {
-        return activity;
-    }
-
-    @Override
-    public boolean isIdle() {
-        return idle;
+    public void setStatus(OnlineStatus status) {
+        setPresence(status, activity, idle);
     }
 
     /* -- Public Setters -- */
 
     @Override
-    public void setStatus(OnlineStatus status) {
-        setPresence(status, activity, idle);
+    public Activity getActivity() {
+        return activity;
     }
 
     @Override
     public void setActivity(Activity game) {
         setPresence(status, game);
+    }
+
+    @Override
+    public boolean isIdle() {
+        return idle;
     }
 
     @Override
@@ -114,12 +139,12 @@ public class PresenceImpl implements Presence {
         setPresence(status, activity, idle);
     }
 
+    /* -- Impl Setters -- */
+
     @Override
     public void setPresence(Activity game, boolean idle) {
         setPresence(status, game, idle);
     }
-
-    /* -- Impl Setters -- */
 
     public PresenceImpl setCacheStatus(OnlineStatus status) {
         if (status == null) {
@@ -137,12 +162,12 @@ public class PresenceImpl implements Presence {
         return this;
     }
 
+    /* -- Internal Methods -- */
+
     public PresenceImpl setCacheIdle(boolean idle) {
         this.idle = idle;
         return this;
     }
-
-    /* -- Internal Methods -- */
 
     public DataObject getFullPresence() {
         DataObject activity = getGameJson(this.activity);
@@ -156,31 +181,6 @@ public class PresenceImpl implements Presence {
                                 // converted to a Map
                                 activity == null ? List.of() : List.of(activity)))
                 .put("status", getStatus().getKey());
-    }
-
-    public static DataObject getGameJson(Activity activity) {
-        if (activity == null || activity.getName() == null || activity.getType() == null) {
-            return null;
-        }
-        DataObject gameObj = DataObject.empty();
-
-        if (activity.getType() == Activity.ActivityType.CUSTOM_STATUS) {
-            gameObj.put("name", "Custom Status");
-            gameObj.put("state", activity.getName());
-        } else {
-            gameObj.put("name", activity.getName());
-            String state = activity.getState();
-            if (state != null) {
-                gameObj.put("state", state);
-            }
-        }
-
-        gameObj.put("type", activity.getType().getKey());
-        if (activity.getUrl() != null) {
-            gameObj.put("url", activity.getUrl());
-        }
-
-        return gameObj;
     }
 
     /* -- Terminal -- */

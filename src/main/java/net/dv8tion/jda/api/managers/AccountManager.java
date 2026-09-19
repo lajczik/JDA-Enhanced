@@ -27,12 +27,12 @@ import javax.annotation.Nullable;
  * Manager providing functionality to update one or more fields for the logged in account.
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * manager.setAvatar(null).queue();
  * manager.reset(AccountManager.AVATAR)
  *        .setAvatar(icon)
  *        .queue();
- * }
+ *}
  *
  * @see net.dv8tion.jda.api.JDA#getSelfUser() JDA.getSelfUser()
  * @see net.dv8tion.jda.api.entities.SelfUser#getManager()

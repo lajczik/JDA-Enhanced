@@ -52,7 +52,7 @@ public interface MessageEditRequest<R extends MessageEditRequest<R>> extends Mes
      * You can safely use a try-with-resources to handle this, since {@link FileUpload#close()} becomes ineffective once the request is handed off.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Here "message" is an instance of the Message interface
      *
      * // Creates a list of the currently attached files of the message, important to get the generic parameter of the list right
@@ -67,7 +67,7 @@ public interface MessageEditRequest<R extends MessageEditRequest<R>> extends Mes
      * message.editMessage("New content")
      *        .setAttachments(attachments)
      *        .queue();
-     * }
+     *}
      *
      * @param  attachments
      *         The {@link AttachedFile AttachedFiles} to attach to the message,
@@ -95,7 +95,7 @@ public interface MessageEditRequest<R extends MessageEditRequest<R>> extends Mes
      * You can safely use a try-with-resources to handle this, since {@link FileUpload#close()} becomes ineffective once the request is handed off.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Here "message" is an instance of the Message interface
      *
      * // Take the first attachment of the message, all others will be removed
@@ -108,7 +108,7 @@ public interface MessageEditRequest<R extends MessageEditRequest<R>> extends Mes
      * message.editMessage("New content")
      *        .setAttachments(attachment, file)
      *        .queue();
-     * }
+     *}
      *
      * @param  attachments
      *         The {@link AttachedFile AttachedFiles} to attach to the message,
@@ -135,6 +135,16 @@ public interface MessageEditRequest<R extends MessageEditRequest<R>> extends Mes
     }
 
     /**
+     * Whether this request will replace the message and remove everything that is not currently set.
+     *
+     * <p>If this is false, the request will only edit the message fields which were explicitly set.
+     *
+     * @return True, if this is a replacing request
+     * @see #setReplace(boolean)
+     */
+    boolean isReplace();
+
+    /**
      * Whether to replace the existing message completely.
      *
      * <p>By default, edit requests will only update the message fields which were explicitly set.
@@ -142,15 +152,15 @@ public interface MessageEditRequest<R extends MessageEditRequest<R>> extends Mes
      *
      * <p><b>Example Default</b><br>
      * A request such as this will only edit the {@code content} of the message, and leave any existing embeds or attachments intact.
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * message.editMessage("hello").queue();
-     * }
+     *}
      *
      * <p><b>Example Replace</b><br>
      * A request such as this will replace the entire message, and remove any existing embeds, attachments, components, etc.
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * message.editMessage("hello").setReplace(true).queue();
-     * }
+     *}
      *
      * @param  isReplace
      *         True, if only things explicitly set on this request should be present after the message is edited.
@@ -159,17 +169,6 @@ public interface MessageEditRequest<R extends MessageEditRequest<R>> extends Mes
      */
     @Nonnull
     R setReplace(boolean isReplace);
-
-    /**
-     * Whether this request will replace the message and remove everything that is not currently set.
-     *
-     * <p>If this is false, the request will only edit the message fields which were explicitly set.
-     *
-     * @return True, if this is a replacing request
-     *
-     * @see    #setReplace(boolean)
-     */
-    boolean isReplace();
 
     /**
      * Applies the provided {@link MessageEditData} to this request.

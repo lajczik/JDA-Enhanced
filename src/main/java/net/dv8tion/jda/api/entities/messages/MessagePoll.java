@@ -111,6 +111,47 @@ public interface MessagePoll {
     }
 
     /**
+     * The poll layout.
+     *
+     * <p>Currently always {@link #DEFAULT}.
+     */
+    enum LayoutType {
+        DEFAULT(1),
+        UNKNOWN(-1);
+
+        private final int key;
+
+        LayoutType(int key) {
+            this.key = key;
+        }
+
+        /**
+         * Resolves the provided raw API key to the layout enum constant.
+         *
+         * @param key The API key
+         * @return The layout type or {@link #UNKNOWN}
+         */
+        @Nonnull
+        public static LayoutType fromKey(int key) {
+            for (LayoutType type : values()) {
+                if (type.key == key) {
+                    return type;
+                }
+            }
+            return UNKNOWN;
+        }
+
+        /**
+         * The raw API key used to identify this layout.
+         *
+         * @return The API key
+         */
+        public int getKey() {
+            return key;
+        }
+    }
+
+    /**
      * The question for a poll.
      */
     class Question {
@@ -212,49 +253,6 @@ public interface MessagePoll {
          */
         public boolean isSelfVoted() {
             return selfVoted;
-        }
-    }
-
-    /**
-     * The poll layout.
-     *
-     * <p>Currently always {@link #DEFAULT}.
-     */
-    enum LayoutType {
-        DEFAULT(1),
-        UNKNOWN(-1);
-
-        private final int key;
-
-        LayoutType(int key) {
-            this.key = key;
-        }
-
-        /**
-         * The raw API key used to identify this layout.
-         *
-         * @return The API key
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
-         * Resolves the provided raw API key to the layout enum constant.
-         *
-         * @param  key
-         *         The API key
-         *
-         * @return The layout type or {@link #UNKNOWN}
-         */
-        @Nonnull
-        public static LayoutType fromKey(int key) {
-            for (LayoutType type : values()) {
-                if (type.key == key) {
-                    return type;
-                }
-            }
-            return UNKNOWN;
         }
     }
 }

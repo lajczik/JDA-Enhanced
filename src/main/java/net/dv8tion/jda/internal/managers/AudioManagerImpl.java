@@ -68,6 +68,24 @@ public class AudioManagerImpl implements AudioManager {
         return audioConnection;
     }
 
+    public void setAudioConnection(AudioConnection audioConnection) {
+        if (audioConnection == null) {
+            this.audioConnection = null;
+            return;
+        }
+
+        // This will set the audioConnection to null,
+        // which we then immediately override with the new connection
+        if (this.audioConnection != null) {
+            closeAudioConnection(ConnectionStatus.AUDIO_REGION_CHANGE);
+        }
+        this.audioConnection = audioConnection;
+        audioConnection.setSendingHandler(sendHandler);
+        audioConnection.setReceivingHandler(receiveHandler);
+        audioConnection.setQueueTimeout(queueTimeout);
+        audioConnection.setSpeakingMode(speakingModes);
+    }
+
     @Override
     public void openAudioConnection(@Nonnull AudioChannel channel) {
         Checks.notNull(channel, "Provided AudioChannel");
@@ -139,6 +157,12 @@ public class AudioManagerImpl implements AudioManager {
         });
     }
 
+    @Nonnull
+    @Override
+    public EnumSet<SpeakingMode> getSpeakingMode() {
+        return EnumSet.copyOf(this.speakingModes);
+    }
+
     @Override
     public void setSpeakingMode(@Nonnull Collection<SpeakingMode> mode) {
         Checks.notEmpty(mode, "Speaking Mode");
@@ -146,12 +170,6 @@ public class AudioManagerImpl implements AudioManager {
         if (audioConnection != null) {
             audioConnection.setSpeakingMode(this.speakingModes);
         }
-    }
-
-    @Nonnull
-    @Override
-    public EnumSet<SpeakingMode> getSpeakingMode() {
-        return EnumSet.copyOf(this.speakingModes);
     }
 
     @Nonnull
@@ -171,9 +189,20 @@ public class AudioManagerImpl implements AudioManager {
         return audioConnection == null ? null : (AudioChannelUnion) audioConnection.getChannel();
     }
 
+    public void setConnectedChannel(AudioChannel channel) {
+        if (audioConnection != null) {
+            audioConnection.setChannel(channel);
+        }
+    }
+
     @Override
     public boolean isConnected() {
         return audioConnection != null;
+    }
+
+    @Override
+    public long getConnectTimeout() {
+        return timeout;
     }
 
     @Override
@@ -182,8 +211,8 @@ public class AudioManagerImpl implements AudioManager {
     }
 
     @Override
-    public long getConnectTimeout() {
-        return timeout;
+    public AudioSendHandler getSendingHandler() {
+        return sendHandler;
     }
 
     @Override
@@ -195,8 +224,8 @@ public class AudioManagerImpl implements AudioManager {
     }
 
     @Override
-    public AudioSendHandler getSendingHandler() {
-        return sendHandler;
+    public AudioReceiveHandler getReceivingHandler() {
+        return receiveHandler;
     }
 
     @Override
@@ -208,18 +237,13 @@ public class AudioManagerImpl implements AudioManager {
     }
 
     @Override
-    public AudioReceiveHandler getReceivingHandler() {
-        return receiveHandler;
+    public ConnectionListener getConnectionListener() {
+        return connectionListener.getListener();
     }
 
     @Override
     public void setConnectionListener(ConnectionListener listener) {
         this.connectionListener.setListener(listener);
-    }
-
-    @Override
-    public ConnectionListener getConnectionListener() {
-        return connectionListener.getListener();
     }
 
     @Nonnull
@@ -233,6 +257,11 @@ public class AudioManagerImpl implements AudioManager {
     }
 
     @Override
+    public boolean isAutoReconnect() {
+        return shouldReconnect;
+    }
+
+    @Override
     public void setAutoReconnect(boolean shouldReconnect) {
         this.shouldReconnect = shouldReconnect;
         if (audioConnection != null) {
@@ -241,8 +270,8 @@ public class AudioManagerImpl implements AudioManager {
     }
 
     @Override
-    public boolean isAutoReconnect() {
-        return shouldReconnect;
+    public boolean isSelfMuted() {
+        return selfMuted;
     }
 
     @Override
@@ -254,8 +283,8 @@ public class AudioManagerImpl implements AudioManager {
     }
 
     @Override
-    public boolean isSelfMuted() {
-        return selfMuted;
+    public boolean isSelfDeafened() {
+        return selfDeafened;
     }
 
     @Override
@@ -266,37 +295,8 @@ public class AudioManagerImpl implements AudioManager {
         }
     }
 
-    @Override
-    public boolean isSelfDeafened() {
-        return selfDeafened;
-    }
-
     public ConnectionListener getListenerProxy() {
         return connectionListener;
-    }
-
-    public void setAudioConnection(AudioConnection audioConnection) {
-        if (audioConnection == null) {
-            this.audioConnection = null;
-            return;
-        }
-
-        // This will set the audioConnection to null,
-        // which we then immediately override with the new connection
-        if (this.audioConnection != null) {
-            closeAudioConnection(ConnectionStatus.AUDIO_REGION_CHANGE);
-        }
-        this.audioConnection = audioConnection;
-        audioConnection.setSendingHandler(sendHandler);
-        audioConnection.setReceivingHandler(receiveHandler);
-        audioConnection.setQueueTimeout(queueTimeout);
-        audioConnection.setSpeakingMode(speakingModes);
-    }
-
-    public void setConnectedChannel(AudioChannel channel) {
-        if (audioConnection != null) {
-            audioConnection.setChannel(channel);
-        }
     }
 
     public void setQueueTimeout(long queueTimeout) {

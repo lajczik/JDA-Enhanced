@@ -49,7 +49,7 @@ import javax.annotation.Nonnull;
  *         System.out.printf("%s: %s\n", event.getAuthor().getName(), event.getMessage().getContentDisplay());
  *     }
  * }
- * }
+ *}
  *
  * @see InterfacedEventManager
  * @see IEventManager

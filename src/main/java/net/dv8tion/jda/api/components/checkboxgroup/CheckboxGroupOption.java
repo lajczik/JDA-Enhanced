@@ -137,6 +137,25 @@ public final class CheckboxGroupOption implements SerializableData {
     }
 
     /**
+     * Inverse function for {@link #toData()} which parses the serialized option data
+     *
+     * @param data The serialized option data
+     * @return The parsed CheckboxGroupOption instance
+     * @throws net.dv8tion.jda.api.exceptions.ParsingException If the data representation is invalid
+     * @throws IllegalArgumentException If some part of the data has an invalid length or null is provided
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static CheckboxGroupOption fromData(@Nonnull DataObject data) {
+        Checks.notNull(data, "DataObject");
+        return new CheckboxGroupOption(
+                data.getString("label"),
+                data.getString("value"),
+                data.getString("description", null),
+                data.getBoolean("default", false));
+    }
+
+    /**
      * Returns a copy of this checkbox group option with the changed label.
      *
      * @param  label
@@ -240,30 +259,6 @@ public final class CheckboxGroupOption implements SerializableData {
      */
     public boolean isDefault() {
         return isDefault;
-    }
-
-    /**
-     * Inverse function for {@link #toData()} which parses the serialized option data
-     *
-     * @param  data
-     *         The serialized option data
-     *
-     * @throws net.dv8tion.jda.api.exceptions.ParsingException
-     *         If the data representation is invalid
-     * @throws IllegalArgumentException
-     *         If some part of the data has an invalid length or null is provided
-     *
-     * @return The parsed CheckboxGroupOption instance
-     */
-    @Nonnull
-    @CheckReturnValue
-    public static CheckboxGroupOption fromData(@Nonnull DataObject data) {
-        Checks.notNull(data, "DataObject");
-        return new CheckboxGroupOption(
-                data.getString("label"),
-                data.getString("value"),
-                data.getString("description", null),
-                data.getBoolean("default", false));
     }
 
     @Nonnull

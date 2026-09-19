@@ -35,6 +35,11 @@ public class EventConfig {
         this.eventManagerProvider = eventManagerProvider;
     }
 
+    @Nonnull
+    public static EventConfig getDefault() {
+        return new EventConfig(null);
+    }
+
     public void addEventListener(@Nonnull Object listener) {
         Checks.notNull(listener, "Listener");
         listeners.add(listener);
@@ -68,10 +73,5 @@ public class EventConfig {
     @Nullable
     public IntFunction<? extends IEventManager> getEventManagerProvider() {
         return eventManagerProvider;
-    }
-
-    @Nonnull
-    public static EventConfig getDefault() {
-        return new EventConfig(null);
     }
 }

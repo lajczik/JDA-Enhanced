@@ -272,15 +272,6 @@ public interface AutoModRule extends ISnowflake {
         }
 
         /**
-         * The raw value used by Discord to represent this preset.
-         *
-         * @return The raw value
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * The {@link KeywordPreset} represented by the provided key.
          *
          * @param  key
@@ -296,6 +287,15 @@ public interface AutoModRule extends ISnowflake {
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The raw value used by Discord to represent this preset.
+         *
+         * @return The raw value
+         */
+        public int getKey() {
+            return key;
         }
     }
 }

@@ -70,8 +70,20 @@ public class DetachedStageChannelImpl extends AbstractStandardGuildChannelImpl<D
     }
 
     @Override
+    public DetachedStageChannelImpl setBitrate(int bitrate) {
+        this.bitrate = bitrate;
+        return this;
+    }
+
+    @Override
     public int getUserLimit() {
         return userlimit;
+    }
+
+    @Override
+    public DetachedStageChannelImpl setUserLimit(int userlimit) {
+        this.userlimit = userlimit;
+        return this;
     }
 
     @Nullable
@@ -104,8 +116,20 @@ public class DetachedStageChannelImpl extends AbstractStandardGuildChannelImpl<D
     }
 
     @Override
+    public DetachedStageChannelImpl setSlowmode(int slowmode) {
+        this.slowmode = slowmode;
+        return this;
+    }
+
+    @Override
     public boolean isNSFW() {
         return ageRestricted;
+    }
+
+    @Override
+    public DetachedStageChannelImpl setNSFW(boolean ageRestricted) {
+        this.ageRestricted = ageRestricted;
+        return this;
     }
 
     @Override
@@ -117,6 +141,12 @@ public class DetachedStageChannelImpl extends AbstractStandardGuildChannelImpl<D
     @Override
     public long getLatestMessageIdLong() {
         return latestMessageId;
+    }
+
+    @Override
+    public DetachedStageChannelImpl setLatestMessageIdLong(long latestMessageId) {
+        this.latestMessageId = latestMessageId;
+        return this;
     }
 
     @Nonnull
@@ -143,47 +173,17 @@ public class DetachedStageChannelImpl extends AbstractStandardGuildChannelImpl<D
         return interactionPermissions;
     }
 
+    @Nonnull
     @Override
-    public DetachedStageChannelImpl setBitrate(int bitrate) {
-        this.bitrate = bitrate;
-        return this;
-    }
-
-    @Override
-    public DetachedStageChannelImpl setUserLimit(int userlimit) {
-        this.userlimit = userlimit;
+    public DetachedStageChannelImpl setInteractionPermissions(
+            @Nonnull ChannelInteractionPermissions interactionPermissions) {
+        this.interactionPermissions = interactionPermissions;
         return this;
     }
 
     @Override
     public DetachedStageChannelImpl setRegion(String region) {
         this.region = region;
-        return this;
-    }
-
-    @Override
-    public DetachedStageChannelImpl setNSFW(boolean ageRestricted) {
-        this.ageRestricted = ageRestricted;
-        return this;
-    }
-
-    @Override
-    public DetachedStageChannelImpl setSlowmode(int slowmode) {
-        this.slowmode = slowmode;
-        return this;
-    }
-
-    @Override
-    public DetachedStageChannelImpl setLatestMessageIdLong(long latestMessageId) {
-        this.latestMessageId = latestMessageId;
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public DetachedStageChannelImpl setInteractionPermissions(
-            @Nonnull ChannelInteractionPermissions interactionPermissions) {
-        this.interactionPermissions = interactionPermissions;
         return this;
     }
 }

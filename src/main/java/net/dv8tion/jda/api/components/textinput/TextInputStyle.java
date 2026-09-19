@@ -43,17 +43,6 @@ public enum TextInputStyle {
     }
 
     /**
-     * Returns the raw integer key for this TextInputStyle
-     *
-     * <p>This returns -1 if it's of type {@link #UNKNOWN}.
-     *
-     * @return The raw int key
-     */
-    public int getRaw() {
-        return key;
-    }
-
-    /**
      * Returns the TextInputStyle associated with the provided key.
      * <br>If an unknown key is provided, this returns {@link #UNKNOWN}.
      *
@@ -70,5 +59,16 @@ public enum TextInputStyle {
             }
         }
         return UNKNOWN;
+    }
+
+    /**
+     * Returns the raw integer key for this TextInputStyle
+     *
+     * <p>This returns -1 if it's of type {@link #UNKNOWN}.
+     *
+     * @return The raw int key
+     */
+    public int getRaw() {
+        return key;
     }
 }

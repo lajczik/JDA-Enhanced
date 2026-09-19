@@ -51,18 +51,6 @@ public class DefaultMemberPermissions {
     }
 
     /**
-     * Raw permission integer representing the default permissions of a command.
-     * <br>This returns null if it is of type {@link DefaultMemberPermissions#ENABLED ENABLED}
-     * <br>If the default member permissions are {@link DefaultMemberPermissions#DISABLED DISABLED}, this returns 0
-     *
-     * @return Raw permission integer representing the default member permissions of a command
-     */
-    @Nullable
-    public Long getPermissionsRaw() {
-        return permissions;
-    }
-
-    /**
      * Returns a DefaultMemberPermissions instance with the predefined permissions a member must have to see and access a command.
      *
      * <br><b>If the passed Collection is empty, this returns {@link DefaultMemberPermissions#ENABLED ENABLED}</b>
@@ -116,6 +104,18 @@ public class DefaultMemberPermissions {
     @Nonnull
     public static DefaultMemberPermissions enabledFor(long permissions) {
         return new DefaultMemberPermissions(permissions);
+    }
+
+    /**
+     * Raw permission integer representing the default permissions of a command.
+     * <br>This returns null if it is of type {@link DefaultMemberPermissions#ENABLED ENABLED}
+     * <br>If the default member permissions are {@link DefaultMemberPermissions#DISABLED DISABLED}, this returns 0
+     *
+     * @return Raw permission integer representing the default member permissions of a command
+     */
+    @Nullable
+    public Long getPermissionsRaw() {
+        return permissions;
     }
 
     @Override

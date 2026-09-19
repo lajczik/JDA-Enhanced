@@ -34,6 +34,358 @@ import static net.dv8tion.jda.api.requests.Method.*;
  */
 @SuppressWarnings("unused")
 public class Route {
+    /**
+     * The known major parameters used for rate-limits.
+     *
+     * <p>Instead of {@code webhook_id + webhook_token}, we use {@code interaction_token} for interaction routes.
+     *
+     * @see <a href="https://discord.com/developers/docs/topics/rate-limits" target="_blank">Rate Limit Documentation</a>
+     */
+    public static final List<String> MAJOR_PARAMETER_NAMES =
+            List.of("guild_id", "channel_id", "webhook_id", "interaction_token");
+
+    private final Method method;
+    private final int paramCount;
+    private final String[] template;
+    private final boolean isInteraction;
+
+    private Route(Method method, String route, boolean isInteraction) {
+        this.method = method;
+        this.template = Helpers.split(route, "/");
+        this.isInteraction = isInteraction;
+
+        // Validate route syntax
+        int paramCount = 0;
+        for (String element : this.template) {
+            int opening = Helpers.countMatches(element, '{');
+            int closing = Helpers.countMatches(element, '}');
+            if (element.startsWith("{") && element.endsWith("}")) {
+                // Ensure the brackets are only on the start and end
+                // Valid: {guild_id}
+                // Invalid: {guild_id}abc
+                // Invalid: {{guild_id}}
+                Checks.check(closing == 1 && opening == 1, "Route element has invalid syntax: '%s'", element);
+                paramCount += 1;
+            } else if (opening > 0 || closing > 0) {
+                // Handle potential stray brackets
+                // Invalid: guilds{/guild_id} -> ["guilds{", "guild_id}"]
+                throw new IllegalArgumentException("Route element has invalid syntax: '" + element + "'");
+            }
+        }
+        this.paramCount = paramCount;
+    }
+
+    private Route(Method method, String route) {
+        this(method, route, false);
+    }
+
+    /**
+     * Create a route template for the given HTTP method.
+     *
+     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
+     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
+     * <ul>
+     *     <li>{@code channel_id} for channel routes</li>
+     *     <li>{@code guild_id} for guild routes</li>
+     *     <li>{@code webhook_id} for webhook routes</li>
+     *     <li>{@code interaction_token} for interaction routes</li>
+     * </ul>
+     * <p>
+     * For example, to compose the route to create a message in a channel:
+     * {@snippet lang = "java":
+     * Route route = Route.custom(Method.POST, "channels/{channel_id}/messages");
+     *}
+     *
+     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
+     * {@snippet lang = "java":
+     * Route.CompiledRoute compiled = route.compile(channelId);
+     *}
+     *
+     * @param method The HTTP method
+     * @param route The route template with valid argument placeholders
+     * @return The custom route template
+     * @throws IllegalArgumentException If null is provided or the route is invalid (containing spaces or empty)
+     */
+    @Nonnull
+    public static Route custom(@Nonnull Method method, @Nonnull String route) {
+        Checks.notNull(method, "Method");
+        Checks.notEmpty(route, "Route");
+        Checks.noWhitespace(route, "Route");
+        return new Route(method, route);
+    }
+
+    /**
+     * Create a route template for the with the {@link Method#DELETE DELETE} method.
+     *
+     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
+     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
+     * <ul>
+     *     <li>{@code channel_id} for channel routes</li>
+     *     <li>{@code guild_id} for guild routes</li>
+     *     <li>{@code webhook_id} for webhook routes</li>
+     *     <li>{@code interaction_token} for interaction routes</li>
+     * </ul>
+     * <p>
+     * For example, to compose the route to delete a message in a channel:
+     * {@snippet lang = "java":
+     * Route route = Route.custom(Method.DELETE, "channels/{channel_id}/messages/{message_id}");
+     *}
+     *
+     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
+     * {@snippet lang = "java":
+     * Route.CompiledRoute compiled = route.compile(channelId, messageId);
+     *}
+     *
+     * @param route The route template with valid argument placeholders
+     * @return The custom route template
+     * @throws IllegalArgumentException If null is provided or the route is invalid (containing spaces or empty)
+     */
+    @Nonnull
+    public static Route delete(@Nonnull String route) {
+        return custom(DELETE, route);
+    }
+
+    /**
+     * Create a route template for the with the {@link Method#POST POST} method.
+     *
+     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
+     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
+     * <ul>
+     *     <li>{@code channel_id} for channel routes</li>
+     *     <li>{@code guild_id} for guild routes</li>
+     *     <li>{@code webhook_id} for webhook routes</li>
+     *     <li>{@code interaction_token} for interaction routes</li>
+     * </ul>
+     * <p>
+     * For example, to compose the route to create a message in a channel:
+     * {@snippet lang = "java":
+     * Route route = Route.custom(Method.POST, "channels/{channel_id}/messages");
+     *}
+     *
+     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
+     * {@snippet lang = "java":
+     * Route.CompiledRoute compiled = route.compile(channelId);
+     *}
+     *
+     * @param route The route template with valid argument placeholders
+     * @return The custom route template
+     * @throws IllegalArgumentException If null is provided or the route is invalid (containing spaces or empty)
+     */
+    @Nonnull
+    public static Route post(@Nonnull String route) {
+        return custom(POST, route);
+    }
+
+    /**
+     * Create a route template for the with the {@link Method#PUT PUT} method.
+     *
+     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
+     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
+     * <ul>
+     *     <li>{@code channel_id} for channel routes</li>
+     *     <li>{@code guild_id} for guild routes</li>
+     *     <li>{@code webhook_id} for webhook routes</li>
+     *     <li>{@code interaction_token} for interaction routes</li>
+     * </ul>
+     * <p>
+     * For example, to compose the route to ban a user in a guild:
+     * {@snippet lang = "java":
+     * Route route = Route.custom(Method.PUT, "guilds/{guild_id}/bans/{user_id}");
+     *}
+     *
+     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
+     * {@snippet lang = "java":
+     * Route.CompiledRoute compiled = route.compile(guildId, userId);
+     *}
+     *
+     * @param route The route template with valid argument placeholders
+     * @return The custom route template
+     * @throws IllegalArgumentException If null is provided or the route is invalid (containing spaces or empty)
+     */
+    @Nonnull
+    public static Route put(@Nonnull String route) {
+        return custom(PUT, route);
+    }
+
+    /**
+     * Create a route template for the with the {@link Method#PATCH PATCH} method.
+     *
+     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
+     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
+     * <ul>
+     *     <li>{@code channel_id} for channel routes</li>
+     *     <li>{@code guild_id} for guild routes</li>
+     *     <li>{@code webhook_id} for webhook routes</li>
+     *     <li>{@code interaction_token} for interaction routes</li>
+     * </ul>
+     * <p>
+     * For example, to compose the route to edit a message in a channel:
+     * {@snippet lang = "java":
+     * Route route = Route.custom(Method.PATCH, "channels/{channel_id}/messages/{message_id}");
+     *}
+     *
+     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
+     * {@snippet lang = "java":
+     * Route.CompiledRoute compiled = route.compile(channelId, messageId);
+     *}
+     *
+     * @param route The route template with valid argument placeholders
+     * @return The custom route template
+     * @throws IllegalArgumentException If null is provided or the route is invalid (containing spaces or empty)
+     */
+    @Nonnull
+    public static Route patch(@Nonnull String route) {
+        return custom(PATCH, route);
+    }
+
+    /**
+     * Create a route template for the with the {@link Method#GET GET} method.
+     *
+     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
+     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
+     * <ul>
+     *     <li>{@code channel_id} for channel routes</li>
+     *     <li>{@code guild_id} for guild routes</li>
+     *     <li>{@code webhook_id} for webhook routes</li>
+     *     <li>{@code interaction_token} for interaction routes</li>
+     * </ul>
+     * <p>
+     * For example, to compose the route to get a message in a channel:
+     * {@snippet lang = "java":
+     * Route route = Route.custom(Method.GET, "channels/{channel_id}/messages/{message_id}");
+     *}
+     *
+     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
+     * {@snippet lang = "java":
+     * Route.CompiledRoute compiled = route.compile(channelId, messageId);
+     *}
+     *
+     * @param route The route template with valid argument placeholders
+     * @return The custom route template
+     * @throws IllegalArgumentException If null is provided or the route is invalid (containing spaces or empty)
+     */
+    @Nonnull
+    public static Route get(@Nonnull String route) {
+        return custom(GET, route);
+    }
+
+    private static String compileRoute(List<PathSegment> path, List<QueryParameter> query) {
+        String compiledRoute = path.stream().map(PathSegment::toString).collect(Collectors.joining("/"));
+
+        if (query == null) {
+            return compiledRoute;
+        }
+
+        String queryString = query.stream().map(QueryParameter::toString).collect(Collectors.joining("&", "?", ""));
+        return compiledRoute + queryString;
+    }
+
+    /**
+     * Whether this route is a route related to interactions.
+     * <br>Interactions have some special handling, since they are exempt from global rate-limits and are limited to 15 minute uptime.
+     *
+     * @return True, if this route is for interactions
+     */
+    public boolean isInteractionBucket() {
+        return isInteraction;
+    }
+
+    /**
+     * The {@link Method} of this route template.
+     * <br>Multiple routes with different HTTP methods can share a rate-limit.
+     *
+     * @return The HTTP method
+     */
+    @Nonnull
+    public Method getMethod() {
+        return method;
+    }
+
+    /**
+     * The route template with argument placeholders.
+     *
+     * @return The route template
+     */
+    @Nonnull
+    public String getRoute() {
+        return String.join("/", template);
+    }
+
+    /**
+     * The number of parameters for this route, not including query parameters.
+     *
+     * @return The parameter count
+     */
+    public int getParamCount() {
+        return paramCount;
+    }
+
+    /**
+     * Compile the route with provided parameters.
+     * <br>The number of parameters must match the number of placeholders in the route template.
+     * The provided arguments are positional and will replace the placeholders of the template in order of appearance.
+     *
+     * <p>Use {@link CompiledRoute#withQueryParams(String...)} to add query parameters to the route.
+     *
+     * @param params The parameters to compile the route with
+     * @return The compiled route, ready to use for rate-limit handling
+     * @throws IllegalArgumentException If the number of parameters does not match the number of placeholders, or null is provided
+     */
+    @Nonnull
+    public CompiledRoute compile(@Nonnull String... params) {
+        Checks.noneNull(params, "Arguments");
+        Checks.check(
+                params.length == paramCount,
+                "Error Compiling Route: [%s], incorrect amount of parameters provided. Expected: %d, Provided: %d",
+                this,
+                paramCount,
+                params.length);
+
+        StringJoiner major = new StringJoiner(":").setEmptyValue("n/a");
+        List<PathSegment> path = new ArrayList<>();
+
+        int paramIndex = 0;
+        for (String element : template) {
+            if (element.charAt(0) == '{') {
+                String name = element.substring(1, element.length() - 1);
+                String value = params[paramIndex++];
+                if (MAJOR_PARAMETER_NAMES.contains(name)) {
+                    if (value.length() > 30) {
+                        // probably a long interaction_token, hash it to keep logs clean (not useful anyway)
+                        major.add(name + "=" + Integer.toUnsignedString(value.hashCode()));
+                    } else {
+                        major.add(name + "=" + value);
+                    }
+                }
+                path.add(new PathSegment(value, false));
+            } else {
+                path.add(new PathSegment(element, true));
+            }
+        }
+
+        return new CompiledRoute(this, path, major.toString());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(method, Arrays.hashCode(template));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Route)) {
+            return false;
+        }
+
+        Route oRoute = (Route) o;
+        return method.equals(oRoute.method) && Arrays.equals(template, oRoute.template);
+    }
+
+    @Override
+    public String toString() {
+        return method + "/" + getRoute();
+    }
+
     public static class Misc {
         public static final Route GET_VOICE_REGIONS = new Route(GET, "voice/regions");
         public static final Route GATEWAY = new Route(GET, "gateway");
@@ -355,391 +707,75 @@ public class Route {
         public static final Route GET_GUILD_TEMPLATES = new Route(GET, "guilds/{guild_id}/templates");
     }
 
-    /**
-     * Create a route template for the given HTTP method.
-     *
-     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
-     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
-     * <ul>
-     *     <li>{@code channel_id} for channel routes</li>
-     *     <li>{@code guild_id} for guild routes</li>
-     *     <li>{@code webhook_id} for webhook routes</li>
-     *     <li>{@code interaction_token} for interaction routes</li>
-     * </ul>
-     *
-     * For example, to compose the route to create a message in a channel:
-     * {@snippet lang="java":
-     * Route route = Route.custom(Method.POST, "channels/{channel_id}/messages");
-     * }
-     *
-     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
-     * {@snippet lang="java":
-     * Route.CompiledRoute compiled = route.compile(channelId);
-     * }
-     *
-     * @param  method
-     *         The HTTP method
-     * @param  route
-     *         The route template with valid argument placeholders
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the route is invalid (containing spaces or empty)
-     *
-     * @return The custom route template
-     */
-    @Nonnull
-    public static Route custom(@Nonnull Method method, @Nonnull String route) {
-        Checks.notNull(method, "Method");
-        Checks.notEmpty(route, "Route");
-        Checks.noWhitespace(route, "Route");
-        return new Route(method, route);
-    }
+    private static final class QueryParameter {
 
-    /**
-     * Create a route template for the with the {@link Method#DELETE DELETE} method.
-     *
-     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
-     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
-     * <ul>
-     *     <li>{@code channel_id} for channel routes</li>
-     *     <li>{@code guild_id} for guild routes</li>
-     *     <li>{@code webhook_id} for webhook routes</li>
-     *     <li>{@code interaction_token} for interaction routes</li>
-     * </ul>
-     *
-     * For example, to compose the route to delete a message in a channel:
-     * {@snippet lang="java":
-     * Route route = Route.custom(Method.DELETE, "channels/{channel_id}/messages/{message_id}");
-     * }
-     *
-     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
-     * {@snippet lang="java":
-     * Route.CompiledRoute compiled = route.compile(channelId, messageId);
-     * }
-     *
-     * @param  route
-     *         The route template with valid argument placeholders
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the route is invalid (containing spaces or empty)
-     *
-     * @return The custom route template
-     */
-    @Nonnull
-    public static Route delete(@Nonnull String route) {
-        return custom(DELETE, route);
-    }
+        private final String name;
+        private final String value;
 
-    /**
-     * Create a route template for the with the {@link Method#POST POST} method.
-     *
-     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
-     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
-     * <ul>
-     *     <li>{@code channel_id} for channel routes</li>
-     *     <li>{@code guild_id} for guild routes</li>
-     *     <li>{@code webhook_id} for webhook routes</li>
-     *     <li>{@code interaction_token} for interaction routes</li>
-     * </ul>
-     *
-     * For example, to compose the route to create a message in a channel:
-     * {@snippet lang="java":
-     * Route route = Route.custom(Method.POST, "channels/{channel_id}/messages");
-     * }
-     *
-     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
-     * {@snippet lang="java":
-     * Route.CompiledRoute compiled = route.compile(channelId);
-     * }
-     *
-     * @param  route
-     *         The route template with valid argument placeholders
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the route is invalid (containing spaces or empty)
-     *
-     * @return The custom route template
-     */
-    @Nonnull
-    public static Route post(@Nonnull String route) {
-        return custom(POST, route);
-    }
+        private QueryParameter(String name, String value) {
+            this.name = name;
+            this.value = value;
+        }
 
-    /**
-     * Create a route template for the with the {@link Method#PUT PUT} method.
-     *
-     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
-     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
-     * <ul>
-     *     <li>{@code channel_id} for channel routes</li>
-     *     <li>{@code guild_id} for guild routes</li>
-     *     <li>{@code webhook_id} for webhook routes</li>
-     *     <li>{@code interaction_token} for interaction routes</li>
-     * </ul>
-     *
-     * For example, to compose the route to ban a user in a guild:
-     * {@snippet lang="java":
-     * Route route = Route.custom(Method.PUT, "guilds/{guild_id}/bans/{user_id}");
-     * }
-     *
-     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
-     * {@snippet lang="java":
-     * Route.CompiledRoute compiled = route.compile(guildId, userId);
-     * }
-     *
-     * @param  route
-     *         The route template with valid argument placeholders
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the route is invalid (containing spaces or empty)
-     *
-     * @return The custom route template
-     */
-    @Nonnull
-    public static Route put(@Nonnull String route) {
-        return custom(PUT, route);
-    }
+        @Override
+        public String toString() {
+            return name + "=" + EncodingUtil.encodeQueryParam(value);
+        }
 
-    /**
-     * Create a route template for the with the {@link Method#PATCH PATCH} method.
-     *
-     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
-     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
-     * <ul>
-     *     <li>{@code channel_id} for channel routes</li>
-     *     <li>{@code guild_id} for guild routes</li>
-     *     <li>{@code webhook_id} for webhook routes</li>
-     *     <li>{@code interaction_token} for interaction routes</li>
-     * </ul>
-     *
-     * For example, to compose the route to edit a message in a channel:
-     * {@snippet lang="java":
-     * Route route = Route.custom(Method.PATCH, "channels/{channel_id}/messages/{message_id}");
-     * }
-     *
-     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
-     * {@snippet lang="java":
-     * Route.CompiledRoute compiled = route.compile(channelId, messageId);
-     * }
-     *
-     * @param  route
-     *         The route template with valid argument placeholders
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the route is invalid (containing spaces or empty)
-     *
-     * @return The custom route template
-     */
-    @Nonnull
-    public static Route patch(@Nonnull String route) {
-        return custom(PATCH, route);
-    }
-
-    /**
-     * Create a route template for the with the {@link Method#GET GET} method.
-     *
-     * <p>Route syntax should include valid argument placeholders of the format: {@code '{' argument_name '}'}
-     * <br>The rate-limit handling in JDA relies on the correct names of major parameters:
-     * <ul>
-     *     <li>{@code channel_id} for channel routes</li>
-     *     <li>{@code guild_id} for guild routes</li>
-     *     <li>{@code webhook_id} for webhook routes</li>
-     *     <li>{@code interaction_token} for interaction routes</li>
-     * </ul>
-     *
-     * For example, to compose the route to get a message in a channel:
-     * {@snippet lang="java":
-     * Route route = Route.custom(Method.GET, "channels/{channel_id}/messages/{message_id}");
-     * }
-     *
-     * <p>To compile the route, use {@link #compile(String...)} with the positional arguments.
-     * {@snippet lang="java":
-     * Route.CompiledRoute compiled = route.compile(channelId, messageId);
-     * }
-     *
-     * @param  route
-     *         The route template with valid argument placeholders
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the route is invalid (containing spaces or empty)
-     *
-     * @return The custom route template
-     */
-    @Nonnull
-    public static Route get(@Nonnull String route) {
-        return custom(GET, route);
-    }
-
-    /**
-     * The known major parameters used for rate-limits.
-     *
-     * <p>Instead of {@code webhook_id + webhook_token}, we use {@code interaction_token} for interaction routes.
-     *
-     * @see <a href="https://discord.com/developers/docs/topics/rate-limits" target="_blank">Rate Limit Documentation</a>
-     */
-    public static final List<String> MAJOR_PARAMETER_NAMES =
-            List.of("guild_id", "channel_id", "webhook_id", "interaction_token");
-
-    private final Method method;
-    private final int paramCount;
-    private final String[] template;
-    private final boolean isInteraction;
-
-    private Route(Method method, String route, boolean isInteraction) {
-        this.method = method;
-        this.template = Helpers.split(route, "/");
-        this.isInteraction = isInteraction;
-
-        // Validate route syntax
-        int paramCount = 0;
-        for (String element : this.template) {
-            int opening = Helpers.countMatches(element, '{');
-            int closing = Helpers.countMatches(element, '}');
-            if (element.startsWith("{") && element.endsWith("}")) {
-                // Ensure the brackets are only on the start and end
-                // Valid: {guild_id}
-                // Invalid: {guild_id}abc
-                // Invalid: {{guild_id}}
-                Checks.check(closing == 1 && opening == 1, "Route element has invalid syntax: '%s'", element);
-                paramCount += 1;
-            } else if (opening > 0 || closing > 0) {
-                // Handle potential stray brackets
-                // Invalid: guilds{/guild_id} -> ["guilds{", "guild_id}"]
-                throw new IllegalArgumentException("Route element has invalid syntax: '" + element + "'");
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
             }
-        }
-        this.paramCount = paramCount;
-    }
-
-    private Route(Method method, String route) {
-        this(method, route, false);
-    }
-
-    /**
-     * Whether this route is a route related to interactions.
-     * <br>Interactions have some special handling, since they are exempt from global rate-limits and are limited to 15 minute uptime.
-     *
-     * @return True, if this route is for interactions
-     */
-    public boolean isInteractionBucket() {
-        return isInteraction;
-    }
-
-    /**
-     * The {@link Method} of this route template.
-     * <br>Multiple routes with different HTTP methods can share a rate-limit.
-     *
-     * @return The HTTP method
-     */
-    @Nonnull
-    public Method getMethod() {
-        return method;
-    }
-
-    /**
-     * The route template with argument placeholders.
-     *
-     * @return The route template
-     */
-    @Nonnull
-    public String getRoute() {
-        return String.join("/", template);
-    }
-
-    /**
-     * The number of parameters for this route, not including query parameters.
-     *
-     * @return The parameter count
-     */
-    public int getParamCount() {
-        return paramCount;
-    }
-
-    /**
-     * Compile the route with provided parameters.
-     * <br>The number of parameters must match the number of placeholders in the route template.
-     * The provided arguments are positional and will replace the placeholders of the template in order of appearance.
-     *
-     * <p>Use {@link CompiledRoute#withQueryParams(String...)} to add query parameters to the route.
-     *
-     * @param  params
-     *         The parameters to compile the route with
-     *
-     * @throws IllegalArgumentException
-     *         If the number of parameters does not match the number of placeholders, or null is provided
-     *
-     * @return The compiled route, ready to use for rate-limit handling
-     */
-    @Nonnull
-    public CompiledRoute compile(@Nonnull String... params) {
-        Checks.noneNull(params, "Arguments");
-        Checks.check(
-                params.length == paramCount,
-                "Error Compiling Route: [%s], incorrect amount of parameters provided. Expected: %d, Provided: %d",
-                this,
-                paramCount,
-                params.length);
-
-        StringJoiner major = new StringJoiner(":").setEmptyValue("n/a");
-        List<PathSegment> path = new ArrayList<>();
-
-        int paramIndex = 0;
-        for (String element : template) {
-            if (element.charAt(0) == '{') {
-                String name = element.substring(1, element.length() - 1);
-                String value = params[paramIndex++];
-                if (MAJOR_PARAMETER_NAMES.contains(name)) {
-                    if (value.length() > 30) {
-                        // probably a long interaction_token, hash it to keep logs clean (not useful anyway)
-                        major.add(name + "=" + Integer.toUnsignedString(value.hashCode()));
-                    } else {
-                        major.add(name + "=" + value);
-                    }
-                }
-                path.add(new PathSegment(value, false));
-            } else {
-                path.add(new PathSegment(element, true));
+            if (!(o instanceof QueryParameter)) {
+                return false;
             }
+            QueryParameter other = (QueryParameter) o;
+            return Objects.equals(name, other.name) && Objects.equals(value, other.value);
         }
 
-        return new CompiledRoute(this, path, major.toString());
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, value);
+        }
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(method, Arrays.hashCode(template));
-    }
+    private static final class PathSegment {
+        private final String value;
+        private final boolean encoded;
 
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof Route)) {
-            return false;
+        private PathSegment(String value, boolean encoded) {
+            this.value = value;
+            this.encoded = encoded;
         }
 
-        Route oRoute = (Route) o;
-        return method.equals(oRoute.method) && Arrays.equals(template, oRoute.template);
-    }
-
-    @Override
-    public String toString() {
-        return method + "/" + getRoute();
-    }
-
-    private static String compileRoute(List<PathSegment> path, List<QueryParameter> query) {
-        String compiledRoute = path.stream().map(PathSegment::toString).collect(Collectors.joining("/"));
-
-        if (query == null) {
-            return compiledRoute;
+        @Override
+        public String toString() {
+            return encoded ? value : EncodingUtil.encodePathSegment(value);
         }
 
-        String queryString = query.stream().map(QueryParameter::toString).collect(Collectors.joining("&", "?", ""));
-        return compiledRoute + queryString;
+        @Override
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof PathSegment)) {
+                return false;
+            }
+            PathSegment other = (PathSegment) o;
+            return encoded == other.encoded && Objects.equals(value, other.value);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(value, encoded);
+        }
     }
 
     /**
      * A route compiled with arguments.
      *
-     * @see    Route#compile(String...)
+     * @see Route#compile(String...)
      */
     public class CompiledRoute {
         private final Route baseRoute;
@@ -770,7 +806,7 @@ public class Route {
          * for all provided <em>values</em> but not for the keys.
          *
          * <p><b>Example Usage</b><br>
-         * {@snippet lang="java":
+         * {@snippet lang = "java":
          * Route.CompiledRoute history = Route.GET_MESSAGE_HISTORY.compile(channelId);
          *
          * // returns a new route
@@ -787,7 +823,7 @@ public class Route {
          *   "limit", 100,
          *   "after", messageId
          * );
-         * }
+         *}
          *
          * @param  params
          *         The parameters to add as query, alternating key and value (see example)
@@ -908,71 +944,6 @@ public class Route {
                     .setType(method)
                     .addMetadata("compiledRoute", getCompiledRoute())
                     .toString();
-        }
-    }
-
-    private static final class QueryParameter {
-
-        private final String name;
-        private final String value;
-
-        private QueryParameter(String name, String value) {
-            this.name = name;
-            this.value = value;
-        }
-
-        @Override
-        public String toString() {
-            return name + "=" + EncodingUtil.encodeQueryParam(value);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (!(o instanceof QueryParameter)) {
-                return false;
-            }
-            QueryParameter other = (QueryParameter) o;
-            return Objects.equals(name, other.name) && Objects.equals(value, other.value);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(name, value);
-        }
-    }
-
-    private static final class PathSegment {
-        private final String value;
-        private final boolean encoded;
-
-        private PathSegment(String value, boolean encoded) {
-            this.value = value;
-            this.encoded = encoded;
-        }
-
-        @Override
-        public String toString() {
-            return encoded ? value : EncodingUtil.encodePathSegment(value);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (o == this) {
-                return true;
-            }
-            if (!(o instanceof PathSegment)) {
-                return false;
-            }
-            PathSegment other = (PathSegment) o;
-            return encoded == other.encoded && Objects.equals(value, other.value);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(value, encoded);
         }
     }
 }

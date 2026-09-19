@@ -51,6 +51,11 @@ public class ThreadingProviderConfig {
         this.threadFactory = threadFactory;
     }
 
+    @Nonnull
+    public static ThreadingProviderConfig getDefault() {
+        return new ThreadingProviderConfig(null, null, null, null, null, null, null);
+    }
+
     @Nullable
     public ThreadFactory getThreadFactory() {
         return threadFactory;
@@ -114,10 +119,5 @@ public class ThreadingProviderConfig {
     @Nullable
     public ThreadPoolProvider<? extends ScheduledExecutorService> getAudioPoolProvider() {
         return audioPoolProvider;
-    }
-
-    @Nonnull
-    public static ThreadingProviderConfig getDefault() {
-        return new ThreadingProviderConfig(null, null, null, null, null, null, null);
     }
 }

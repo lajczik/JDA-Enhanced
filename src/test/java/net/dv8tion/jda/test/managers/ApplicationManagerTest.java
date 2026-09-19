@@ -40,6 +40,21 @@ import static net.dv8tion.jda.test.ChecksHelper.assertStringChecks;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 public class ApplicationManagerTest extends IntegrationTest {
+    private static void assertUrlChecks(String name, ThrowingConsumer<String> consumer) {
+        assertStringChecks(name, consumer)
+                .checksNotBlank(false)
+                .checksNoWhitespace()
+                .checksNotLonger(ApplicationInfo.MAX_URL_LENGTH);
+    }
+
+    private static IntegrationTypeConfig getInstallParams() {
+        Set<String> scopes = new LinkedHashSet<>();
+        scopes.add("bot");
+        EnumSet<Permission> permissions = EnumSet.of(Permission.MESSAGE_SEND);
+        IntegrationTypeConfig installParams = IntegrationTypeConfig.of(scopes, permissions);
+        return installParams;
+    }
+
     @Test
     void minimalApplicationUpdate() {
         ApplicationManager manager = new ApplicationManagerImpl(jda);
@@ -122,21 +137,6 @@ public class ApplicationManagerTest extends IntegrationTest {
             }
         }
         return super.normalizeRequestBody(body);
-    }
-
-    private static void assertUrlChecks(String name, ThrowingConsumer<String> consumer) {
-        assertStringChecks(name, consumer)
-                .checksNotBlank(false)
-                .checksNoWhitespace()
-                .checksNotLonger(ApplicationInfo.MAX_URL_LENGTH);
-    }
-
-    private static IntegrationTypeConfig getInstallParams() {
-        Set<String> scopes = new LinkedHashSet<>();
-        scopes.add("bot");
-        EnumSet<Permission> permissions = EnumSet.of(Permission.MESSAGE_SEND);
-        IntegrationTypeConfig installParams = IntegrationTypeConfig.of(scopes, permissions);
-        return installParams;
     }
 
     private Icon getLogoIcon() {

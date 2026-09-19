@@ -87,16 +87,16 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     public static final int MAX_STRING_OPTION_LENGTH = 6000;
 
     private final OptionType type;
-    private String name, description;
     private final LocalizationMap nameLocalizations = new LocalizationMap(this::checkName);
     private final LocalizationMap descriptionLocalizations = new LocalizationMap(this::checkDescription);
-    private boolean isRequired, isAutoComplete;
     private final EnumSet<ChannelType> channelTypes = EnumSet.noneOf(ChannelType.class);
+    private final FileTypesImpl fileTypes = FileTypesImpl.empty();
+    private String name, description;
+    private boolean isRequired, isAutoComplete;
     private Number minValue;
     private Number maxValue;
     private Integer minLength, maxLength;
     private List<Command.Choice> choices;
-    private final FileTypesImpl fileTypes = FileTypesImpl.empty();
 
     /**
      * Create an option builder.
@@ -196,6 +196,124 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
         setAutoComplete(isAutoComplete);
     }
 
+    /**
+     * Parses the provided serialization back into an OptionData instance.
+     * <br>This is the reverse function for {@link #toData()}.
+     *
+     * @param json The serialized {@link DataObject} representing the option
+     * @return The parsed OptionData instance, which can be further configured through setters
+     * @throws ParsingException If the serialized object is missing required fields
+     * @throws IllegalArgumentException If any of the values are failing the respective checks such as length
+     */
+    @Nonnull
+    public static OptionData fromData(@Nonnull DataObject json) {
+        String name = json.getString("name");
+        String description = json.getString("description");
+        OptionType type = OptionType.fromKey(json.getInt("type"));
+        OptionData option = new OptionData(type, name, description);
+        option.setRequired(json.getBoolean("required"));
+        option.setAutoComplete(json.getBoolean("autocomplete"));
+        if (type == OptionType.INTEGER || type == OptionType.NUMBER) {
+            if (!json.isNull("min_value")) {
+                if (json.isType("min_value", DataType.INT)) {
+                    option.setMinValue(json.getLong("min_value"));
+                } else if (json.isType("min_value", DataType.FLOAT)) {
+                    option.setMinValue(json.getDouble("min_value"));
+                }
+            }
+            if (!json.isNull("max_value")) {
+                if (json.isType("max_value", DataType.INT)) {
+                    option.setMaxValue(json.getLong("max_value"));
+                } else if (json.isType("max_value", DataType.FLOAT)) {
+                    option.setMaxValue(json.getDouble("max_value"));
+                }
+            }
+        }
+        if (type == OptionType.CHANNEL) {
+            option.setChannelTypes(json.optArray("channel_types")
+                    .map(it -> it.stream(DataArray::getInt)
+                            .map(ChannelType::fromId)
+                            .collect(Collectors.toSet()))
+                    .orElse(Set.of()));
+        }
+        if (type == OptionType.STRING) {
+            if (!json.isNull("min_length")) {
+                option.setMinLength(json.getInt("min_length"));
+            }
+            if (!json.isNull("max_length")) {
+                option.setMaxLength(json.getInt("max_length"));
+            }
+        }
+        if (type == OptionType.ATTACHMENT) {
+            if (!json.isNull("file_types")) {
+                option.setFileTypes(
+                        FileTypesImpl.fromArray(json.getArray("file_types")).asView());
+            }
+        }
+        json.optArray("choices")
+                .ifPresent(choices1 -> option.addChoices(choices1.stream(DataArray::getObject)
+                        .map(Command.Choice::new)
+                        .toList()));
+        option.setNameLocalizations(LocalizationUtils.mapFromProperty(json, "name_localizations"));
+        option.setDescriptionLocalizations(LocalizationUtils.mapFromProperty(json, "description_localizations"));
+        return option;
+    }
+
+    /**
+     * Converts the provided {@link Command.Option} into a OptionData instance.
+     *
+     * @param option The option to convert
+     * @return An instance of OptionData
+     * @throws IllegalArgumentException If null is provided or the option has illegal configuration
+     */
+    @Nonnull
+    public static OptionData fromOption(@Nonnull Command.Option option) {
+        Checks.notNull(option, "Option");
+        OptionData data = new OptionData(option.getType(), option.getName(), option.getDescription());
+        data.setRequired(option.isRequired());
+        data.setAutoComplete(option.isAutoComplete());
+        data.addChoices(option.getChoices());
+        data.setNameLocalizations(option.getNameLocalizations().toMap());
+        data.setDescriptionLocalizations(option.getDescriptionLocalizations().toMap());
+        Number min = option.getMinValue(), max = option.getMaxValue();
+        Integer minLength = option.getMinLength(), maxLength = option.getMaxLength();
+        switch (option.getType()) {
+            case CHANNEL:
+                data.setChannelTypes(option.getChannelTypes());
+                break;
+            case NUMBER:
+                if (min != null) {
+                    data.setMinValue(min.doubleValue());
+                }
+                if (max != null) {
+                    data.setMaxValue(max.doubleValue());
+                }
+                break;
+            case INTEGER:
+                if (min != null) {
+                    data.setMinValue(min.longValue());
+                }
+                if (max != null) {
+                    data.setMaxValue(max.longValue());
+                }
+                break;
+            case STRING:
+                if (minLength != null) {
+                    data.setMinLength(minLength);
+                }
+                if (maxLength != null) {
+                    data.setMaxLength(maxLength);
+                }
+                break;
+            case ATTACHMENT:
+                data.setFileTypes(option.getFileTypes());
+                break;
+            default:
+                break;
+        }
+        return data;
+    }
+
     protected void checkName(@Nonnull String name) {
         Checks.notEmpty(name, "Name");
         Checks.notLonger(name, MAX_NAME_LENGTH, "Name");
@@ -229,148 +347,6 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     }
 
     /**
-     * The localizations of this option's name for {@link DiscordLocale various languages}.
-     *
-     * @return The {@link LocalizationMap} containing the mapping from {@link DiscordLocale} to the localized name
-     */
-    @Nonnull
-    public LocalizationMap getNameLocalizations() {
-        return nameLocalizations;
-    }
-
-    /**
-     * The description for this option
-     *
-     * @return The description
-     */
-    @Nonnull
-    public String getDescription() {
-        return description;
-    }
-
-    /**
-     * The localizations of this option's description for {@link DiscordLocale various languages}.
-     *
-     * @return The {@link LocalizationMap} containing the mapping from {@link DiscordLocale} to the localized description
-     */
-    @Nonnull
-    public LocalizationMap getDescriptionLocalizations() {
-        return descriptionLocalizations;
-    }
-
-    /**
-     * Whether this option is required.
-     * <br>This can be configured with {@link #setRequired(boolean)}.
-     *
-     * <p>Required options must always be set by the command invocation.
-     *
-     * @return True, if this option is required
-     */
-    public boolean isRequired() {
-        return isRequired;
-    }
-
-    /**
-     * Whether this option supports auto-complete interactions
-     * via {@link CommandAutoCompleteInteractionEvent}.
-     *
-     * @return True, if this option supports auto-complete
-     */
-    public boolean isAutoComplete() {
-        return isAutoComplete;
-    }
-
-    /**
-     * The {@link ChannelType ChannelTypes} this option is restricted to.
-     * <br>This is empty if the option is not of type {@link OptionType#CHANNEL CHANNEL} or not restricted to specific types.
-     *
-     * @return {@link EnumSet} of {@link ChannelType}
-     */
-    @Nonnull
-    public EnumSet<ChannelType> getChannelTypes() {
-        return channelTypes;
-    }
-
-    /**
-     * The minimum value which can be provided for this option.
-     * <br>This returns {@code null} if the value is not set or if the option
-     * is not of type {@link OptionType#INTEGER INTEGER} or {@link OptionType#NUMBER NUMBER}.
-     *
-     * @return The minimum value for this option
-     */
-    @Nullable
-    public Number getMinValue() {
-        return minValue;
-    }
-
-    /**
-     * The maximum value which can be provided for this option.
-     * <br>This returns {@code null} if the value is not set or if the option
-     * is not of type {@link OptionType#INTEGER INTEGER} or {@link OptionType#NUMBER NUMBER}.
-     *
-     * @return The maximum value for this option
-     */
-    @Nullable
-    public Number getMaxValue() {
-        return maxValue;
-    }
-
-    /**
-     * The minimum length for strings which can be provided for this option.
-     * <br>This returns {@code null} if the value is not set or if the option
-     * is not of type {@link OptionType#STRING STRING}.
-     *
-     * @return The minimum length for strings for this option or {@code null}
-     */
-    @Nullable
-    public Integer getMinLength() {
-        return minLength;
-    }
-
-    /**
-     * The maximum length for strings which can be provided for this option.
-     * <br>This returns {@code null} if the value is not set or if the option
-     * is not of type {@link OptionType#STRING STRING}.
-     *
-     * @return The maximum length for strings for this option or {@code null}
-     */
-    @Nullable
-    public Integer getMaxLength() {
-        return maxLength;
-    }
-
-    /**
-     * The <b>unmodifiable</b> list <b>view</b> of file types to filter for.
-     * Returns an empty list if any file is accepted,
-     * or this isn't an {@link OptionType#ATTACHMENT ATTACHMENT} option.
-     *
-     * @return Unmodifiable list view of file types
-     */
-    @Nonnull
-    @UnmodifiableView
-    public List<FileType> getFileTypes() {
-        return fileTypes.asView();
-    }
-
-    /**
-     * The choices for this option.
-     * <br>This is empty by default and can only be configured for specific option types.
-     *
-     * @return Immutable list of {@link Command.Choice Choices}
-     *
-     * @see #addChoice(String, long)
-     * @see #addChoice(String, String)
-     */
-    @Nonnull
-    @Unmodifiable
-    public List<Command.Choice> getChoices() {
-        if (choices == null || choices.isEmpty()) {
-            return List.of();
-        }
-        return Collections.unmodifiableList(choices);
-    }
-
-    /**
      * Configure the name
      *
      * @param  name
@@ -390,28 +366,13 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     }
 
     /**
-     * Sets a {@link DiscordLocale language-specific} localization of this option's name.
+     * The localizations of this option's name for {@link DiscordLocale various languages}.
      *
-     * @param  locale
-     *         The locale to associate the translated name with
-     * @param  name
-     *         The translated name to put
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If the locale is null</li>
-     *             <li>If the name is null</li>
-     *             <li>If the locale is {@link DiscordLocale#UNKNOWN}</li>
-     *             <li>If the name does not pass the corresponding {@link #setName(String) name check}</li>
-     *         </ul>
-     *
-     * @return This builder instance, for chaining
+     * @return The {@link LocalizationMap} containing the mapping from {@link DiscordLocale} to the localized name
      */
     @Nonnull
-    public OptionData setNameLocalization(@Nonnull DiscordLocale locale, @Nonnull String name) {
-        // Checks are done in LocalizationMap
-        nameLocalizations.setTranslation(locale, name);
-        return this;
+    public LocalizationMap getNameLocalizations() {
+        return nameLocalizations;
     }
 
     /**
@@ -437,6 +398,16 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     }
 
     /**
+     * The description for this option
+     *
+     * @return The description
+     */
+    @Nonnull
+    public String getDescription() {
+        return description;
+    }
+
+    /**
      * Configure the description
      *
      * @param  description
@@ -455,28 +426,13 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     }
 
     /**
-     * Sets a {@link DiscordLocale language-specific} localization of this option's description.
+     * The localizations of this option's description for {@link DiscordLocale various languages}.
      *
-     * @param  locale
-     *         The locale to associate the translated description with
-     * @param  description
-     *         The translated description to put
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If the locale is null</li>
-     *             <li>If the description is null</li>
-     *             <li>If the locale is {@link DiscordLocale#UNKNOWN}</li>
-     *             <li>If the description does not pass the corresponding {@link #setDescription(String) description check}</li>
-     *         </ul>
-     *
-     * @return This builder instance, for chaining
+     * @return The {@link LocalizationMap} containing the mapping from {@link DiscordLocale} to the localized description
      */
     @Nonnull
-    public OptionData setDescriptionLocalization(@Nonnull DiscordLocale locale, @Nonnull String description) {
-        // Checks are done in LocalizationMap
-        descriptionLocalizations.setTranslation(locale, description);
-        return this;
+    public LocalizationMap getDescriptionLocalizations() {
+        return descriptionLocalizations;
     }
 
     /**
@@ -502,6 +458,18 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     }
 
     /**
+     * Whether this option is required.
+     * <br>This can be configured with {@link #setRequired(boolean)}.
+     *
+     * <p>Required options must always be set by the command invocation.
+     *
+     * @return True, if this option is required
+     */
+    public boolean isRequired() {
+        return isRequired;
+    }
+
+    /**
      * Configure whether the user must set this option.
      * <br>Required options must always be filled out when using the command.
      *
@@ -514,6 +482,16 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     public OptionData setRequired(boolean required) {
         this.isRequired = required;
         return this;
+    }
+
+    /**
+     * Whether this option supports auto-complete interactions
+     * via {@link CommandAutoCompleteInteractionEvent}.
+     *
+     * @return True, if this option supports auto-complete
+     */
+    public boolean isAutoComplete() {
+        return isAutoComplete;
     }
 
     /**
@@ -543,6 +521,17 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
 
         isAutoComplete = autoComplete;
         return this;
+    }
+
+    /**
+     * The {@link ChannelType ChannelTypes} this option is restricted to.
+     * <br>This is empty if the option is not of type {@link OptionType#CHANNEL CHANNEL} or not restricted to specific types.
+     *
+     * @return {@link EnumSet} of {@link ChannelType}
+     */
+    @Nonnull
+    public EnumSet<ChannelType> getChannelTypes() {
+        return channelTypes;
     }
 
     /**
@@ -606,6 +595,18 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     }
 
     /**
+     * The minimum value which can be provided for this option.
+     * <br>This returns {@code null} if the value is not set or if the option
+     * is not of type {@link OptionType#INTEGER INTEGER} or {@link OptionType#NUMBER NUMBER}.
+     *
+     * @return The minimum value for this option
+     */
+    @Nullable
+    public Number getMinValue() {
+        return minValue;
+    }
+
+    /**
      * Configure the minimal value which can be provided for this option.
      *
      * @param  value
@@ -655,6 +656,18 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     }
 
     /**
+     * The maximum value which can be provided for this option.
+     * <br>This returns {@code null} if the value is not set or if the option
+     * is not of type {@link OptionType#INTEGER INTEGER} or {@link OptionType#NUMBER NUMBER}.
+     *
+     * @return The maximum value for this option
+     */
+    @Nullable
+    public Number getMaxValue() {
+        return maxValue;
+    }
+
+    /**
      * Configure the maximal value which can be provided for this option.
      *
      * @param  value
@@ -700,6 +713,152 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
         }
         Checks.check(value <= MAX_POSITIVE_NUMBER, "Double value may not be greater than %f", MAX_POSITIVE_NUMBER);
         this.maxValue = value;
+        return this;
+    }
+
+    /**
+     * The minimum length for strings which can be provided for this option.
+     * <br>This returns {@code null} if the value is not set or if the option
+     * is not of type {@link OptionType#STRING STRING}.
+     *
+     * @return The minimum length for strings for this option or {@code null}
+     */
+    @Nullable
+    public Integer getMinLength() {
+        return minLength;
+    }
+
+    /**
+     * Configure the minimum length for strings which can be provided for this option.
+     *
+     * @param minLength The minimum length for strings which can be provided for this option.
+     * @return The OptionData instance, for chaining
+     * @throws IllegalArgumentException <ul>
+     * <li>If {@link OptionType type of this option} is not {@link OptionType#STRING STRING}</li>
+     * <li>If {@code minLength} is not positive</li>
+     * </ul>
+     */
+    @Nonnull
+    public OptionData setMinLength(int minLength) {
+        if (type != OptionType.STRING) {
+            throw new IllegalArgumentException("Can only set min length for options of type STRING");
+        }
+        Checks.positive(minLength, "Min length");
+        this.minLength = minLength;
+        return this;
+    }
+
+    /**
+     * The maximum length for strings which can be provided for this option.
+     * <br>This returns {@code null} if the value is not set or if the option
+     * is not of type {@link OptionType#STRING STRING}.
+     *
+     * @return The maximum length for strings for this option or {@code null}
+     */
+    @Nullable
+    public Integer getMaxLength() {
+        return maxLength;
+    }
+
+    /**
+     * Configure the maximum length for strings which can be provided for this option.
+     *
+     * @param maxLength The maximum length for strings which can be provided for this option.
+     * @return The OptionData instance, for chaining
+     * @throws IllegalArgumentException <ul>
+     * <li>If {@link OptionType type of this option} is not {@link OptionType#STRING STRING}</li>
+     * <li>If {@code maxLength} is not positive or greater than {@value MAX_STRING_OPTION_LENGTH}</li>
+     * </ul>
+     */
+    @Nonnull
+    public OptionData setMaxLength(int maxLength) {
+        if (type != OptionType.STRING) {
+            throw new IllegalArgumentException("Can only set max length for options of type STRING");
+        }
+        Checks.positive(maxLength, "Max length");
+        Checks.check(
+                maxLength <= MAX_STRING_OPTION_LENGTH,
+                "Max length must not be greater than %d. Provided: %d",
+                MAX_STRING_OPTION_LENGTH,
+                maxLength);
+        this.maxLength = maxLength;
+        return this;
+    }
+
+    /**
+     * The <b>unmodifiable</b> list <b>view</b> of file types to filter for.
+     * Returns an empty list if any file is accepted,
+     * or this isn't an {@link OptionType#ATTACHMENT ATTACHMENT} option.
+     *
+     * @return Unmodifiable list view of file types
+     */
+    @Nonnull
+    @UnmodifiableView
+    public List<FileType> getFileTypes() {
+        return fileTypes.asView();
+    }
+
+    @Nonnull
+    @Override
+    public OptionData setFileTypes(@Nonnull Collection<FileType> fileTypes) {
+        this.fileTypes.setAll(fileTypes);
+        return this;
+    }
+
+    /**
+     * The choices for this option.
+     * <br>This is empty by default and can only be configured for specific option types.
+     *
+     * @return Immutable list of {@link Command.Choice Choices}
+     * @see #addChoice(String, long)
+     * @see #addChoice(String, String)
+     */
+    @Nonnull
+    @Unmodifiable
+    public List<Command.Choice> getChoices() {
+        if (choices == null || choices.isEmpty()) {
+            return List.of();
+        }
+        return Collections.unmodifiableList(choices);
+    }
+
+    /**
+     * Sets a {@link DiscordLocale language-specific} localization of this option's name.
+     *
+     * @param locale The locale to associate the translated name with
+     * @param name The translated name to put
+     * @return This builder instance, for chaining
+     * @throws IllegalArgumentException <ul>
+     * <li>If the locale is null</li>
+     * <li>If the name is null</li>
+     * <li>If the locale is {@link DiscordLocale#UNKNOWN}</li>
+     * <li>If the name does not pass the corresponding {@link #setName(String) name check}</li>
+     * </ul>
+     */
+    @Nonnull
+    public OptionData setNameLocalization(@Nonnull DiscordLocale locale, @Nonnull String name) {
+        // Checks are done in LocalizationMap
+        nameLocalizations.setTranslation(locale, name);
+        return this;
+    }
+
+    /**
+     * Sets a {@link DiscordLocale language-specific} localization of this option's description.
+     *
+     * @param locale The locale to associate the translated description with
+     * @param description The translated description to put
+     * @return This builder instance, for chaining
+     * @throws IllegalArgumentException <ul>
+     * <li>If the locale is null</li>
+     * <li>If the description is null</li>
+     * <li>If the locale is {@link DiscordLocale#UNKNOWN}</li>
+     * <li>If the description does not pass the corresponding {@link #setDescription(String) description check}</li>
+     * </ul>
+     */
+    @Nonnull
+    public OptionData setDescriptionLocalization(@Nonnull DiscordLocale locale, @Nonnull String description) {
+        // Checks are done in LocalizationMap
+        descriptionLocalizations.setTranslation(locale, description);
         return this;
     }
 
@@ -763,59 +922,6 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     }
 
     /**
-     * Configure the minimum length for strings which can be provided for this option.
-     *
-     * @param  minLength
-     *         The minimum length for strings which can be provided for this option.
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If {@link OptionType type of this option} is not {@link OptionType#STRING STRING}</li>
-     *             <li>If {@code minLength} is not positive</li>
-     *         </ul>
-     *
-     * @return The OptionData instance, for chaining
-     */
-    @Nonnull
-    public OptionData setMinLength(int minLength) {
-        if (type != OptionType.STRING) {
-            throw new IllegalArgumentException("Can only set min length for options of type STRING");
-        }
-        Checks.positive(minLength, "Min length");
-        this.minLength = minLength;
-        return this;
-    }
-
-    /**
-     * Configure the maximum length for strings which can be provided for this option.
-     *
-     * @param  maxLength
-     *         The maximum length for strings which can be provided for this option.
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If {@link OptionType type of this option} is not {@link OptionType#STRING STRING}</li>
-     *             <li>If {@code maxLength} is not positive or greater than {@value MAX_STRING_OPTION_LENGTH}</li>
-     *         </ul>
-     *
-     * @return The OptionData instance, for chaining
-     */
-    @Nonnull
-    public OptionData setMaxLength(int maxLength) {
-        if (type != OptionType.STRING) {
-            throw new IllegalArgumentException("Can only set max length for options of type STRING");
-        }
-        Checks.positive(maxLength, "Max length");
-        Checks.check(
-                maxLength <= MAX_STRING_OPTION_LENGTH,
-                "Max length must not be greater than %d. Provided: %d",
-                MAX_STRING_OPTION_LENGTH,
-                maxLength);
-        this.maxLength = maxLength;
-        return this;
-    }
-
-    /**
      * Configure the minimum and maximum length for strings which can be provided for this option.
      *
      * @param  minLength
@@ -850,13 +956,6 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
     @Override
     public OptionData addFileTypes(@Nonnull Collection<FileType> fileTypes) {
         this.fileTypes.addAll(fileTypes);
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public OptionData setFileTypes(@Nonnull Collection<FileType> fileTypes) {
-        this.fileTypes.setAll(fileTypes);
         return this;
     }
 
@@ -1035,74 +1134,6 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
         return this;
     }
 
-    /**
-     * Parses the provided serialization back into an OptionData instance.
-     * <br>This is the reverse function for {@link #toData()}.
-     *
-     * @param  json
-     *         The serialized {@link DataObject} representing the option
-     *
-     * @throws ParsingException
-     *         If the serialized object is missing required fields
-     * @throws IllegalArgumentException
-     *         If any of the values are failing the respective checks such as length
-     *
-     * @return The parsed OptionData instance, which can be further configured through setters
-     */
-    @Nonnull
-    public static OptionData fromData(@Nonnull DataObject json) {
-        String name = json.getString("name");
-        String description = json.getString("description");
-        OptionType type = OptionType.fromKey(json.getInt("type"));
-        OptionData option = new OptionData(type, name, description);
-        option.setRequired(json.getBoolean("required"));
-        option.setAutoComplete(json.getBoolean("autocomplete"));
-        if (type == OptionType.INTEGER || type == OptionType.NUMBER) {
-            if (!json.isNull("min_value")) {
-                if (json.isType("min_value", DataType.INT)) {
-                    option.setMinValue(json.getLong("min_value"));
-                } else if (json.isType("min_value", DataType.FLOAT)) {
-                    option.setMinValue(json.getDouble("min_value"));
-                }
-            }
-            if (!json.isNull("max_value")) {
-                if (json.isType("max_value", DataType.INT)) {
-                    option.setMaxValue(json.getLong("max_value"));
-                } else if (json.isType("max_value", DataType.FLOAT)) {
-                    option.setMaxValue(json.getDouble("max_value"));
-                }
-            }
-        }
-        if (type == OptionType.CHANNEL) {
-            option.setChannelTypes(json.optArray("channel_types")
-                    .map(it -> it.stream(DataArray::getInt)
-                            .map(ChannelType::fromId)
-                            .collect(Collectors.toSet()))
-                    .orElse(Set.of()));
-        }
-        if (type == OptionType.STRING) {
-            if (!json.isNull("min_length")) {
-                option.setMinLength(json.getInt("min_length"));
-            }
-            if (!json.isNull("max_length")) {
-                option.setMaxLength(json.getInt("max_length"));
-            }
-        }
-        if (type == OptionType.ATTACHMENT) {
-            if (!json.isNull("file_types")) {
-                option.setFileTypes(
-                        FileTypesImpl.fromArray(json.getArray("file_types")).asView());
-            }
-        }
-        json.optArray("choices")
-                .ifPresent(choices1 -> option.addChoices(choices1.stream(DataArray::getObject)
-                        .map(Command.Choice::new)
-                        .toList()));
-        option.setNameLocalizations(LocalizationUtils.mapFromProperty(json, "name_localizations"));
-        option.setDescriptionLocalizations(LocalizationUtils.mapFromProperty(json, "description_localizations"));
-        return option;
-    }
-
     @Nonnull
     @Override
     public DataObject toData() {
@@ -1149,64 +1180,5 @@ public class OptionData implements SerializableData, IFilterableFileTypes<Option
             }
         }
         return json;
-    }
-
-    /**
-     * Converts the provided {@link Command.Option} into a OptionData instance.
-     *
-     * @param  option
-     *         The option to convert
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the option has illegal configuration
-     *
-     * @return An instance of OptionData
-     */
-    @Nonnull
-    public static OptionData fromOption(@Nonnull Command.Option option) {
-        Checks.notNull(option, "Option");
-        OptionData data = new OptionData(option.getType(), option.getName(), option.getDescription());
-        data.setRequired(option.isRequired());
-        data.setAutoComplete(option.isAutoComplete());
-        data.addChoices(option.getChoices());
-        data.setNameLocalizations(option.getNameLocalizations().toMap());
-        data.setDescriptionLocalizations(option.getDescriptionLocalizations().toMap());
-        Number min = option.getMinValue(), max = option.getMaxValue();
-        Integer minLength = option.getMinLength(), maxLength = option.getMaxLength();
-        switch (option.getType()) {
-            case CHANNEL:
-                data.setChannelTypes(option.getChannelTypes());
-                break;
-            case NUMBER:
-                if (min != null) {
-                    data.setMinValue(min.doubleValue());
-                }
-                if (max != null) {
-                    data.setMaxValue(max.doubleValue());
-                }
-                break;
-            case INTEGER:
-                if (min != null) {
-                    data.setMinValue(min.longValue());
-                }
-                if (max != null) {
-                    data.setMaxValue(max.longValue());
-                }
-                break;
-            case STRING:
-                if (minLength != null) {
-                    data.setMinLength(minLength);
-                }
-                if (maxLength != null) {
-                    data.setMaxLength(maxLength);
-                }
-                break;
-            case ATTACHMENT:
-                data.setFileTypes(option.getFileTypes());
-                break;
-            default:
-                break;
-        }
-        return data;
     }
 }

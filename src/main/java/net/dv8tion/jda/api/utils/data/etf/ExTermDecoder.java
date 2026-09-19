@@ -45,17 +45,6 @@ import static net.dv8tion.jda.api.utils.data.etf.ExTermTag.*;
 public class ExTermDecoder {
     private static final int STRING_CACHE_SIZE = 2048;
     private static final int STRING_CACHE_MASK = STRING_CACHE_SIZE - 1;
-
-    private static class CachedEntry {
-        final byte[] bytes;
-        final String value;
-
-        CachedEntry(byte[] bytes, String value) {
-            this.bytes = bytes;
-            this.value = value;
-        }
-    }
-
     private static final CachedEntry[] STRING_CACHE = new CachedEntry[STRING_CACHE_SIZE];
 
     private static int computeByteBufHash(ByteBuf buffer, int readerIndex, int length) {
@@ -488,5 +477,15 @@ public class ExTermDecoder {
             map.put(key, value);
         }
         return map;
+    }
+
+    private static class CachedEntry {
+        final byte[] bytes;
+        final String value;
+
+        CachedEntry(byte[] bytes, String value) {
+            this.bytes = bytes;
+            this.value = value;
+        }
     }
 }

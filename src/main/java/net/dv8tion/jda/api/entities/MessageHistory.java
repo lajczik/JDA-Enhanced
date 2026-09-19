@@ -56,9 +56,8 @@ import javax.annotation.Nullable;
  * @see MessageChannel#getHistoryFromBeginning(int)
  */
 public class MessageHistory {
-    protected final MessageChannel channel;
     protected static final Logger LOG = JDALogger.getLog(MessageHistory.class);
-
+    protected final MessageChannel channel;
     protected final LinkedHashMap<Long, Message> history = new LinkedHashMap<>();
 
     /**
@@ -71,6 +70,156 @@ public class MessageHistory {
         Checks.notNull(channel, "Channel");
         this.channel = channel;
 
+        if (channel instanceof GuildChannel) {
+            GuildChannel guildChannel = (GuildChannel) channel;
+            Member selfMember = guildChannel.getGuild().getSelfMember();
+            Checks.checkAccess(selfMember, guildChannel);
+            if (!selfMember.hasPermission(guildChannel, Permission.MESSAGE_HISTORY)) {
+                throw new InsufficientPermissionException(guildChannel, Permission.MESSAGE_HISTORY);
+            }
+        }
+    }
+
+    /**
+     * Constructs a {@link MessageHistory} with the initially retrieved history
+     * of messages sent after the mentioned message ID (exclusive).
+     * <br>The provided ID need not be valid!
+     *
+     * <p>Alternatively you can use {@link MessageChannel#getHistoryAfter(String, int) MessageChannel.getHistoryAfter(...)}
+     *
+     * <p><b>Example</b>
+     * <br>{@code MessageHistory history = MessageHistory.getHistoryAfter(channel, messageId).limit(60).complete()}
+     * <br>Will return a MessageHistory instance with the first 60 messages sent after the provided message ID.
+     *
+     * <p>Alternatively you can provide an epoch millisecond timestamp using {@link TimeUtil#getDiscordTimestamp(long)}:
+     * <br>{@snippet lang = "java":
+     * long timestamp = System.currentTimeMillis(); // or any other epoch millis timestamp
+     * String discordTimestamp = Long.toUnsignedString(TimeUtil.getDiscordTimestamp(timestamp));
+     * MessageHistory history = MessageHistory.getHistoryAfter(channel, discordTimestamp).complete();
+     *}
+     *
+     * @param channel The {@link MessageChannel}
+     * @param messageId The pivot ID to use
+     * @return {@link MessageHistory.MessageRetrieveAction MessageRetrieveAction}
+     * @throws IllegalArgumentException If any of the provided arguments is {@code null};
+     * Or if the provided messageId contains whitespace
+     * @throws InsufficientPermissionException If this is a TextChannel and the currently logged in account does not
+     * have the permission {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
+     * @see MessageChannel#getHistoryAfter(String, int)  MessageChannel.getHistoryAfter(String, int)
+     * @see MessageChannel#getHistoryAfter(long, int)    MessageChannel.getHistoryAfter(long, int)
+     * @see MessageChannel#getHistoryAfter(Message, int) MessageChannel.getHistoryAfter(Message, int)
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static MessageRetrieveAction getHistoryAfter(@Nonnull MessageChannel channel, @Nonnull String messageId) {
+        checkArguments(channel, messageId);
+        Route.CompiledRoute route =
+                Route.Messages.GET_MESSAGE_HISTORY.compile(channel.getId()).withQueryParams("after", messageId);
+        return new MessageRetrieveAction(route, channel);
+    }
+
+    /**
+     * Constructs a {@link MessageHistory} with the initially retrieved history
+     * of messages sent before the mentioned message ID (exclusive).
+     * <br>The provided ID need not be valid!
+     *
+     * <p>Alternatively you can use {@link MessageChannel#getHistoryBefore(String, int) MessageChannel.getHistoryBefore(...)}
+     *
+     * <p><b>Example</b>
+     * <br>{@code MessageHistory history = MessageHistory.getHistoryBefore(channel, messageId).limit(60).complete()}
+     * <br>Will return a MessageHistory instance with the first 60 messages sent before the provided message ID.
+     *
+     * <p>Alternatively you can provide an epoch millisecond timestamp using {@link TimeUtil#getDiscordTimestamp(long)}:
+     * <br>{@snippet lang = "java":
+     * long timestamp = System.currentTimeMillis(); // or any other epoch millis timestamp
+     * String discordTimestamp = Long.toUnsignedString(TimeUtil.getDiscordTimestamp(timestamp));
+     * MessageHistory history = MessageHistory.getHistoryBefore(channel, discordTimestamp).complete();
+     *}
+     *
+     * @param channel The {@link MessageChannel}
+     * @param messageId The pivot ID to use
+     * @return {@link MessageHistory.MessageRetrieveAction MessageRetrieveAction}
+     * @throws IllegalArgumentException If any of the provided arguments is {@code null};
+     * Or if the provided messageId contains whitespace
+     * @throws InsufficientPermissionException If this is a TextChannel and the currently logged in account does not
+     * have the permission {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
+     * @see MessageChannel#getHistoryBefore(String, int)  MessageChannel.getHistoryBefore(String, int)
+     * @see MessageChannel#getHistoryBefore(long, int)    MessageChannel.getHistoryBefore(long, int)
+     * @see MessageChannel#getHistoryBefore(Message, int) MessageChannel.getHistoryBefore(Message, int)
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static MessageRetrieveAction getHistoryBefore(@Nonnull MessageChannel channel, @Nonnull String messageId) {
+        checkArguments(channel, messageId);
+        Route.CompiledRoute route =
+                Route.Messages.GET_MESSAGE_HISTORY.compile(channel.getId()).withQueryParams("before", messageId);
+        return new MessageRetrieveAction(route, channel);
+    }
+
+    /**
+     * Constructs a {@link MessageHistory} with the initially retrieved history
+     * of messages sent around the mentioned message ID (inclusive).
+     * <br>The provided ID need not be valid!
+     *
+     * <p>Alternatively you can use {@link MessageChannel#getHistoryAround(String, int) MessageChannel.getHistoryAround(...)}
+     *
+     * <p><b>Example</b>
+     * <br>{@code MessageHistory history = MessageHistory.getHistoryAround(channel, messageId).limit(60).complete()}
+     * <br>Will return a MessageHistory instance with the first 60 messages sent around the provided message ID.
+     *
+     * <p>Alternatively you can provide an epoch millisecond timestamp using {@link TimeUtil#getDiscordTimestamp(long)}:
+     * <br>{@snippet lang = "java":
+     * long timestamp = System.currentTimeMillis(); // or any other epoch millis timestamp
+     * String discordTimestamp = Long.toUnsignedString(TimeUtil.getDiscordTimestamp(timestamp));
+     * MessageHistory history = MessageHistory.getHistoryAround(channel, discordTimestamp).complete();
+     *}
+     *
+     * @param channel The {@link MessageChannel}
+     * @param messageId The pivot ID to use
+     * @return {@link MessageHistory.MessageRetrieveAction MessageRetrieveAction}
+     * @throws IllegalArgumentException If any of the provided arguments is {@code null};
+     * Or if the provided messageId contains whitespace
+     * @throws InsufficientPermissionException If this is a TextChannel and the currently logged in account does not
+     * have the permission {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
+     * @see MessageChannel#getHistoryAround(String, int)  MessageChannel.getHistoryAround(String, int)
+     * @see MessageChannel#getHistoryAround(long, int)    MessageChannel.getHistoryAround(long, int)
+     * @see MessageChannel#getHistoryAround(Message, int) MessageChannel.getHistoryAround(Message, int)
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static MessageRetrieveAction getHistoryAround(@Nonnull MessageChannel channel, @Nonnull String messageId) {
+        checkArguments(channel, messageId);
+        Route.CompiledRoute route =
+                Route.Messages.GET_MESSAGE_HISTORY.compile(channel.getId()).withQueryParams("around", messageId);
+        return new MessageRetrieveAction(route, channel);
+    }
+
+    /**
+     * Constructs a {@link MessageHistory} with the initially retrieved history
+     * of messages sent.
+     *
+     * <p>Alternatively you can use {@link MessageChannel#getHistoryFromBeginning(int) MessageChannel.getHistoryFromBeginning(...)}
+     *
+     * <p><b>Example</b><br>
+     * <br>{@code MessageHistory history = MessageHistory.getHistoryFromBeginning(channel).limit(60).complete()}
+     * <br>Will return a MessageHistory instance with the first 60 messages of the given {@link MessageChannel}.
+     *
+     * @param channel The {@link MessageChannel}
+     * @return {@link MessageHistory.MessageRetrieveAction MessageRetrieveAction}
+     * @throws IllegalArgumentException If the provided MessageChannel is {@code null};
+     * @throws InsufficientPermissionException If this is a TextChannel and the currently logged in account does not
+     * have the permission {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
+     * @see MessageChannel#getHistoryFromBeginning(int)  MessageChannel.getHistoryFromBeginning(int)
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static MessageRetrieveAction getHistoryFromBeginning(@Nonnull MessageChannel channel) {
+        return getHistoryAfter(channel, "0");
+    }
+
+    private static void checkArguments(MessageChannel channel, String messageId) {
+        Checks.isSnowflake(messageId, "Message ID");
+        Checks.notNull(channel, "Channel");
         if (channel instanceof GuildChannel) {
             GuildChannel guildChannel = (GuildChannel) channel;
             Member selfMember = guildChannel.getGuild().getSelfMember();
@@ -358,183 +507,6 @@ public class MessageHistory {
     @Nullable
     public Message getMessageById(long id) {
         return history.get(id);
-    }
-
-    /**
-     * Constructs a {@link MessageHistory} with the initially retrieved history
-     * of messages sent after the mentioned message ID (exclusive).
-     * <br>The provided ID need not be valid!
-     *
-     * <p>Alternatively you can use {@link MessageChannel#getHistoryAfter(String, int) MessageChannel.getHistoryAfter(...)}
-     *
-     * <p><b>Example</b>
-     * <br>{@code MessageHistory history = MessageHistory.getHistoryAfter(channel, messageId).limit(60).complete()}
-     * <br>Will return a MessageHistory instance with the first 60 messages sent after the provided message ID.
-     *
-     * <p>Alternatively you can provide an epoch millisecond timestamp using {@link TimeUtil#getDiscordTimestamp(long)}:
-     * <br>{@snippet lang="java":
-     * long timestamp = System.currentTimeMillis(); // or any other epoch millis timestamp
-     * String discordTimestamp = Long.toUnsignedString(TimeUtil.getDiscordTimestamp(timestamp));
-     * MessageHistory history = MessageHistory.getHistoryAfter(channel, discordTimestamp).complete();
-     * }
-     *
-     * @param  channel
-     *         The {@link MessageChannel}
-     * @param  messageId
-     *         The pivot ID to use
-     *
-     * @throws IllegalArgumentException
-     *         If any of the provided arguments is {@code null};
-     *         Or if the provided messageId contains whitespace
-     * @throws InsufficientPermissionException
-     *         If this is a TextChannel and the currently logged in account does not
-     *         have the permission {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
-     *
-     * @return {@link MessageHistory.MessageRetrieveAction MessageRetrieveAction}
-     *
-     * @see    MessageChannel#getHistoryAfter(String, int)  MessageChannel.getHistoryAfter(String, int)
-     * @see    MessageChannel#getHistoryAfter(long, int)    MessageChannel.getHistoryAfter(long, int)
-     * @see    MessageChannel#getHistoryAfter(Message, int) MessageChannel.getHistoryAfter(Message, int)
-     */
-    @Nonnull
-    @CheckReturnValue
-    public static MessageRetrieveAction getHistoryAfter(@Nonnull MessageChannel channel, @Nonnull String messageId) {
-        checkArguments(channel, messageId);
-        Route.CompiledRoute route =
-                Route.Messages.GET_MESSAGE_HISTORY.compile(channel.getId()).withQueryParams("after", messageId);
-        return new MessageRetrieveAction(route, channel);
-    }
-
-    /**
-     * Constructs a {@link MessageHistory} with the initially retrieved history
-     * of messages sent before the mentioned message ID (exclusive).
-     * <br>The provided ID need not be valid!
-     *
-     * <p>Alternatively you can use {@link MessageChannel#getHistoryBefore(String, int) MessageChannel.getHistoryBefore(...)}
-     *
-     * <p><b>Example</b>
-     * <br>{@code MessageHistory history = MessageHistory.getHistoryBefore(channel, messageId).limit(60).complete()}
-     * <br>Will return a MessageHistory instance with the first 60 messages sent before the provided message ID.
-     *
-     * <p>Alternatively you can provide an epoch millisecond timestamp using {@link TimeUtil#getDiscordTimestamp(long)}:
-     * <br>{@snippet lang="java":
-     * long timestamp = System.currentTimeMillis(); // or any other epoch millis timestamp
-     * String discordTimestamp = Long.toUnsignedString(TimeUtil.getDiscordTimestamp(timestamp));
-     * MessageHistory history = MessageHistory.getHistoryBefore(channel, discordTimestamp).complete();
-     * }
-     *
-     * @param  channel
-     *         The {@link MessageChannel}
-     * @param  messageId
-     *         The pivot ID to use
-     *
-     * @throws IllegalArgumentException
-     *         If any of the provided arguments is {@code null};
-     *         Or if the provided messageId contains whitespace
-     * @throws InsufficientPermissionException
-     *         If this is a TextChannel and the currently logged in account does not
-     *         have the permission {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
-     *
-     * @return {@link MessageHistory.MessageRetrieveAction MessageRetrieveAction}
-     *
-     * @see    MessageChannel#getHistoryBefore(String, int)  MessageChannel.getHistoryBefore(String, int)
-     * @see    MessageChannel#getHistoryBefore(long, int)    MessageChannel.getHistoryBefore(long, int)
-     * @see    MessageChannel#getHistoryBefore(Message, int) MessageChannel.getHistoryBefore(Message, int)
-     */
-    @Nonnull
-    @CheckReturnValue
-    public static MessageRetrieveAction getHistoryBefore(@Nonnull MessageChannel channel, @Nonnull String messageId) {
-        checkArguments(channel, messageId);
-        Route.CompiledRoute route =
-                Route.Messages.GET_MESSAGE_HISTORY.compile(channel.getId()).withQueryParams("before", messageId);
-        return new MessageRetrieveAction(route, channel);
-    }
-
-    /**
-     * Constructs a {@link MessageHistory} with the initially retrieved history
-     * of messages sent around the mentioned message ID (inclusive).
-     * <br>The provided ID need not be valid!
-     *
-     * <p>Alternatively you can use {@link MessageChannel#getHistoryAround(String, int) MessageChannel.getHistoryAround(...)}
-     *
-     * <p><b>Example</b>
-     * <br>{@code MessageHistory history = MessageHistory.getHistoryAround(channel, messageId).limit(60).complete()}
-     * <br>Will return a MessageHistory instance with the first 60 messages sent around the provided message ID.
-     *
-     * <p>Alternatively you can provide an epoch millisecond timestamp using {@link TimeUtil#getDiscordTimestamp(long)}:
-     * <br>{@snippet lang="java":
-     * long timestamp = System.currentTimeMillis(); // or any other epoch millis timestamp
-     * String discordTimestamp = Long.toUnsignedString(TimeUtil.getDiscordTimestamp(timestamp));
-     * MessageHistory history = MessageHistory.getHistoryAround(channel, discordTimestamp).complete();
-     * }
-     *
-     * @param  channel
-     *         The {@link MessageChannel}
-     * @param  messageId
-     *         The pivot ID to use
-     *
-     * @throws IllegalArgumentException
-     *         If any of the provided arguments is {@code null};
-     *         Or if the provided messageId contains whitespace
-     * @throws InsufficientPermissionException
-     *         If this is a TextChannel and the currently logged in account does not
-     *         have the permission {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
-     *
-     * @return {@link MessageHistory.MessageRetrieveAction MessageRetrieveAction}
-     *
-     * @see    MessageChannel#getHistoryAround(String, int)  MessageChannel.getHistoryAround(String, int)
-     * @see    MessageChannel#getHistoryAround(long, int)    MessageChannel.getHistoryAround(long, int)
-     * @see    MessageChannel#getHistoryAround(Message, int) MessageChannel.getHistoryAround(Message, int)
-     */
-    @Nonnull
-    @CheckReturnValue
-    public static MessageRetrieveAction getHistoryAround(@Nonnull MessageChannel channel, @Nonnull String messageId) {
-        checkArguments(channel, messageId);
-        Route.CompiledRoute route =
-                Route.Messages.GET_MESSAGE_HISTORY.compile(channel.getId()).withQueryParams("around", messageId);
-        return new MessageRetrieveAction(route, channel);
-    }
-
-    /**
-     * Constructs a {@link MessageHistory} with the initially retrieved history
-     * of messages sent.
-     *
-     * <p>Alternatively you can use {@link MessageChannel#getHistoryFromBeginning(int) MessageChannel.getHistoryFromBeginning(...)}
-     *
-     * <p><b>Example</b><br>
-     * <br>{@code MessageHistory history = MessageHistory.getHistoryFromBeginning(channel).limit(60).complete()}
-     * <br>Will return a MessageHistory instance with the first 60 messages of the given {@link MessageChannel}.
-     *
-     * @param  channel
-     *         The {@link MessageChannel}
-     *
-     * @throws IllegalArgumentException
-     *         If the provided MessageChannel is {@code null};
-     * @throws InsufficientPermissionException
-     *         If this is a TextChannel and the currently logged in account does not
-     *         have the permission {@link Permission#MESSAGE_HISTORY Permission.MESSAGE_HISTORY}
-     *
-     * @return {@link MessageHistory.MessageRetrieveAction MessageRetrieveAction}
-     *
-     * @see    MessageChannel#getHistoryFromBeginning(int)  MessageChannel.getHistoryFromBeginning(int)
-     */
-    @Nonnull
-    @CheckReturnValue
-    public static MessageRetrieveAction getHistoryFromBeginning(@Nonnull MessageChannel channel) {
-        return getHistoryAfter(channel, "0");
-    }
-
-    private static void checkArguments(MessageChannel channel, String messageId) {
-        Checks.isSnowflake(messageId, "Message ID");
-        Checks.notNull(channel, "Channel");
-        if (channel instanceof GuildChannel) {
-            GuildChannel guildChannel = (GuildChannel) channel;
-            Member selfMember = guildChannel.getGuild().getSelfMember();
-            Checks.checkAccess(selfMember, guildChannel);
-            if (!selfMember.hasPermission(guildChannel, Permission.MESSAGE_HISTORY)) {
-                throw new InsufficientPermissionException(guildChannel, Permission.MESSAGE_HISTORY);
-            }
-        }
     }
 
     /**

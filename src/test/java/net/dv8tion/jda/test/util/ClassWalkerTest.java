@@ -25,14 +25,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class ClassWalkerTest {
-    interface InterfaceA {}
-
-    interface InterfaceB extends InterfaceA {}
-
-    static class BaseClass {}
-
-    static class SubClass extends BaseClass implements InterfaceB {}
-
     @Test
     void testClassWalkerWalk() {
         List<Class<?>> hierarchy = new ArrayList<>();
@@ -59,4 +51,12 @@ public class ClassWalkerTest {
         assertThat(hierarchy).contains(SubClass.class, InterfaceB.class, InterfaceA.class);
         assertThat(hierarchy).doesNotContain(BaseClass.class, Object.class);
     }
+
+    interface InterfaceA {}
+
+    interface InterfaceB extends InterfaceA {}
+
+    static class BaseClass {}
+
+    static class SubClass extends BaseClass implements InterfaceB {}
 }

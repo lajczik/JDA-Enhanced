@@ -63,6 +63,18 @@ public class SerializationUtil {
         return new NanojsonEngine();
     }
 
+    @SuppressWarnings("UnsafeReflectiveConstructionCast")
+    private static JsonEngine instantiateEngine(String className) throws Exception {
+        Class<? extends JsonEngine> clazz = Class.forName(className).asSubclass(JsonEngine.class);
+        return clazz.getDeclaredConstructor().newInstance();
+    }
+
+    // Returns the active JsonEngine used by this serializer.
+    @Nonnull
+    public static JsonEngine getEngine() {
+        return ENGINE;
+    }
+
     /**
      * Changes the active JSON engine to the specified {@link JsonEngineType}.
      *
@@ -92,18 +104,6 @@ public class SerializationUtil {
         Checks.notNull(engine, "JsonEngine");
         log.info("Switching JSON engine to {}", engine.getName());
         ENGINE = engine;
-    }
-
-    @SuppressWarnings("UnsafeReflectiveConstructionCast")
-    private static JsonEngine instantiateEngine(String className) throws Exception {
-        Class<? extends JsonEngine> clazz = Class.forName(className).asSubclass(JsonEngine.class);
-        return clazz.getDeclaredConstructor().newInstance();
-    }
-
-    // Returns the active JsonEngine used by this serializer.
-    @Nonnull
-    public static JsonEngine getEngine() {
-        return ENGINE;
     }
 
     // Returns the human-readable name of the active JSON engine.

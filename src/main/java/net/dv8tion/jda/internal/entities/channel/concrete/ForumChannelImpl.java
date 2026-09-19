@@ -47,7 +47,7 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
     private final Long2ObjectMap<PermissionOverride> overrides = MiscUtil.newLongMap();
     private final SortedSnowflakeCacheViewImpl<ForumTag> tagCache =
             new SortedSnowflakeCacheViewImpl<>(ForumTag.class, ForumTag::getName, Comparator.naturalOrder());
-
+    protected int defaultThreadSlowmode;
     private Emoji defaultReaction;
     private String topic;
     private long parentCategoryId;
@@ -57,7 +57,6 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
     private int slowmode;
     private int defaultSortOrder;
     private int defaultLayout;
-    protected int defaultThreadSlowmode;
 
     public ForumChannelImpl(long id, GuildImpl guild) {
         super(id, guild);
@@ -94,6 +93,12 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
         return ChannelFlag.fromRaw(flags);
     }
 
+    @Override
+    public ForumChannelImpl setFlags(int flags) {
+        this.flags = flags;
+        return this;
+    }
+
     @Nonnull
     @Override
     public SortedSnowflakeCacheViewImpl<ForumTag> getAvailableTagCache() {
@@ -108,6 +113,12 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
     @Override
     public boolean isNSFW() {
         return nsfw;
+    }
+
+    @Override
+    public ForumChannelImpl setNSFW(boolean nsfw) {
+        this.nsfw = nsfw;
+        return this;
     }
 
     @Override
@@ -126,8 +137,20 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
     }
 
     @Override
+    public ForumChannelImpl setSlowmode(int slowmode) {
+        this.slowmode = slowmode;
+        return this;
+    }
+
+    @Override
     public String getTopic() {
         return topic;
+    }
+
+    @Override
+    public ForumChannelImpl setTopic(String topic) {
+        this.topic = topic;
+        return this;
     }
 
     @Override
@@ -136,8 +159,28 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
     }
 
     @Override
+    public ForumChannelImpl setDefaultReaction(DataObject emoji) {
+        if (emoji != null && !emoji.isNull("emoji_id")) {
+            this.defaultReaction = new CustomEmojiImpl("", emoji.getUnsignedLong("emoji_id"), false);
+        } else if (emoji != null && !emoji.isNull("emoji_name")) {
+            this.defaultReaction = Emoji.fromUnicode(emoji.getString("emoji_name"));
+        } else {
+            this.defaultReaction = null;
+        }
+        return this;
+    }
+
+    @Override
     public int getDefaultThreadSlowmode() {
         return defaultThreadSlowmode;
+    }
+
+    // Setters
+
+    @Override
+    public ForumChannelImpl setDefaultThreadSlowmode(int defaultThreadSlowmode) {
+        this.defaultThreadSlowmode = defaultThreadSlowmode;
+        return this;
     }
 
     @Nonnull
@@ -146,10 +189,22 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
         return SortOrder.fromKey(defaultSortOrder);
     }
 
+    @Override
+    public ForumChannelImpl setDefaultSortOrder(int defaultSortOrder) {
+        this.defaultSortOrder = defaultSortOrder;
+        return this;
+    }
+
     @Nonnull
     @Override
     public Layout getDefaultLayout() {
         return Layout.fromKey(defaultLayout);
+    }
+
+    @Override
+    public ForumChannelImpl setDefaultLayout(int layout) {
+        this.defaultLayout = layout;
+        return this;
     }
 
     @Override
@@ -166,8 +221,6 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
         return defaultLayout;
     }
 
-    // Setters
-
     @Override
     public ForumChannelImpl setParentCategory(long parentCategoryId) {
         this.parentCategoryId = parentCategoryId;
@@ -177,60 +230,6 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
     @Override
     public ForumChannelImpl setPosition(int position) {
         this.position = position;
-        return this;
-    }
-
-    @Override
-    public ForumChannelImpl setDefaultThreadSlowmode(int defaultThreadSlowmode) {
-        this.defaultThreadSlowmode = defaultThreadSlowmode;
-        return this;
-    }
-
-    @Override
-    public ForumChannelImpl setNSFW(boolean nsfw) {
-        this.nsfw = nsfw;
-        return this;
-    }
-
-    @Override
-    public ForumChannelImpl setSlowmode(int slowmode) {
-        this.slowmode = slowmode;
-        return this;
-    }
-
-    @Override
-    public ForumChannelImpl setTopic(String topic) {
-        this.topic = topic;
-        return this;
-    }
-
-    @Override
-    public ForumChannelImpl setFlags(int flags) {
-        this.flags = flags;
-        return this;
-    }
-
-    @Override
-    public ForumChannelImpl setDefaultReaction(DataObject emoji) {
-        if (emoji != null && !emoji.isNull("emoji_id")) {
-            this.defaultReaction = new CustomEmojiImpl("", emoji.getUnsignedLong("emoji_id"), false);
-        } else if (emoji != null && !emoji.isNull("emoji_name")) {
-            this.defaultReaction = Emoji.fromUnicode(emoji.getString("emoji_name"));
-        } else {
-            this.defaultReaction = null;
-        }
-        return this;
-    }
-
-    @Override
-    public ForumChannelImpl setDefaultSortOrder(int defaultSortOrder) {
-        this.defaultSortOrder = defaultSortOrder;
-        return this;
-    }
-
-    @Override
-    public ForumChannelImpl setDefaultLayout(int layout) {
-        this.defaultLayout = layout;
         return this;
     }
 }

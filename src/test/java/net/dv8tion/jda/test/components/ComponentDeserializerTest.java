@@ -52,6 +52,41 @@ class ComponentDeserializerTest extends AbstractComponentTest {
             "https://github.com/discord-jda/JDA/blob/970afafb99ff35cd55cb91eb167022253247bce4/assets/readme/logo.png";
     private static final FileUpload EMPTY_FILE = FileUpload.fromData(new byte[0], "logo.png");
 
+    @SuppressWarnings("rawtypes")
+    private static Class<? extends ComponentTree> getTreeClass(ComponentTree.Type type) {
+        return switch (type) {
+            case ANY -> ComponentTree.class;
+            case MESSAGE -> MessageComponentTree.class;
+            case MODAL -> ModalComponentTree.class;
+        };
+    }
+
+    static List<Arguments> componentsWithUrlMediaToBeSent() {
+        ComponentSerializer serializer = new ComponentSerializer();
+
+        MediaGallery gallery = MediaGallery.of(MediaGalleryItem.fromUrl(EXAMPLE_FILE_URL));
+        FileDisplay fileDisplay = new FileDisplayImpl(EXAMPLE_FILE_URL);
+        Thumbnail thumbnail = Thumbnail.fromUrl(EXAMPLE_FILE_URL);
+
+        return List.of(
+                Arguments.argumentSet("Media gallery", serializer.serialize(gallery)),
+                Arguments.argumentSet("File display", serializer.serialize(fileDisplay)),
+                Arguments.argumentSet("Thumbnail", serializer.serialize(thumbnail)));
+    }
+
+    static List<Arguments> componentsWithLocalMediaToBeSent() {
+        ComponentSerializer serializer = new ComponentSerializer();
+
+        MediaGallery gallery = MediaGallery.of(MediaGalleryItem.fromUrl("attachment://logo.png"));
+        FileDisplay fileDisplay = FileDisplay.fromFileName("logo.png");
+        Thumbnail thumbnail = Thumbnail.fromUrl("attachment://logo.png");
+
+        return List.of(
+                Arguments.argumentSet("Media gallery", serializer.serialize(gallery)),
+                Arguments.argumentSet("File display", serializer.serialize(fileDisplay)),
+                Arguments.argumentSet("Thumbnail", serializer.serialize(thumbnail)));
+    }
+
     @Test
     void testDeserializeMessageComponentTree() throws Exception {
         ComponentDeserializer deserializer = new ComponentDeserializer(List.of());
@@ -83,15 +118,6 @@ class ComponentDeserializerTest extends AbstractComponentTest {
         }
     }
 
-    @SuppressWarnings("rawtypes")
-    private static Class<? extends ComponentTree> getTreeClass(ComponentTree.Type type) {
-        return switch (type) {
-            case ANY -> ComponentTree.class;
-            case MESSAGE -> MessageComponentTree.class;
-            case MODAL -> ModalComponentTree.class;
-        };
-    }
-
     @MethodSource("componentsWithUrlMediaToBeSent")
     @ParameterizedTest
     void testRequireMediaProxyFeature(DataObject json) {
@@ -106,19 +132,6 @@ class ComponentDeserializerTest extends AbstractComponentTest {
                 .withMessageContaining("proxy_url is missing or null");
     }
 
-    static List<Arguments> componentsWithUrlMediaToBeSent() {
-        ComponentSerializer serializer = new ComponentSerializer();
-
-        MediaGallery gallery = MediaGallery.of(MediaGalleryItem.fromUrl(EXAMPLE_FILE_URL));
-        FileDisplay fileDisplay = new FileDisplayImpl(EXAMPLE_FILE_URL);
-        Thumbnail thumbnail = Thumbnail.fromUrl(EXAMPLE_FILE_URL);
-
-        return List.of(
-                Arguments.argumentSet("Media gallery", serializer.serialize(gallery)),
-                Arguments.argumentSet("File display", serializer.serialize(fileDisplay)),
-                Arguments.argumentSet("Thumbnail", serializer.serialize(thumbnail)));
-    }
-
     @MethodSource("componentsWithLocalMediaToBeSent")
     @ParameterizedTest
     void testRequireMediaProxyFeatureIsNotCheckedForLocalAttachments(DataObject json) {
@@ -126,18 +139,5 @@ class ComponentDeserializerTest extends AbstractComponentTest {
                 List.of(EMPTY_FILE), EnumSet.of(ComponentDeserializer.DeserializerFeature.REQUIRE_MEDIA_PROXY_URL));
 
         assertThatNoException().isThrownBy(() -> strictDeserializer.deserializeAs(Component.class, json));
-    }
-
-    static List<Arguments> componentsWithLocalMediaToBeSent() {
-        ComponentSerializer serializer = new ComponentSerializer();
-
-        MediaGallery gallery = MediaGallery.of(MediaGalleryItem.fromUrl("attachment://logo.png"));
-        FileDisplay fileDisplay = FileDisplay.fromFileName("logo.png");
-        Thumbnail thumbnail = Thumbnail.fromUrl("attachment://logo.png");
-
-        return List.of(
-                Arguments.argumentSet("Media gallery", serializer.serialize(gallery)),
-                Arguments.argumentSet("File display", serializer.serialize(fileDisplay)),
-                Arguments.argumentSet("Thumbnail", serializer.serialize(thumbnail)));
     }
 }

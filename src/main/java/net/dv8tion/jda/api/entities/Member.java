@@ -1912,24 +1912,6 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
         }
 
         /**
-         * The raw value used by Discord for this flag
-         *
-         * @return The raw value
-         */
-        public int getRaw() {
-            return raw;
-        }
-
-        /**
-         * Whether this flag can be modified by the client
-         *
-         * @return True, if this flag can be modified
-         */
-        public boolean isModifiable() {
-            return modifiable;
-        }
-
-        /**
          * The {@link MemberFlag Flags} represented by the provided raw value.
          * <br>
          * If the provided raw value is {@code 0} this will return an empty
@@ -1968,6 +1950,24 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
                 raw |= flag.raw;
             }
             return raw;
+        }
+
+        /**
+         * The raw value used by Discord for this flag
+         *
+         * @return The raw value
+         */
+        public int getRaw() {
+            return raw;
+        }
+
+        /**
+         * Whether this flag can be modified by the client
+         *
+         * @return True, if this flag can be modified
+         */
+        public boolean isModifiable() {
+            return modifiable;
         }
     }
 }

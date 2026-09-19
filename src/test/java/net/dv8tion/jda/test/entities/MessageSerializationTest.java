@@ -45,6 +45,21 @@ public class MessageSerializationTest {
     private static final String FIELD_3_NAME = "Field 3";
     private static final String FIELD_3_TEXT = "Field 3 Text";
 
+    @Nonnull
+    private static MessageEmbed getTestEmbed() {
+        return new EmbedBuilder()
+                .setDescription(DESCRIPTION_TEXT)
+                .setTitle(TITLE_TEXT, TITLE_URL)
+                .setAuthor(AUTHOR_TEXT, AUTHOR_URL, AUTHOR_ICON)
+                .setFooter(FOOTER_TEXT, FOOTER_ICON)
+                .setImage(IMAGE_URL)
+                .setThumbnail(THUMBNAIL_URL)
+                .addField(FIELD_1_NAME, FIELD_1_TEXT, true)
+                .addField(FIELD_2_NAME, FIELD_2_TEXT, false)
+                .addField(FIELD_3_NAME, FIELD_3_TEXT, true)
+                .build();
+    }
+
     @Test
     void testEmbedSerialization() {
         MessageEmbed embed = getTestEmbed();
@@ -86,20 +101,5 @@ public class MessageSerializationTest {
                                                 .put("inline", true)
                                                 .put("name", FIELD_3_NAME)
                                                 .put("value", FIELD_3_TEXT))));
-    }
-
-    @Nonnull
-    private static MessageEmbed getTestEmbed() {
-        return new EmbedBuilder()
-                .setDescription(DESCRIPTION_TEXT)
-                .setTitle(TITLE_TEXT, TITLE_URL)
-                .setAuthor(AUTHOR_TEXT, AUTHOR_URL, AUTHOR_ICON)
-                .setFooter(FOOTER_TEXT, FOOTER_ICON)
-                .setImage(IMAGE_URL)
-                .setThumbnail(THUMBNAIL_URL)
-                .addField(FIELD_1_NAME, FIELD_1_TEXT, true)
-                .addField(FIELD_2_NAME, FIELD_2_TEXT, false)
-                .addField(FIELD_3_NAME, FIELD_3_TEXT, true)
-                .build();
     }
 }

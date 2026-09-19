@@ -35,13 +35,13 @@ import javax.annotation.Nonnull;
  *
  * <p><b>Example</b><br>
  * This can handle any exceptions thrown while iterating and ensures the lock is released correctly.
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * try (ClosableIterator<T> it = cacheView.lockedIterator()) {
  *     while (it.hasNext()) {
  *         consume(it.next());
  *     }
  * }
- * }
+ *}
  *
  * @param <T>
  *        The element type for this iterator

@@ -40,12 +40,12 @@ import javax.annotation.Nonnull;
  * <p>This can be configured with {@link net.dv8tion.jda.api.JDABuilder#setMemberCachePolicy(MemberCachePolicy) JDABuilder.setMemberCachePolicy(MemberCachePolicy)}.
  *
  * <p><b>Example Policy</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * MemberCachePolicy.VOICE                         // Keep in cache if currently in voice (skip LRU and ONLINE)
  *     .or(MemberCachePolicy.ONLINE)               // Otherwise, only add to cache if online
  *     .and(MemberCachePolicy.lru(1000)            // keep 1000 recently active members
  *         .unloadUnless(MemberCachePolicy.VOICE)) // only unload if they are not in voice/guild owner
- * }
+ *}
  *
  * @see #DEFAULT
  * @see #NONE
@@ -120,52 +120,6 @@ public interface MemberCachePolicy {
     MemberCachePolicy DEFAULT = VOICE.or(OWNER);
 
     /**
-     * Idempotent (ideally pure) function which decided whether to cache the provided member or not.
-     * <br>The function should avoid throwing any exceptions or blocking.
-     *
-     * @param  member
-     *         The member
-     *
-     * @return True, if the member should be cached
-     */
-    boolean cacheMember(@Nonnull Member member);
-
-    /**
-     * Convenience method to concatenate another policy.
-     * <br>This is identical to {@code (member) -> policy1.cacheMember(member) || policy2.cacheMember(member)}.
-     *
-     * @param  policy
-     *         The policy to concat
-     *
-     * @throws IllegalArgumentException
-     *         If the provided policy is null
-     *
-     * @return New policy which combines both using a logical OR
-     */
-    @Nonnull
-    default MemberCachePolicy or(@Nonnull MemberCachePolicy policy) {
-        Checks.notNull(policy, "Policy");
-        return (member) -> cacheMember(member) || policy.cacheMember(member);
-    }
-
-    /**
-     * Convenience method to require another policy.
-     * <br>This is identical to {@code (member) -> policy1.cacheMember(member) && policy2.cacheMember(member)}.
-     *
-     * @param  policy
-     *         The policy to require in addition to this one
-     *
-     * @throws IllegalArgumentException
-     *         If the provided policy is null
-     *
-     * @return New policy which combines both using a logical AND
-     */
-    @Nonnull
-    default MemberCachePolicy and(@Nonnull MemberCachePolicy policy) {
-        return (member) -> cacheMember(member) && policy.cacheMember(member);
-    }
-
-    /**
      * Composes a policy by concatenating multiple other policies.
      * <br>This is logically identical to {@code policy1 || policy2 || policy3 || ... || policyN}.
      *
@@ -211,12 +165,12 @@ public interface MemberCachePolicy {
      * Implementation using a Least-Recently-Used (LRU) cache strategy.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * MemberCachePolicy.ONLINE.and( // only cache online members
      *   MemberCachePolicy.lru(1000) // of those online members, track the 1000 most active members
      *     .unloadUnless(MemberCachePolicy.VOICE) // always keep voice members cached regardless of age
      * )
-     * }
+     *}
      *
      * This policy would add online members into the pool of cached members.
      * The cached members are limited to 1000 active members, which are handled by the LRU policy.
@@ -234,5 +188,41 @@ public interface MemberCachePolicy {
     @Nonnull
     static LRUMemberCachePolicy lru(int maxSize) {
         return new LRUMemberCachePolicy(maxSize);
+    }
+
+    /**
+     * Idempotent (ideally pure) function which decided whether to cache the provided member or not.
+     * <br>The function should avoid throwing any exceptions or blocking.
+     *
+     * @param member The member
+     * @return True, if the member should be cached
+     */
+    boolean cacheMember(@Nonnull Member member);
+
+    /**
+     * Convenience method to concatenate another policy.
+     * <br>This is identical to {@code (member) -> policy1.cacheMember(member) || policy2.cacheMember(member)}.
+     *
+     * @param policy The policy to concat
+     * @return New policy which combines both using a logical OR
+     * @throws IllegalArgumentException If the provided policy is null
+     */
+    @Nonnull
+    default MemberCachePolicy or(@Nonnull MemberCachePolicy policy) {
+        Checks.notNull(policy, "Policy");
+        return (member) -> cacheMember(member) || policy.cacheMember(member);
+    }
+
+    /**
+     * Convenience method to require another policy.
+     * <br>This is identical to {@code (member) -> policy1.cacheMember(member) && policy2.cacheMember(member)}.
+     *
+     * @param policy The policy to require in addition to this one
+     * @return New policy which combines both using a logical AND
+     * @throws IllegalArgumentException If the provided policy is null
+     */
+    @Nonnull
+    default MemberCachePolicy and(@Nonnull MemberCachePolicy policy) {
+        return (member) -> cacheMember(member) && policy.cacheMember(member);
     }
 }

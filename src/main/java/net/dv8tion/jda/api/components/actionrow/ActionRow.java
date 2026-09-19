@@ -85,7 +85,7 @@ public interface ActionRow extends MessageTopLevelComponent, ContainerChildCompo
      * meaning they will not have mixed component types.
      *
      * <p><b>Example</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * List<ActionRowChildComponent> components = Arrays.asList(
      *   Button.primary("id1", "Hello"),
      *   Button.secondary("id2", "World"),
@@ -95,7 +95,7 @@ public interface ActionRow extends MessageTopLevelComponent, ContainerChildCompo
      * List<ActionRow> partitioned = ActionRow.partition(components);
      * // partitioned[0] = ActionRow(button, button)
      * // partitioned[1] = ActionRow(selectMenu)
-     * }
+     *}
      *
      * @param  components
      *         The components to partition
@@ -116,7 +116,7 @@ public interface ActionRow extends MessageTopLevelComponent, ContainerChildCompo
      * meaning they will not have mixed component types.
      *
      * <p><b>Example</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * List<ActionRowChildComponent> components = Arrays.asList(
      *   Button.primary("id1", "Hello"),
      *   Button.secondary("id2", "World"),
@@ -126,7 +126,7 @@ public interface ActionRow extends MessageTopLevelComponent, ContainerChildCompo
      * List<ActionRow> partitioned = ActionRow.partition(components);
      * // partitioned[0] = ActionRow(button, button)
      * // partitioned[1] = ActionRow(selectMenu)
-     * }
+     *}
      *
      * @param  component
      *         The first component to partition

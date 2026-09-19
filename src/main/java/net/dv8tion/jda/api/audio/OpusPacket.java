@@ -58,6 +58,38 @@ public final class OpusPacket implements Comparable<OpusPacket> {
     }
 
     /**
+     * Decodes and adjusts the opus audio for the specified volume.
+     * <br>The provided volume should be a double precision floating point in the interval from 0 to 1.
+     * In this case 0.5 would represent 50% volume for instance.
+     *
+     * @param decoded The decoded audio data
+     * @param volume The volume
+     * @return The stereo PCM audio data as specified by {@link net.dv8tion.jda.api.audio.AudioReceiveHandler#OUTPUT_FORMAT}.
+     * @throws java.lang.IllegalArgumentException If {@code decoded} is null
+     */
+    @Nonnull
+    @SuppressWarnings("ConstantConditions") // the null case is handled with an exception
+    public static byte[] getAudioData(@Nonnull short[] decoded, double volume) {
+        if (decoded == null) {
+            throw new IllegalArgumentException("Cannot get audio data from null");
+        }
+        int byteIndex = 0;
+        byte[] audio = new byte[decoded.length * 2];
+        for (short s : decoded) {
+            if (volume != 1.0) {
+                s = (short) (s * volume);
+            }
+
+            byte leftByte = (byte) ((s >>> 8) & 0xFF);
+            byte rightByte = (byte) (s & 0xFF);
+            audio[byteIndex] = leftByte;
+            audio[byteIndex + 1] = rightByte;
+            byteIndex += 2;
+        }
+        return audio;
+    }
+
+    /**
      * The sequence number of this packet. This is used as ordering key for {@link #compareTo(OpusPacket)}.
      * <br>A char represents an unsigned short value in this case.
      *
@@ -170,43 +202,6 @@ public final class OpusPacket implements Comparable<OpusPacket> {
     @SuppressWarnings("ConstantConditions") // the null case is handled with an exception
     public byte[] getAudioData(double volume) {
         return getAudioData(decode(), volume); // throws IllegalArgument if decode failed
-    }
-
-    /**
-     * Decodes and adjusts the opus audio for the specified volume.
-     * <br>The provided volume should be a double precision floating point in the interval from 0 to 1.
-     * In this case 0.5 would represent 50% volume for instance.
-     *
-     * @param  decoded
-     *         The decoded audio data
-     * @param  volume
-     *         The volume
-     *
-     * @throws java.lang.IllegalArgumentException
-     *         If {@code decoded} is null
-     *
-     * @return The stereo PCM audio data as specified by {@link net.dv8tion.jda.api.audio.AudioReceiveHandler#OUTPUT_FORMAT}.
-     */
-    @Nonnull
-    @SuppressWarnings("ConstantConditions") // the null case is handled with an exception
-    public static byte[] getAudioData(@Nonnull short[] decoded, double volume) {
-        if (decoded == null) {
-            throw new IllegalArgumentException("Cannot get audio data from null");
-        }
-        int byteIndex = 0;
-        byte[] audio = new byte[decoded.length * 2];
-        for (short s : decoded) {
-            if (volume != 1.0) {
-                s = (short) (s * volume);
-            }
-
-            byte leftByte = (byte) ((s >>> 8) & 0xFF);
-            byte rightByte = (byte) (s & 0xFF);
-            audio[byteIndex] = leftByte;
-            audio[byteIndex + 1] = rightByte;
-            byteIndex += 2;
-        }
-        return audio;
     }
 
     @Override

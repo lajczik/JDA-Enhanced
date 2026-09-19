@@ -163,15 +163,6 @@ public interface StageInstance extends ISnowflake {
         }
 
         /**
-         * The raw API key for this privacy level
-         *
-         * @return The raw API value or {@code -1} if this is {@link #UNKNOWN}
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * Converts the raw API key into the respective enum value
          *
          * @param  key
@@ -187,6 +178,15 @@ public interface StageInstance extends ISnowflake {
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The raw API key for this privacy level
+         *
+         * @return The raw API value or {@code -1} if this is {@link #UNKNOWN}
+         */
+        public int getKey() {
+            return key;
         }
     }
 }

@@ -43,6 +43,18 @@ public interface CheckboxGroup extends ICustomId, LabelChildComponent {
     /** The maximum number of options a checkbox group can have. ({@value}) */
     int OPTIONS_MAX_AMOUNT = 10;
 
+    /**
+     * Creates a new checkbox group builder with the provided custom ID.
+     *
+     * @param customId The custom ID, can be used to pass data to handlers
+     * @return The new builder
+     * @throws IllegalArgumentException If the ID is {@code null} or blank
+     */
+    @Nonnull
+    static Builder create(@Nonnull String customId) {
+        return new Builder(customId);
+    }
+
     @Nonnull
     @Override
     CheckboxGroup withUniqueId(int uniqueId);
@@ -83,22 +95,6 @@ public interface CheckboxGroup extends ICustomId, LabelChildComponent {
     boolean isRequired();
 
     /**
-     * Creates a new checkbox group builder with the provided custom ID.
-     *
-     * @param  customId
-     *         The custom ID, can be used to pass data to handlers
-     *
-     * @throws IllegalArgumentException
-     *         If the ID is {@code null} or blank
-     *
-     * @return The new builder
-     */
-    @Nonnull
-    static Builder create(@Nonnull String customId) {
-        return new Builder(customId);
-    }
-
-    /**
      * Creates a new preconfigured {@link CheckboxGroup.Builder} with the same settings used for this checkbox group.
      * <br>This can be useful to create an updated version of this checkbox group without needing to rebuild it from scratch.
      *
@@ -120,9 +116,9 @@ public interface CheckboxGroup extends ICustomId, LabelChildComponent {
      * @see CheckboxGroup#create(String)
      */
     class Builder {
+        protected final List<CheckboxGroupOption> options = new ArrayList<>();
         protected int uniqueId = -1;
         protected String customId;
-        protected final List<CheckboxGroupOption> options = new ArrayList<>();
         protected int minValues = -1, maxValues = -1;
         protected boolean required = true;
 
@@ -137,44 +133,6 @@ public interface CheckboxGroup extends ICustomId, LabelChildComponent {
          */
         public int getUniqueId() {
             return uniqueId;
-        }
-
-        /**
-         * The custom ID of this checkbox group.
-         *
-         * @return The custom ID
-         */
-        @Nonnull
-        public String getCustomId() {
-            return customId;
-        }
-
-        /**
-         * The minimum number of values the user has to select.
-         *
-         * @return Minimum number of values the user has to select
-         */
-        public int getMinValues() {
-            return minValues;
-        }
-
-        /**
-         * The maximum number of values the user can select.
-         *
-         * @return Maximum number of values the user can select
-         */
-        public int getMaxValues() {
-            return maxValues;
-        }
-
-        /**
-         * Whether this checkbox group should, if at least one option is selected,
-         * enforce the value range before sending.
-         *
-         * @return {@code true} if the value range should be enforced
-         */
-        public boolean isRequired() {
-            return required;
         }
 
         /**
@@ -197,6 +155,16 @@ public interface CheckboxGroup extends ICustomId, LabelChildComponent {
         }
 
         /**
+         * The custom ID of this checkbox group.
+         *
+         * @return The custom ID
+         */
+        @Nonnull
+        public String getCustomId() {
+            return customId;
+        }
+
+        /**
          * Sets the custom ID of this checkbox group.
          * <br>This is typically used to carry data between the modal creator and the modal handler.
          *
@@ -213,6 +181,84 @@ public interface CheckboxGroup extends ICustomId, LabelChildComponent {
             Checks.notBlank(customId, "Custom ID");
             Checks.notLonger(customId, CUSTOM_ID_MAX_LENGTH, "Custom ID");
             this.customId = customId;
+            return this;
+        }
+
+        /**
+         * The minimum number of values the user has to select.
+         *
+         * @return Minimum number of values the user has to select
+         */
+        public int getMinValues() {
+            return minValues;
+        }
+
+        /**
+         * Sets the minimum number of values the user has to select.
+         *
+         * <p>If you set this to zero, you must set this checkbox group as {@linkplain #setRequired(boolean) optional}.
+         *
+         * @param minValues Minimum number of values to select
+         * @return This instance for chaining convenience
+         * @throws IllegalArgumentException If the value is negative or greater than {@value #OPTIONS_MAX_AMOUNT}
+         */
+        @Nonnull
+        public Builder setMinValues(int minValues) {
+            Checks.notNegative(minValues, "Min values");
+            Checks.check(minValues <= OPTIONS_MAX_AMOUNT, "Min values cannot be greater than " + OPTIONS_MAX_AMOUNT);
+            this.minValues = minValues;
+            return this;
+        }
+
+        /**
+         * The maximum number of values the user can select.
+         *
+         * @return Maximum number of values the user can select
+         */
+        public int getMaxValues() {
+            return maxValues;
+        }
+
+        /**
+         * Sets the maximum number of values the user can select.
+         *
+         * @param maxValues Maximum number of selectable values
+         * @return This instance for chaining convenience
+         * @throws IllegalArgumentException If the value is zero, negative, or, greater than {@value #OPTIONS_MAX_AMOUNT}
+         */
+        @Nonnull
+        public Builder setMaxValues(int maxValues) {
+            Checks.positive(maxValues, "Max values");
+            Checks.check(maxValues <= OPTIONS_MAX_AMOUNT, "Max values cannot be greater than " + OPTIONS_MAX_AMOUNT);
+            this.maxValues = maxValues;
+            return this;
+        }
+
+        /**
+         * Whether this checkbox group should, if at least one option is selected,
+         * enforce the value range before sending.
+         *
+         * @return {@code true} if the value range should be enforced
+         */
+        public boolean isRequired() {
+            return required;
+        }
+
+        /**
+         * Sets whether this checkbox group must have at least {@linkplain #setMinValues(int) the minimum amount of options} be selected.
+         *
+         * <p>This attribute is completely separate from the value range,
+         * for example, you can have an optional checkbox group with the range set to {@code [2 ; 5]},
+         * meaning you accept either 0 options, or, at least 2 but at most 5.
+         *
+         * <p>Checkbox groups are required by default.
+         *
+         * @param required {@code true} if the value range must be enforced when at least one value is selected
+         * @return This instance for chaining convenience
+         */
+        @Nonnull
+        public Builder setRequired(boolean required) {
+            this.required = required;
             return this;
         }
 
@@ -334,46 +380,6 @@ public interface CheckboxGroup extends ICustomId, LabelChildComponent {
         }
 
         /**
-         * Sets the minimum number of values the user has to select.
-         *
-         * <p>If you set this to zero, you must set this checkbox group as {@linkplain #setRequired(boolean) optional}.
-         *
-         * @param  minValues
-         *         Minimum number of values to select
-         *
-         * @throws IllegalArgumentException
-         *         If the value is negative or greater than {@value #OPTIONS_MAX_AMOUNT}
-         *
-         * @return This instance for chaining convenience
-         */
-        @Nonnull
-        public Builder setMinValues(int minValues) {
-            Checks.notNegative(minValues, "Min values");
-            Checks.check(minValues <= OPTIONS_MAX_AMOUNT, "Min values cannot be greater than " + OPTIONS_MAX_AMOUNT);
-            this.minValues = minValues;
-            return this;
-        }
-
-        /**
-         * Sets the maximum number of values the user can select.
-         *
-         * @param  maxValues
-         *         Maximum number of selectable values
-         *
-         * @throws IllegalArgumentException
-         *         If the value is zero, negative, or, greater than {@value #OPTIONS_MAX_AMOUNT}
-         *
-         * @return This instance for chaining convenience
-         */
-        @Nonnull
-        public Builder setMaxValues(int maxValues) {
-            Checks.positive(maxValues, "Max values");
-            Checks.check(maxValues <= OPTIONS_MAX_AMOUNT, "Max values cannot be greater than " + OPTIONS_MAX_AMOUNT);
-            this.maxValues = maxValues;
-            return this;
-        }
-
-        /**
          * Sets the minimum and maximum number of values the user has to select.
          *
          * <p>If you set the minimum to zero, you must set this checkbox group as {@linkplain #setRequired(boolean) optional}.
@@ -399,26 +405,6 @@ public interface CheckboxGroup extends ICustomId, LabelChildComponent {
                     minValues,
                     maxValues);
             return setMinValues(minValues).setMaxValues(maxValues);
-        }
-
-        /**
-         * Sets whether this checkbox group must have at least {@linkplain #setMinValues(int) the minimum amount of options} be selected.
-         *
-         * <p>This attribute is completely separate from the value range,
-         * for example, you can have an optional checkbox group with the range set to {@code [2 ; 5]},
-         * meaning you accept either 0 options, or, at least 2 but at most 5.
-         *
-         * <p>Checkbox groups are required by default.
-         *
-         * @param  required
-         *         {@code true} if the value range must be enforced when at least one value is selected
-         *
-         * @return This instance for chaining convenience
-         */
-        @Nonnull
-        public Builder setRequired(boolean required) {
-            this.required = required;
-            return this;
         }
 
         /**

@@ -35,6 +35,17 @@ public class EntityString {
         this.entity = entity;
     }
 
+    @Nonnull
+    private static String getCleanedClassName(@Nonnull Class<?> clazz) {
+        String packageName = clazz.getPackage().getName();
+        String fullName = clazz.getName();
+        String simpleName = fullName.substring(packageName.length() + 1);
+
+        return simpleName
+                .replace('$', '.') // Clean up nested classes
+                .replace("Impl", ""); // Don't expose Impl
+    }
+
     public EntityString setType(@Nonnull Enum<?> type) {
         this.type = type.name();
         return this;
@@ -94,16 +105,5 @@ public class EntityString {
         }
 
         return sb.toString();
-    }
-
-    @Nonnull
-    private static String getCleanedClassName(@Nonnull Class<?> clazz) {
-        String packageName = clazz.getPackage().getName();
-        String fullName = clazz.getName();
-        String simpleName = fullName.substring(packageName.length() + 1);
-
-        return simpleName
-                .replace('$', '.') // Clean up nested classes
-                .replace("Impl", ""); // Don't expose Impl
     }
 }

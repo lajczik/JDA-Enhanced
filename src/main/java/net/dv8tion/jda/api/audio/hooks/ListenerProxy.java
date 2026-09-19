@@ -91,11 +91,11 @@ public class ListenerProxy implements ConnectionListener {
         }
     }
 
-    public void setListener(@Nullable ConnectionListener listener) {
-        this.listener = listener;
-    }
-
     public ConnectionListener getListener() {
         return listener;
+    }
+
+    public void setListener(@Nullable ConnectionListener listener) {
+        this.listener = listener;
     }
 }

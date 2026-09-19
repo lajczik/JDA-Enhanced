@@ -76,6 +76,23 @@ public enum Region {
     }
 
     /**
+     * Retrieves the {@link net.dv8tion.jda.api.Region Region} based on the provided key.
+     *
+     * @param key The key relating to the {@link net.dv8tion.jda.api.Region Region} we wish to retrieve.
+     * @return The {@link net.dv8tion.jda.api.Region Region} matching the key. If there is no match,
+     * returns {@link net.dv8tion.jda.api.Region#UNKNOWN UNKNOWN}.
+     */
+    @Nonnull
+    public static Region fromKey(@Nullable String key) {
+        for (Region region : values()) {
+            if (region.getKey().equals(key)) {
+                return region;
+            }
+        }
+        return UNKNOWN;
+    }
+
+    /**
      * The human readable region name.
      *
      * @return The name of this region
@@ -114,25 +131,6 @@ public enum Region {
      */
     public boolean isVip() {
         return vip;
-    }
-
-    /**
-     * Retrieves the {@link net.dv8tion.jda.api.Region Region} based on the provided key.
-     *
-     * @param  key
-     *         The key relating to the {@link net.dv8tion.jda.api.Region Region} we wish to retrieve.
-     *
-     * @return The {@link net.dv8tion.jda.api.Region Region} matching the key. If there is no match,
-     *         returns {@link net.dv8tion.jda.api.Region#UNKNOWN UNKNOWN}.
-     */
-    @Nonnull
-    public static Region fromKey(@Nullable String key) {
-        for (Region region : values()) {
-            if (region.getKey().equals(key)) {
-                return region;
-            }
-        }
-        return UNKNOWN;
     }
 
     @Override

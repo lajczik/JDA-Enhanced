@@ -32,7 +32,10 @@ import org.intellij.lang.annotations.PrintFormat;
 import org.jetbrains.annotations.Contract;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;

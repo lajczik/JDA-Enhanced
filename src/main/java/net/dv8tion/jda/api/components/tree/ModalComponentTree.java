@@ -36,29 +36,6 @@ import javax.annotation.Nonnull;
  * @see ComponentTree
  */
 public interface ModalComponentTree extends ComponentTree<ModalTopLevelComponentUnion> {
-    @Nonnull
-    @Override
-    ModalComponentTree replace(@Nonnull ComponentReplacer replacer);
-
-    @Nonnull
-    @Override
-    @CheckReturnValue
-    ModalComponentTree withDisabled(boolean disabled);
-
-    @Nonnull
-    @Override
-    @CheckReturnValue
-    default ModalComponentTree asDisabled() {
-        return (ModalComponentTree) ComponentTree.super.asDisabled();
-    }
-
-    @Nonnull
-    @Override
-    @CheckReturnValue
-    default ModalComponentTree asEnabled() {
-        return (ModalComponentTree) ComponentTree.super.asEnabled();
-    }
-
     /**
      * Creates a {@link ModalComponentTree} from the given top-level modal components.
      *
@@ -89,5 +66,28 @@ public interface ModalComponentTree extends ComponentTree<ModalTopLevelComponent
     @Nonnull
     static ModalComponentTree of(@Nonnull ModalTopLevelComponent... components) {
         return of(Arrays.asList(components));
+    }
+
+    @Nonnull
+    @Override
+    ModalComponentTree replace(@Nonnull ComponentReplacer replacer);
+
+    @Nonnull
+    @Override
+    @CheckReturnValue
+    ModalComponentTree withDisabled(boolean disabled);
+
+    @Nonnull
+    @Override
+    @CheckReturnValue
+    default ModalComponentTree asDisabled() {
+        return (ModalComponentTree) ComponentTree.super.asDisabled();
+    }
+
+    @Nonnull
+    @Override
+    @CheckReturnValue
+    default ModalComponentTree asEnabled() {
+        return (ModalComponentTree) ComponentTree.super.asEnabled();
     }
 }

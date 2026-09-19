@@ -16,22 +16,14 @@
 
 package net.dv8tion.jda.api.utils;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
+import io.netty.buffer.*;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.ReferenceCounted;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.EntityString;
 import net.dv8tion.jda.internal.utils.IOUtil;
-import net.dv8tion.jda.internal.utils.requestbody.ByteBufRequestBody;
-import net.dv8tion.jda.internal.utils.requestbody.DataSupplierBody;
-import net.dv8tion.jda.internal.utils.requestbody.MultipartBody;
-import net.dv8tion.jda.internal.utils.requestbody.RequestBody;
-import net.dv8tion.jda.internal.utils.requestbody.TypedBody;
+import net.dv8tion.jda.internal.utils.requestbody.*;
 import org.jetbrains.annotations.Contract;
 
 import java.io.*;
@@ -59,34 +51,6 @@ import javax.annotation.Nullable;
  */
 public class FileUpload implements AutoCloseable, AttachedFile {
     private static final Cleaner CLEANER = Cleaner.create();
-
-    private static class CleanupAction implements Runnable {
-        private final InputStream resource;
-        private volatile TypedBody<?> body;
-
-        CleanupAction(InputStream resource) {
-            this.resource = resource;
-        }
-
-        void setBody(TypedBody<?> body) {
-            this.body = body;
-        }
-
-        @Override
-        public void run() {
-            if (resource != null) {
-                IOUtil.silentClose(resource);
-            }
-            TypedBody<?> b = this.body;
-            this.body = null;
-            if (b instanceof ReferenceCounted refCounted) {
-                ReferenceCountUtil.safeRelease(refCounted);
-            } else if (b instanceof AutoCloseable closeable) {
-                IOUtil.silentClose(closeable);
-            }
-        }
-    }
-
     private final CleanupAction cleanup;
     private final Cleaner.Cleanable cleanable;
     private final InputStream resource;
@@ -416,6 +380,16 @@ public class FileUpload implements AutoCloseable, AttachedFile {
     }
 
     /**
+     * Whether this file upload is configured to be closed automatically after use.
+     *
+     * @return True, if this file upload closes on use
+     * @see #isSingleUse()
+     */
+    public boolean isCloseOnUse() {
+        return singleUse;
+    }
+
+    /**
      * Set whether this file upload should be closed automatically after being consumed by a request.
      *
      * @param  closeOnUse
@@ -432,63 +406,12 @@ public class FileUpload implements AutoCloseable, AttachedFile {
     }
 
     /**
-     * Whether this file upload is configured to be closed automatically after use.
-     *
-     * @return True, if this file upload closes on use
-     *
-     * @see    #isSingleUse()
-     */
-    public boolean isCloseOnUse() {
-        return singleUse;
-    }
-
-    /**
      * Whether this file upload has been closed.
      *
      * @return True, if this file upload has already been closed
      */
     public boolean isClosed() {
         return closed;
-    }
-
-    /**
-     * Changes the name of this file.
-     *
-     * @param  name
-     *         The new filename
-     *
-     * @throws IllegalArgumentException
-     *         If the name is null, blank, or empty
-     *
-     * @return The updated FileUpload instance
-     */
-    @Nonnull
-    @Contract("_->this")
-    public FileUpload setName(@Nonnull String name) {
-        Checks.notBlank(name, "Name");
-        this.name = name;
-        return this;
-    }
-
-    /**
-     * Set the file description used as ALT text for screenreaders.
-     *
-     * @param  description
-     *         The alt text describing this file attachment (up to {@value MAX_DESCRIPTION_LENGTH} characters)
-     *
-     * @throws IllegalArgumentException
-     *         If the description is longer than {@value MAX_DESCRIPTION_LENGTH} characters
-     *
-     * @return The same FileUpload instance with the new description
-     */
-    @Nonnull
-    @Contract("_->this")
-    public FileUpload setDescription(@Nullable String description) {
-        if (description != null) {
-            Checks.notLonger(description = description.trim(), MAX_DESCRIPTION_LENGTH, "Description");
-        }
-        this.description = description;
-        return this;
     }
 
     /**
@@ -566,6 +489,25 @@ public class FileUpload implements AutoCloseable, AttachedFile {
     }
 
     /**
+     * Changes the name of this file.
+     *
+     * @param  name
+     *         The new filename
+     *
+     * @throws IllegalArgumentException
+     *         If the name is null, blank, or empty
+     *
+     * @return The updated FileUpload instance
+     */
+    @Nonnull
+    @Contract("_->this")
+    public FileUpload setName(@Nonnull String name) {
+        Checks.notBlank(name, "Name");
+        this.name = name;
+        return this;
+    }
+
+    /**
      * The description for the file.
      *
      * @return The description
@@ -573,6 +515,27 @@ public class FileUpload implements AutoCloseable, AttachedFile {
     @Nullable
     public String getDescription() {
         return description;
+    }
+
+    /**
+     * Set the file description used as ALT text for screenreaders.
+     *
+     * @param  description
+     *         The alt text describing this file attachment (up to {@value MAX_DESCRIPTION_LENGTH} characters)
+     *
+     * @throws IllegalArgumentException
+     *         If the description is longer than {@value MAX_DESCRIPTION_LENGTH} characters
+     *
+     * @return The same FileUpload instance with the new description
+     */
+    @Nonnull
+    @Contract("_->this")
+    public FileUpload setDescription(@Nullable String description) {
+        if (description != null) {
+            Checks.notLonger(description = description.trim(), MAX_DESCRIPTION_LENGTH, "Description");
+        }
+        this.description = description;
+        return this;
     }
 
     /**
@@ -686,6 +649,33 @@ public class FileUpload implements AutoCloseable, AttachedFile {
     @Override
     public String toString() {
         return new EntityString("AttachedFile").setType("Data").setName(name).toString();
+    }
+
+    private static class CleanupAction implements Runnable {
+        private final InputStream resource;
+        private volatile TypedBody<?> body;
+
+        CleanupAction(InputStream resource) {
+            this.resource = resource;
+        }
+
+        void setBody(TypedBody<?> body) {
+            this.body = body;
+        }
+
+        @Override
+        public void run() {
+            if (resource != null) {
+                IOUtil.silentClose(resource);
+            }
+            TypedBody<?> b = this.body;
+            this.body = null;
+            if (b instanceof ReferenceCounted refCounted) {
+                ReferenceCountUtil.safeRelease(refCounted);
+            } else if (b instanceof AutoCloseable closeable) {
+                IOUtil.silentClose(closeable);
+            }
+        }
     }
 
     private static class SingleUseRequestBody extends RequestBody implements ReferenceCounted, AutoCloseable {

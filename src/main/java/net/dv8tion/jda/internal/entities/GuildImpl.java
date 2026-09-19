@@ -16,12 +16,7 @@
 
 package net.dv8tion.jda.internal.entities;
 
-import it.unimi.dsi.fastutil.longs.Long2IntMap;
-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.longs.*;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.Region;
 import net.dv8tion.jda.api.audio.hooks.ConnectionStatus;
@@ -546,15 +541,30 @@ public class GuildImpl implements Guild {
         return memberCount;
     }
 
+    public GuildImpl setMemberCount(int count) {
+        this.memberCount = count;
+        return this;
+    }
+
     @Nonnull
     @Override
     public String getName() {
         return name;
     }
 
+    public GuildImpl setName(String name) {
+        this.name = name;
+        return this;
+    }
+
     @Override
     public String getIconId() {
         return iconId;
+    }
+
+    public GuildImpl setIconId(String iconId) {
+        this.iconId = iconId;
+        return this;
     }
 
     @Nonnull
@@ -563,15 +573,30 @@ public class GuildImpl implements Guild {
         return features;
     }
 
+    public GuildImpl setFeatures(Set<String> features) {
+        this.features = Collections.unmodifiableSet(features);
+        return this;
+    }
+
     @Override
     public String getSplashId() {
         return splashId;
+    }
+
+    public GuildImpl setSplashId(String splashId) {
+        this.splashId = splashId;
+        return this;
     }
 
     @Nullable
     @Override
     public String getVanityCode() {
         return vanityCode;
+    }
+
+    public GuildImpl setVanityCode(String code) {
+        this.vanityCode = code;
+        return this;
     }
 
     @Override
@@ -593,10 +618,20 @@ public class GuildImpl implements Guild {
         return description;
     }
 
+    public GuildImpl setDescription(String description) {
+        this.description = description;
+        return this;
+    }
+
     @Nonnull
     @Override
     public DiscordLocale getLocale() {
         return preferredLocale;
+    }
+
+    public GuildImpl setLocale(DiscordLocale locale) {
+        this.preferredLocale = locale;
+        return this;
     }
 
     @Nullable
@@ -605,15 +640,30 @@ public class GuildImpl implements Guild {
         return banner;
     }
 
+    public GuildImpl setBannerId(String bannerId) {
+        this.banner = bannerId;
+        return this;
+    }
+
     @Nonnull
     @Override
     public BoostTier getBoostTier() {
         return boostTier;
     }
 
+    public GuildImpl setBoostTier(int tier) {
+        this.boostTier = BoostTier.fromKey(tier);
+        return this;
+    }
+
     @Override
     public int getBoostCount() {
         return boostCount;
+    }
+
+    public GuildImpl setBoostCount(int count) {
+        this.boostCount = count;
+        return this;
     }
 
     @Nonnull
@@ -630,9 +680,19 @@ public class GuildImpl implements Guild {
         return maxMembers;
     }
 
+    public GuildImpl setMaxMembers(int maxMembers) {
+        this.maxMembers = maxMembers;
+        return this;
+    }
+
     @Override
     public int getMaxPresences() {
         return maxPresences;
+    }
+
+    public GuildImpl setMaxPresences(int maxPresences) {
+        this.maxPresences = maxPresences;
+        return this;
     }
 
     @Nonnull
@@ -657,14 +717,29 @@ public class GuildImpl implements Guild {
         return afkChannel;
     }
 
+    public GuildImpl setAfkChannel(VoiceChannel afkChannel) {
+        this.afkChannel = afkChannel;
+        return this;
+    }
+
     @Override
     public TextChannel getSystemChannel() {
         return systemChannel;
     }
 
+    public GuildImpl setSystemChannel(TextChannel systemChannel) {
+        this.systemChannel = systemChannel;
+        return this;
+    }
+
     @Override
     public TextChannel getRulesChannel() {
         return rulesChannel;
+    }
+
+    public GuildImpl setRulesChannel(TextChannel rulesChannel) {
+        this.rulesChannel = rulesChannel;
+        return this;
     }
 
     @Nonnull
@@ -730,10 +805,20 @@ public class GuildImpl implements Guild {
         return communityUpdatesChannel;
     }
 
+    public GuildImpl setCommunityUpdatesChannel(TextChannel communityUpdatesChannel) {
+        this.communityUpdatesChannel = communityUpdatesChannel;
+        return this;
+    }
+
     @Nullable
     @Override
     public TextChannel getSafetyAlertsChannel() {
         return safetyAlertsChannel;
+    }
+
+    public GuildImpl setSafetyAlertsChannel(TextChannel safetyAlertsChannel) {
+        this.safetyAlertsChannel = safetyAlertsChannel;
+        return this;
     }
 
     @Nonnull
@@ -767,6 +852,14 @@ public class GuildImpl implements Guild {
         return owner;
     }
 
+    public GuildImpl setOwner(Member owner) {
+        // Only cache owner if user cache is enabled
+        if (owner != null && getMemberById(owner.getIdLong()) != null) {
+            this.owner = owner;
+        }
+        return this;
+    }
+
     @Override
     public long getOwnerIdLong() {
         return ownerId;
@@ -778,16 +871,31 @@ public class GuildImpl implements Guild {
         return afkTimeout;
     }
 
+    public GuildImpl setAfkTimeout(Timeout afkTimeout) {
+        this.afkTimeout = afkTimeout;
+        return this;
+    }
+
     @Nonnull
     @Override
     public SecurityIncidentActions getSecurityIncidentActions() {
         return securityIncidentActions;
     }
 
+    public GuildImpl setSecurityIncidentActions(SecurityIncidentActions actions) {
+        this.securityIncidentActions = actions == null ? SecurityIncidentActions.disabled() : actions;
+        return this;
+    }
+
     @Nonnull
     @Override
     public SecurityIncidentDetections getSecurityIncidentDetections() {
         return securityIncidentDetections;
+    }
+
+    public GuildImpl setSecurityIncidentDetections(SecurityIncidentDetections detections) {
+        this.securityIncidentDetections = detections == null ? SecurityIncidentDetections.EMPTY : detections;
+        return this;
     }
 
     @Override
@@ -1138,6 +1246,11 @@ public class GuildImpl implements Guild {
         return publicRole;
     }
 
+    public GuildImpl setPublicRole(Role publicRole) {
+        this.publicRole = publicRole;
+        return this;
+    }
+
     @Nullable
     @Override
     public DefaultGuildChannelUnion getDefaultChannel() {
@@ -1157,6 +1270,11 @@ public class GuildImpl implements Guild {
     @Override
     public boolean isBoostProgressBarEnabled() {
         return boostProgressBarEnabled;
+    }
+
+    public GuildImpl setBoostProgressBarEnabled(boolean enabled) {
+        this.boostProgressBarEnabled = enabled;
+        return this;
     }
 
     @Nonnull
@@ -1266,10 +1384,20 @@ public class GuildImpl implements Guild {
         return verificationLevel;
     }
 
+    public GuildImpl setVerificationLevel(VerificationLevel level) {
+        this.verificationLevel = level;
+        return this;
+    }
+
     @Nonnull
     @Override
     public NotificationLevel getDefaultNotificationLevel() {
         return defaultNotificationLevel;
+    }
+
+    public GuildImpl setDefaultNotificationLevel(NotificationLevel level) {
+        this.defaultNotificationLevel = level;
+        return this;
     }
 
     @Nonnull
@@ -1278,10 +1406,20 @@ public class GuildImpl implements Guild {
         return mfaLevel;
     }
 
+    public GuildImpl setRequiredMFALevel(MFALevel level) {
+        this.mfaLevel = level;
+        return this;
+    }
+
     @Nonnull
     @Override
     public ExplicitContentLevel getExplicitContentLevel() {
         return explicitContentLevel;
+    }
+
+    public GuildImpl setExplicitContentLevel(ExplicitContentLevel level) {
+        this.explicitContentLevel = level;
+        return this;
     }
 
     @Nonnull
@@ -1764,6 +1902,8 @@ public class GuildImpl implements Guild {
         return new AuditableRestActionImpl<>(getJDA(), route, body);
     }
 
+    // ---- Checks ----
+
     @Nonnull
     @Override
     public AuditableRestAction<Void> deafen(@Nonnull UserSnowflake user, boolean deafen) {
@@ -1932,6 +2072,8 @@ public class GuildImpl implements Guild {
     public ChannelAction<VoiceChannel> createVoiceChannel(@Nonnull String name, Category parent) {
         return createChannel(ChannelType.VOICE, VoiceChannel.class, name, parent);
     }
+
+    // ---- Setters -----
 
     @Nonnull
     @Override
@@ -2133,8 +2275,6 @@ public class GuildImpl implements Guild {
         return new GuildWelcomeScreenManagerImpl(this);
     }
 
-    // ---- Checks ----
-
     protected void checkGuild(Guild providedGuild, String comment) {
         if (!equals(providedGuild)) {
             throw new IllegalArgumentException("Provided " + comment + " is not part of this Guild!");
@@ -2231,167 +2371,10 @@ public class GuildImpl implements Guild {
         }
     }
 
-    // ---- Setters -----
-
-    public GuildImpl setOwner(Member owner) {
-        // Only cache owner if user cache is enabled
-        if (owner != null && getMemberById(owner.getIdLong()) != null) {
-            this.owner = owner;
-        }
-        return this;
-    }
-
-    public GuildImpl setName(String name) {
-        this.name = name;
-        return this;
-    }
-
-    public GuildImpl setIconId(String iconId) {
-        this.iconId = iconId;
-        return this;
-    }
-
-    public GuildImpl setFeatures(Set<String> features) {
-        this.features = Collections.unmodifiableSet(features);
-        return this;
-    }
-
-    public GuildImpl setSplashId(String splashId) {
-        this.splashId = splashId;
-        return this;
-    }
-
-    public GuildImpl setVanityCode(String code) {
-        this.vanityCode = code;
-        return this;
-    }
-
-    public GuildImpl setDescription(String description) {
-        this.description = description;
-        return this;
-    }
-
-    public GuildImpl setBannerId(String bannerId) {
-        this.banner = bannerId;
-        return this;
-    }
-
-    public GuildImpl setMaxPresences(int maxPresences) {
-        this.maxPresences = maxPresences;
-        return this;
-    }
-
-    public GuildImpl setMaxMembers(int maxMembers) {
-        this.maxMembers = maxMembers;
-        return this;
-    }
-
-    public GuildImpl setAfkChannel(VoiceChannel afkChannel) {
-        this.afkChannel = afkChannel;
-        return this;
-    }
-
-    public GuildImpl setSystemChannel(TextChannel systemChannel) {
-        this.systemChannel = systemChannel;
-        return this;
-    }
-
-    public GuildImpl setRulesChannel(TextChannel rulesChannel) {
-        this.rulesChannel = rulesChannel;
-        return this;
-    }
-
-    public GuildImpl setCommunityUpdatesChannel(TextChannel communityUpdatesChannel) {
-        this.communityUpdatesChannel = communityUpdatesChannel;
-        return this;
-    }
-
-    public GuildImpl setSafetyAlertsChannel(TextChannel safetyAlertsChannel) {
-        this.safetyAlertsChannel = safetyAlertsChannel;
-        return this;
-    }
-
-    public GuildImpl setPublicRole(Role publicRole) {
-        this.publicRole = publicRole;
-        return this;
-    }
-
-    public GuildImpl setSecurityIncidentActions(SecurityIncidentActions actions) {
-        this.securityIncidentActions = actions == null ? SecurityIncidentActions.disabled() : actions;
-        return this;
-    }
-
-    public GuildImpl setSecurityIncidentDetections(SecurityIncidentDetections detections) {
-        this.securityIncidentDetections = detections == null ? SecurityIncidentDetections.EMPTY : detections;
-        return this;
-    }
-
-    public GuildImpl setVerificationLevel(VerificationLevel level) {
-        this.verificationLevel = level;
-        return this;
-    }
-
-    public GuildImpl setDefaultNotificationLevel(NotificationLevel level) {
-        this.defaultNotificationLevel = level;
-        return this;
-    }
-
-    public GuildImpl setRequiredMFALevel(MFALevel level) {
-        this.mfaLevel = level;
-        return this;
-    }
-
-    public GuildImpl setExplicitContentLevel(ExplicitContentLevel level) {
-        this.explicitContentLevel = level;
-        return this;
-    }
-
-    public GuildImpl setAfkTimeout(Timeout afkTimeout) {
-        this.afkTimeout = afkTimeout;
-        return this;
-    }
-
-    public GuildImpl setLocale(DiscordLocale locale) {
-        this.preferredLocale = locale;
-        return this;
-    }
-
-    public GuildImpl setBoostTier(int tier) {
-        this.boostTier = BoostTier.fromKey(tier);
-        return this;
-    }
-
-    public GuildImpl setBoostCount(int count) {
-        this.boostCount = count;
-        return this;
-    }
-
     public GuildImpl setOwnerId(long ownerId) {
         this.ownerId = ownerId;
         return this;
     }
-
-    public GuildImpl setMemberCount(int count) {
-        this.memberCount = count;
-        return this;
-    }
-
-    public GuildImpl setNSFWLevel(NSFWLevel nsfwLevel) {
-        this.nsfwLevel = nsfwLevel;
-        return this;
-    }
-
-    public GuildImpl setBoostProgressBarEnabled(boolean enabled) {
-        this.boostProgressBarEnabled = enabled;
-        return this;
-    }
-
-    public GuildImpl setSystemChannelFlags(int systemChannelFlags) {
-        this.systemChannelFlags = systemChannelFlags;
-        return this;
-    }
-
-    // -- Map getters --
 
     public SortedSnowflakeCacheViewImpl<ScheduledEvent> getScheduledEventsView() {
         return scheduledEventCache;
@@ -2400,6 +2383,8 @@ public class GuildImpl implements Guild {
     public SortedChannelCacheViewImpl<GuildChannel> getChannelView() {
         return channelCache;
     }
+
+    // -- Map getters --
 
     public SortedSnowflakeCacheViewImpl<Role> getRolesView() {
         return roleCache;
@@ -2427,10 +2412,20 @@ public class GuildImpl implements Guild {
         return nsfwLevel;
     }
 
+    public GuildImpl setNSFWLevel(NSFWLevel nsfwLevel) {
+        this.nsfwLevel = nsfwLevel;
+        return this;
+    }
+
     @Nonnull
     @Override
     public Set<SystemChannelFlag> getSystemChannelFlags() {
         return Collections.unmodifiableSet(SystemChannelFlag.getFlags(systemChannelFlags));
+    }
+
+    public GuildImpl setSystemChannelFlags(int systemChannelFlags) {
+        this.systemChannelFlags = systemChannelFlags;
+        return this;
     }
 
     @Override

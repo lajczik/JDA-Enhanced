@@ -294,12 +294,12 @@ public interface ChannelAction<T extends GuildChannel> extends FluentAuditableRe
      * <p>If setting permission overwrites, only permissions your bot has in the guild can be allowed/denied.
      *
      * <p>Example:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * Role role = guild.getPublicRole();
      * EnumSet<Permission> allow = EnumSet.of(Permission.VIEW_CHANNEL);
      * EnumSet<Permission> deny = EnumSet.of(Permission.MESSAGE_SEND);
      * channelAction.addPermissionOverride(role, allow, deny);
-     * }
+     *}
      *
      * @param  target
      *         The not-null {@link net.dv8tion.jda.api.entities.Role Role} or {@link net.dv8tion.jda.api.entities.Member Member} for the override
@@ -337,12 +337,12 @@ public interface ChannelAction<T extends GuildChannel> extends FluentAuditableRe
      * <p>If setting permission overwrites, only permissions your bot has in the guild can be allowed/denied.
      *
      * <p>Example:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * Role role = guild.getPublicRole();
      * long allow = Permission.VIEW_CHANNEL.getRawValue();
      * long deny = Permission.MESSAGE_SEND.getRawValue() | Permission.MESSAGE_ADD_REACTION.getRawValue();
      * channelAction.addPermissionOverride(role, allow, deny);
-     * }
+     *}
      *
      * @param  target
      *         The not-null {@link net.dv8tion.jda.api.entities.Role Role} or {@link net.dv8tion.jda.api.entities.Member Member} for the override
@@ -389,12 +389,12 @@ public interface ChannelAction<T extends GuildChannel> extends FluentAuditableRe
      * <p>If setting permission overwrites, only permissions your bot has in the guild can be allowed/denied.
      *
      * <p>Example:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * long userId = user.getIdLong();
      * EnumSet<Permission> allow = EnumSet.of(Permission.VIEW_CHANNEL);
      * EnumSet<Permission> deny = EnumSet.of(Permission.MESSAGE_SEND);
      * channelAction.addMemberPermissionOverride(userId, allow, deny);
-     * }
+     *}
      *
      * @param  memberId
      *         The id for the member
@@ -428,12 +428,12 @@ public interface ChannelAction<T extends GuildChannel> extends FluentAuditableRe
      * <p>If setting permission overwrites, only permissions your bot has in the guild can be allowed/denied.
      *
      * <p>Example:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * long roleId = role.getIdLong();
      * EnumSet<Permission> allow = EnumSet.of(Permission.VIEW_CHANNEL);
      * EnumSet<Permission> deny = EnumSet.of(Permission.MESSAGE_SEND);
      * channelAction.addRolePermissionOverride(roleId, allow, deny);
-     * }
+     *}
      *
      * @param  roleId
      *         The id for the role
@@ -466,12 +466,12 @@ public interface ChannelAction<T extends GuildChannel> extends FluentAuditableRe
      * <p>If setting permission overwrites, only permissions your bot has in the guild can be allowed/denied.
      *
      * <p>Example:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * long userId = user.getIdLong();
      * long allow = Permission.VIEW_CHANNEL.getRawValue();
      * long deny = Permission.MESSAGE_SEND.getRawValue() | Permission.MESSAGE_ADD_REACTION.getRawValue();
      * channelAction.addMemberPermissionOverride(userId, allow, deny);
-     * }
+     *}
      *
      * @param  memberId
      *         The id for the member
@@ -504,12 +504,12 @@ public interface ChannelAction<T extends GuildChannel> extends FluentAuditableRe
      * <p>If setting permission overwrites, only permissions your bot has in the guild can be allowed/denied.
      *
      * <p>Example:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * long roleId = role.getIdLong();
      * long allow = Permission.VIEW_CHANNEL.getRawValue();
      * long deny = Permission.MESSAGE_SEND.getRawValue() | Permission.MESSAGE_ADD_REACTION.getRawValue();
      * channelAction.addMemberPermissionOverride(roleId, allow, deny);
-     * }
+     *}
      *
      * @param  roleId
      *         The id for the role

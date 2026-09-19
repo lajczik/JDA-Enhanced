@@ -39,25 +39,15 @@ public abstract class AbstractStandardGuildMessageChannelImpl<T extends Abstract
     }
 
     @Override
-    public boolean isNSFW() {
-        return nsfw;
-    }
-
-    @Override
-    public long getLatestMessageIdLong() {
-        return latestMessageId;
-    }
-
-    @Override
-    public int getDefaultThreadSlowmode() {
-        return defaultThreadSlowmode;
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
     public T setTopic(String topic) {
         this.topic = topic;
         return (T) this;
+    }
+
+    @Override
+    public boolean isNSFW() {
+        return nsfw;
     }
 
     @Override
@@ -68,10 +58,20 @@ public abstract class AbstractStandardGuildMessageChannelImpl<T extends Abstract
     }
 
     @Override
+    public long getLatestMessageIdLong() {
+        return latestMessageId;
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public T setLatestMessageIdLong(long latestMessageId) {
         this.latestMessageId = latestMessageId;
         return (T) this;
+    }
+
+    @Override
+    public int getDefaultThreadSlowmode() {
+        return defaultThreadSlowmode;
     }
 
     @Override

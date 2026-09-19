@@ -65,9 +65,11 @@ import javax.annotation.Nonnull;
 @SuppressWarnings("unchecked")
 public class ChannelManagerImpl<T extends GuildChannel, M extends ChannelManager<T, M>> extends ManagerBase<M>
         implements ChannelManager<T, M> {
-    protected T channel;
-
     protected final EnumSet<ChannelFlag> flags;
+    protected final Object lock = new Object();
+    protected final Long2ObjectMap<PermOverrideData> overridesAdd;
+    protected final LongSet overridesRem;
+    protected T channel;
     protected ThreadChannel.AutoArchiveDuration autoArchiveDuration;
     protected List<BaseForumTag> availableTags;
     protected List<String> appliedTags;
@@ -88,10 +90,6 @@ public class ChannelManagerImpl<T extends GuildChannel, M extends ChannelManager
     protected int defaultThreadSlowmode;
     protected int userLimit;
     protected int bitrate;
-
-    protected final Object lock = new Object();
-    protected final Long2ObjectMap<PermOverrideData> overridesAdd;
-    protected final LongSet overridesRem;
 
     public ChannelManagerImpl(T channel) {
         super(channel.getJDA(), Route.Channels.MODIFY_CHANNEL.compile(channel.getId()));

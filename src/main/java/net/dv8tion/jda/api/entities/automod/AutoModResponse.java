@@ -38,38 +38,6 @@ public interface AutoModResponse extends SerializableData {
     int MAX_CUSTOM_MESSAGE_LENGTH = 150;
 
     /**
-     * The type of response.
-     *
-     * @return The type of response
-     */
-    @Nonnull
-    Type getType();
-
-    /**
-     * The channel to send the alert message to.
-     *
-     * @return The channel to send the alert message to, or null if this is not a {@link Type#SEND_ALERT_MESSAGE} response
-     */
-    @Nullable
-    GuildMessageChannel getChannel();
-
-    /**
-     * The custom message to send to the user.
-     *
-     * @return The custom message to send to the user, or null if this is not a {@link Type#BLOCK_MESSAGE} response
-     */
-    @Nullable
-    String getCustomMessage();
-
-    /**
-     * The duration to timeout the user for.
-     *
-     * @return The duration to timeout the user for, or null if this is not a {@link Type#TIMEOUT} response
-     */
-    @Nullable
-    Duration getTimeoutDuration();
-
-    /**
      * Create a response that will block the message.
      * <p>You can optionally pass a custom message to send to the user.
      *
@@ -150,6 +118,38 @@ public interface AutoModResponse extends SerializableData {
 
     /**
      * The type of response.
+     *
+     * @return The type of response
+     */
+    @Nonnull
+    Type getType();
+
+    /**
+     * The channel to send the alert message to.
+     *
+     * @return The channel to send the alert message to, or null if this is not a {@link Type#SEND_ALERT_MESSAGE} response
+     */
+    @Nullable
+    GuildMessageChannel getChannel();
+
+    /**
+     * The custom message to send to the user.
+     *
+     * @return The custom message to send to the user, or null if this is not a {@link Type#BLOCK_MESSAGE} response
+     */
+    @Nullable
+    String getCustomMessage();
+
+    /**
+     * The duration to timeout the user for.
+     *
+     * @return The duration to timeout the user for, or null if this is not a {@link Type#TIMEOUT} response
+     */
+    @Nullable
+    Duration getTimeoutDuration();
+
+    /**
+     * The type of response.
      */
     enum Type {
         /**
@@ -206,6 +206,22 @@ public interface AutoModResponse extends SerializableData {
         }
 
         /**
+         * The {@link Type} represented by the provided key.
+         *
+         * @param key The raw key
+         * @return The {@link Type} or {@link #UNKNOWN}
+         */
+        @Nonnull
+        public static Type fromKey(int key) {
+            for (Type type : values()) {
+                if (type.key == key) {
+                    return type;
+                }
+            }
+            return UNKNOWN;
+        }
+
+        /**
          * The raw value used by Discord to represent this type.
          *
          * @return The raw value
@@ -238,24 +254,6 @@ public interface AutoModResponse extends SerializableData {
         public boolean isSupportedTrigger(@Nonnull AutoModTriggerType type) {
             Checks.notNull(type, "AutoModTriggerType");
             return supportedTypes.contains(type);
-        }
-
-        /**
-         * The {@link Type} represented by the provided key.
-         *
-         * @param  key
-         *         The raw key
-         *
-         * @return The {@link Type} or {@link #UNKNOWN}
-         */
-        @Nonnull
-        public static Type fromKey(int key) {
-            for (Type type : values()) {
-                if (type.key == key) {
-                    return type;
-                }
-            }
-            return UNKNOWN;
         }
     }
 }

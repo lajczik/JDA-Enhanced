@@ -63,6 +63,11 @@ public class MetaConfig {
         this.jsonEngine = jsonEngine;
     }
 
+    @Nonnull
+    public static MetaConfig getDefault() {
+        return defaultConfig;
+    }
+
     @Nullable
     public ConcurrentMap<String, String> getMdcContextMap() {
         return mdcContextMap;
@@ -88,10 +93,5 @@ public class MetaConfig {
     @Nullable
     public JsonEngineType getJsonEngine() {
         return jsonEngine;
-    }
-
-    @Nonnull
-    public static MetaConfig getDefault() {
-        return defaultConfig;
     }
 }

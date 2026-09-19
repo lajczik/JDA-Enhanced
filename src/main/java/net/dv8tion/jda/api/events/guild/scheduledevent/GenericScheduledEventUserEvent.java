@@ -48,6 +48,7 @@ public abstract class GenericScheduledEventUserEvent extends GenericScheduledEve
         super(api, responseNumber, scheduledEvent);
         this.userId = userId;
     }
+
     /**
      * The id of the user that subscribed or unsubscribed to the {@link ScheduledEvent ScheduledEvent}.
      *

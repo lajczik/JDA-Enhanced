@@ -23,7 +23,8 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.internal.utils.Checks;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 
@@ -37,12 +38,12 @@ import javax.annotation.Nonnull;
  * <p>This is implemented using a queue and counter algorithm, to achieve amortized O(1) performance.
  *
  * <p><b>Example</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * MemberCachePolicy.ONLINE.and( // only cache online members
  *   MemberCachePolicy.lru(1000) // of those online members, track the 1000 most active members
  *     .unloadUnless(MemberCachePolicy.VOICE) // always keep voice members cached regardless of age
  * )
- * }
+ *}
  *
  * This policy would add online members into the pool of cached members.
  * The cached members are limited to 1000 active members, which are handled by the LRU policy.
@@ -93,6 +94,10 @@ public class LRUMemberCachePolicy implements MemberCachePolicy {
         this.activeMemberCache = new Object2IntLinkedOpenHashMap<>();
         this.activeMemberCache.defaultReturnValue(0);
         this.subPolicy = subPolicy;
+    }
+
+    private static int now() {
+        return (int) (System.currentTimeMillis() / 1000 - EPOCH_SECONDS);
     }
 
     /**
@@ -220,10 +225,6 @@ public class LRUMemberCachePolicy implements MemberCachePolicy {
                 break;
             }
         }
-    }
-
-    private static int now() {
-        return (int) (System.currentTimeMillis() / 1000 - EPOCH_SECONDS);
     }
 
     private record MemberNode(int insertionTime, Member member) {

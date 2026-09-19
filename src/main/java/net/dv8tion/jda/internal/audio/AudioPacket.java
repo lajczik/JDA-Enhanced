@@ -138,6 +138,22 @@ public class AudioPacket {
         this.encodedAudio = encodedAudio;
     }
 
+    private static void writeHeader(char seq, int timestamp, int ssrc, ByteBuf buffer) {
+        buffer.writeByte(RTP_VERSION_PAD_EXTEND);
+        buffer.writeByte(RTP_PAYLOAD_TYPE);
+        buffer.writeChar(seq);
+        buffer.writeInt(timestamp);
+        buffer.writeInt(ssrc);
+    }
+
+    private static void writeHeader(char seq, int timestamp, int ssrc, ByteBuffer buffer) {
+        buffer.put(RTP_VERSION_PAD_EXTEND);
+        buffer.put(RTP_PAYLOAD_TYPE);
+        buffer.putChar(seq);
+        buffer.putInt(timestamp);
+        buffer.putInt(ssrc);
+    }
+
     public ByteBuffer getEncodedAudio() {
         return encodedAudio;
     }
@@ -173,21 +189,5 @@ public class AudioPacket {
         }
 
         return new AudioPacket(seq, timestamp, ssrc, decryptBuffer.nioBuffer());
-    }
-
-    private static void writeHeader(char seq, int timestamp, int ssrc, ByteBuf buffer) {
-        buffer.writeByte(RTP_VERSION_PAD_EXTEND);
-        buffer.writeByte(RTP_PAYLOAD_TYPE);
-        buffer.writeChar(seq);
-        buffer.writeInt(timestamp);
-        buffer.writeInt(ssrc);
-    }
-
-    private static void writeHeader(char seq, int timestamp, int ssrc, ByteBuffer buffer) {
-        buffer.put(RTP_VERSION_PAD_EXTEND);
-        buffer.put(RTP_PAYLOAD_TYPE);
-        buffer.putChar(seq);
-        buffer.putInt(timestamp);
-        buffer.putInt(ssrc);
     }
 }

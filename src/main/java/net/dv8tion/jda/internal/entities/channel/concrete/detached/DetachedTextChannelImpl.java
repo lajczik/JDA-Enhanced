@@ -65,6 +65,12 @@ public class DetachedTextChannelImpl extends AbstractStandardGuildMessageChannel
         return slowmode;
     }
 
+    @Override
+    public DetachedTextChannelImpl setSlowmode(int slowmode) {
+        this.slowmode = slowmode;
+        return this;
+    }
+
     @Nonnull
     @Override
     public TextChannelManager getManager() {
@@ -75,12 +81,6 @@ public class DetachedTextChannelImpl extends AbstractStandardGuildMessageChannel
     @Override
     public ChannelInteractionPermissions getInteractionPermissions() {
         return interactionPermissions;
-    }
-
-    @Override
-    public DetachedTextChannelImpl setSlowmode(int slowmode) {
-        this.slowmode = slowmode;
-        return this;
     }
 
     @Nonnull

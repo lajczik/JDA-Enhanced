@@ -64,9 +64,19 @@ public class GuildVoiceStateImpl implements GuildVoiceState {
         return selfMuted;
     }
 
+    public GuildVoiceStateImpl setSelfMuted(boolean selfMuted) {
+        this.selfMuted = selfMuted;
+        return this;
+    }
+
     @Override
     public boolean isSelfDeafened() {
         return selfDeafened;
+    }
+
+    public GuildVoiceStateImpl setSelfDeafened(boolean selfDeafened) {
+        this.selfDeafened = selfDeafened;
+        return this;
     }
 
     @Nonnull
@@ -80,8 +90,18 @@ public class GuildVoiceStateImpl implements GuildVoiceState {
         return sessionId;
     }
 
+    public GuildVoiceStateImpl setSessionId(String sessionId) {
+        this.sessionId = sessionId;
+        return this;
+    }
+
     public long getRequestToSpeak() {
         return requestToSpeak;
+    }
+
+    public GuildVoiceStateImpl setRequestToSpeak(OffsetDateTime timestamp) {
+        this.requestToSpeak = timestamp == null ? 0L : timestamp.toInstant().toEpochMilli();
+        return this;
     }
 
     @Override
@@ -151,9 +171,19 @@ public class GuildVoiceStateImpl implements GuildVoiceState {
         return guildMuted;
     }
 
+    public GuildVoiceStateImpl setGuildMuted(boolean guildMuted) {
+        this.guildMuted = guildMuted;
+        return this;
+    }
+
     @Override
     public boolean isGuildDeafened() {
         return guildDeafened;
+    }
+
+    public GuildVoiceStateImpl setGuildDeafened(boolean guildDeafened) {
+        this.guildDeafened = guildDeafened;
+        return this;
     }
 
     @Override
@@ -161,15 +191,27 @@ public class GuildVoiceStateImpl implements GuildVoiceState {
         return suppressed;
     }
 
+    public GuildVoiceStateImpl setSuppressed(boolean suppressed) {
+        this.suppressed = suppressed;
+        return this;
+    }
+
     @Override
     public boolean isStream() {
         return stream;
+    }
+
+    public GuildVoiceStateImpl setStream(boolean stream) {
+        this.stream = stream;
+        return this;
     }
 
     @Override
     public boolean isSendingVideo() {
         return video;
     }
+
+    // -- Setters --
 
     @Override
     public AudioChannelUnion getChannel() {
@@ -194,6 +236,10 @@ public class GuildVoiceStateImpl implements GuildVoiceState {
             member = realMember;
         }
         return member;
+    }
+
+    public void setMember(Member member) {
+        this.member = member;
     }
 
     @Override
@@ -230,60 +276,14 @@ public class GuildVoiceStateImpl implements GuildVoiceState {
                 .toString();
     }
 
-    // -- Setters --
-
-    public void setMember(Member member) {
-        this.member = member;
-    }
-
     public GuildVoiceStateImpl updateConnectedChannel(AudioChannel connectedChannel) {
         this.connectedChannel = connectedChannel;
         ((GuildImpl) guild).handleVoiceStateUpdate(this);
         return this;
     }
 
-    public GuildVoiceStateImpl setSessionId(String sessionId) {
-        this.sessionId = sessionId;
-        return this;
-    }
-
-    public GuildVoiceStateImpl setSelfMuted(boolean selfMuted) {
-        this.selfMuted = selfMuted;
-        return this;
-    }
-
-    public GuildVoiceStateImpl setSelfDeafened(boolean selfDeafened) {
-        this.selfDeafened = selfDeafened;
-        return this;
-    }
-
-    public GuildVoiceStateImpl setGuildMuted(boolean guildMuted) {
-        this.guildMuted = guildMuted;
-        return this;
-    }
-
-    public GuildVoiceStateImpl setGuildDeafened(boolean guildDeafened) {
-        this.guildDeafened = guildDeafened;
-        return this;
-    }
-
-    public GuildVoiceStateImpl setSuppressed(boolean suppressed) {
-        this.suppressed = suppressed;
-        return this;
-    }
-
-    public GuildVoiceStateImpl setStream(boolean stream) {
-        this.stream = stream;
-        return this;
-    }
-
     public GuildVoiceStateImpl setVideo(boolean video) {
         this.video = video;
-        return this;
-    }
-
-    public GuildVoiceStateImpl setRequestToSpeak(OffsetDateTime timestamp) {
-        this.requestToSpeak = timestamp == null ? 0L : timestamp.toInstant().toEpochMilli();
         return this;
     }
 }

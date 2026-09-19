@@ -23,7 +23,10 @@ import net.dv8tion.jda.api.utils.cache.ChannelCacheView;
 import net.dv8tion.jda.internal.utils.ChainedClosableIterator;
 import net.dv8tion.jda.internal.utils.Checks;
 
-import java.util.*;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;

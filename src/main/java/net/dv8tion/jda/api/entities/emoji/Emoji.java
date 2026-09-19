@@ -48,14 +48,14 @@ public interface Emoji extends SerializableData, Formattable {
      * <a href="https://unicode.org/emoji/charts/full-emoji-list.html" target="_blank">Emoji Table</a>.
      *
      * <p><b>Examples</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // unicode emoji, escape codes
      * fromUnicode("&#92;uD83D&#92;uDE03");
      * // codepoint notation
      * fromUnicode("U+1F602");
      * // unicode emoji
      * fromUnicode("😃");
-     * }
+     *}
      *
      * @param  code
      *         The unicode characters, or codepoint notation such as {@code "U+1F602"}
@@ -123,7 +123,7 @@ public interface Emoji extends SerializableData, Formattable {
      * Parses the provided markdown formatting, or unicode characters, to an Emoji instance.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // animated custom emoji
      * fromFormatted("<a:dance:123456789123456789>");
      * // not animated custom emoji
@@ -134,7 +134,7 @@ public interface Emoji extends SerializableData, Formattable {
      * fromFormatted("U+1F602");
      * // unicode emoji
      * fromFormatted("😃");
-     * }
+     *}
      *
      * @param  code
      *         The code to parse

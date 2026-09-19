@@ -32,20 +32,6 @@ import java.util.concurrent.ThreadLocalRandom;
 public interface CryptoAdapter {
     String AES_GCM_NO_PADDING = "AES_256/GCM/NOPADDING";
 
-    AudioEncryption getMode();
-
-    void encrypt(ResizingByteBuf output, ByteBuffer audio);
-
-    boolean decrypt(short extensionLength, long userId, ByteBuffer packet, ResizingByteBuf decrypted);
-
-    default void encrypt(ResizingByteBuf output, ByteBuf audio) {
-        encrypt(output, audio.nioBuffer());
-    }
-
-    default boolean decrypt(short extensionLength, long userId, ByteBuf packet, ResizingByteBuf decrypted) {
-        return decrypt(extensionLength, userId, packet.nioBuffer(), decrypted);
-    }
-
     static AudioEncryption negotiate(EnumSet<AudioEncryption> supportedModes) {
         for (AudioEncryption mode : AudioEncryption.values()) {
             if (supportedModes.contains(mode) && isModeSupported(mode)) {
@@ -76,6 +62,20 @@ public interface CryptoAdapter {
             default:
                 throw new IllegalStateException("Unsupported encryption mode: " + mode);
         }
+    }
+
+    AudioEncryption getMode();
+
+    void encrypt(ResizingByteBuf output, ByteBuffer audio);
+
+    boolean decrypt(short extensionLength, long userId, ByteBuffer packet, ResizingByteBuf decrypted);
+
+    default void encrypt(ResizingByteBuf output, ByteBuf audio) {
+        encrypt(output, audio.nioBuffer());
+    }
+
+    default boolean decrypt(short extensionLength, long userId, ByteBuf packet, ResizingByteBuf decrypted) {
+        return decrypt(extensionLength, userId, packet.nioBuffer(), decrypted);
     }
 
     abstract class AbstractAaedAdapter implements CryptoAdapter {

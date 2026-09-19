@@ -62,6 +62,11 @@ public class ShardingMetaConfig extends MetaConfig {
         this.encoding = encoding;
     }
 
+    @Nonnull
+    public static ShardingMetaConfig getDefault() {
+        return defaultConfig;
+    }
+
     @Nullable
     public ConcurrentMap<String, String> getContextMap(int shardId) {
         return contextProvider == null ? null : contextProvider.apply(shardId);
@@ -78,10 +83,5 @@ public class ShardingMetaConfig extends MetaConfig {
     @Nullable
     public IntFunction<? extends ConcurrentMap<String, String>> getContextProvider() {
         return contextProvider;
-    }
-
-    @Nonnull
-    public static ShardingMetaConfig getDefault() {
-        return defaultConfig;
     }
 }

@@ -105,24 +105,6 @@ public enum OptionType {
     }
 
     /**
-     * The raw value for this type or -1 for {@link #UNKNOWN}
-     *
-     * @return The raw value
-     */
-    public int getKey() {
-        return raw;
-    }
-
-    /**
-     * Whether options of this type support predefined choices.
-     *
-     * @return True, if you can use choices for this type.
-     */
-    public boolean canSupportChoices() {
-        return supportsChoices;
-    }
-
-    /**
      * Converts the provided raw type to the enum constant.
      *
      * @param  key
@@ -138,5 +120,23 @@ public enum OptionType {
             }
         }
         return UNKNOWN;
+    }
+
+    /**
+     * The raw value for this type or -1 for {@link #UNKNOWN}
+     *
+     * @return The raw value
+     */
+    public int getKey() {
+        return raw;
+    }
+
+    /**
+     * Whether options of this type support predefined choices.
+     *
+     * @return True, if you can use choices for this type.
+     */
+    public boolean canSupportChoices() {
+        return supportsChoices;
     }
 }

@@ -44,12 +44,6 @@ public class CategoryOrderActionImpl extends ChannelOrderActionImpl implements C
     }
 
     @Nonnull
-    @Override
-    public Category getCategory() {
-        return category;
-    }
-
-    @Nonnull
     private static Collection<GuildChannel> getChannelsOfType(Category category, int bucket) {
         Checks.notNull(category, "Category");
         return ChannelOrderActionImpl.getChannelsOfType(category.getGuild(), bucket).stream()
@@ -57,6 +51,12 @@ public class CategoryOrderActionImpl extends ChannelOrderActionImpl implements C
                 .filter(it -> category.equals(((ICategorizableChannel) it).getParentCategory()))
                 .sorted()
                 .toList();
+    }
+
+    @Nonnull
+    @Override
+    public Category getCategory() {
+        return category;
     }
 
     @Override

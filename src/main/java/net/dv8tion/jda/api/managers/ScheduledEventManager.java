@@ -32,13 +32,13 @@ import javax.annotation.Nullable;
  * <br>The manager may also be used to start, cancel or end events.
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * manager.setLocation("at the beach")
  *     .setStartTime(OffsetDateTime.now().plusHours(1))
  *     .setEndTime(OffsetDateTime.now().plusHours(3))
  *     .setName("Discussing Turtle Shells")
  *     .queue();
- * }
+ *}
  *
  * @see    ScheduledEvent#getManager()
  */

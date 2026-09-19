@@ -31,7 +31,7 @@ import javax.annotation.Nonnull;
  * <br>Maximum - 100
  *
  * <p><b>Example</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * // Get every member interested in this event and add the members names to a list
  * public static void getInterestedMembers(ScheduledEvent event) {
  *      // get paginator
@@ -40,7 +40,7 @@ import javax.annotation.Nonnull;
  *      ArrayList<String> memberNames = new ArrayList();
  *      members.forEachAsync(member -> memberNames.add(member.getEffectiveName()));
  * }
- * }
+ *}
  */
 public interface ScheduledEventMembersPaginationAction
         extends PaginationAction<Member, ScheduledEventMembersPaginationAction> {

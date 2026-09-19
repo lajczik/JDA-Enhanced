@@ -50,29 +50,6 @@ import javax.annotation.Nullable;
  */
 public interface MessageRequest<R extends MessageRequest<R>> extends MessageData {
     /**
-     * Sets the {@link Message.MentionType MentionTypes} that should be parsed by default.
-     * This just sets the default for all RestActions and can be overridden on a per-action basis using {@link #setAllowedMentions(Collection)}.
-     * <br>If a message is sent with an empty Set of MentionTypes, then it will not ping any User, Role or {@code @everyone}/{@code @here},
-     * while still showing up as mention tag.
-     *
-     * <p>If {@code null} is provided to this method, then all Types will be pingable
-     * (unless whitelisting via one of the {@code mention*} methods is used).
-     *
-     * <p><b>Example</b><br>
-     * {@snippet lang="java":
-     * // Disable EVERYONE and HERE mentions by default (to avoid mass ping)
-     * EnumSet<Message.MentionType> deny = EnumSet.of(Message.MentionType.EVERYONE, Message.MentionType.HERE);
-     * MessageRequest.setDefaultMentions(EnumSet.complementOf(deny));
-     * }
-     *
-     * @param  allowedMentions
-     *         MentionTypes that are allowed to being parsed and pinged. {@code null} to disable and allow all mentions.
-     */
-    static void setDefaultMentions(@Nullable Collection<Message.MentionType> allowedMentions) {
-        AllowedMentionsData.setDefaultMentions(allowedMentions);
-    }
-
-    /**
      * Returns the default {@link Message.MentionType MentionTypes} previously set by
      * {@link #setDefaultMentions(Collection) AllowedMentions.setDefaultMentions(Collection)}.
      *
@@ -84,15 +61,38 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     }
 
     /**
-     * Sets the default value for {@link #mentionRepliedUser(boolean)}
+     * Sets the {@link Message.MentionType MentionTypes} that should be parsed by default.
+     * This just sets the default for all RestActions and can be overridden on a per-action basis using {@link #setAllowedMentions(Collection)}.
+     * <br>If a message is sent with an empty Set of MentionTypes, then it will not ping any User, Role or {@code @everyone}/{@code @here},
+     * while still showing up as mention tag.
      *
-     * <p>Default: <b>true</b>
+     * <p>If {@code null} is provided to this method, then all Types will be pingable
+     * (unless whitelisting via one of the {@code mention*} methods is used).
      *
-     * @param mention
-     *        True, if replies should mention by default
+     * <p><b>Example</b><br>
+     * {@snippet lang = "java":
+     * // Disable EVERYONE and HERE mentions by default (to avoid mass ping)
+     * EnumSet<Message.MentionType> deny = EnumSet.of(Message.MentionType.EVERYONE, Message.MentionType.HERE);
+     * MessageRequest.setDefaultMentions(EnumSet.complementOf(deny));
+     *}
+     *
+     * @param  allowedMentions
+     *         MentionTypes that are allowed to being parsed and pinged. {@code null} to disable and allow all mentions.
      */
-    static void setDefaultMentionRepliedUser(boolean mention) {
-        AllowedMentionsData.setDefaultMentionRepliedUser(mention);
+    static void setDefaultMentions(@Nullable Collection<Message.MentionType> allowedMentions) {
+        AllowedMentionsData.setDefaultMentions(allowedMentions);
+    }
+
+    /**
+     * Whether V2 components are used by default, this is {@code false} by default.
+     * <br>When enabled, {@link #useComponentsV2()} gets called for every message builder.
+     *
+     * <p>This can be overwritten with {@link #useComponentsV2(boolean)} on each builder instance.
+     *
+     * @return {@code true} if every message will use Components V2 by default, {@code false} if not
+     */
+    static boolean isDefaultUseComponentsV2() {
+        return AbstractMessageBuilder.isDefaultUseComponentsV2;
     }
 
     /**
@@ -109,18 +109,6 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     }
 
     /**
-     * Whether V2 components are used by default, this is {@code false} by default.
-     * <br>When enabled, {@link #useComponentsV2()} gets called for every message builder.
-     *
-     * <p>This can be overwritten with {@link #useComponentsV2(boolean)} on each builder instance.
-     *
-     * @return {@code true} if every message will use Components V2 by default, {@code false} if not
-     */
-    static boolean isDefaultUseComponentsV2() {
-        return AbstractMessageBuilder.isDefaultUseComponentsV2;
-    }
-
-    /**
      * Returns the default mention behavior for replies.
      * <br>If this is {@code true} then all replies will mention the author of the target message by default.
      * You can specify this individually with {@link #mentionRepliedUser(boolean)} for each message.
@@ -131,6 +119,17 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      */
     static boolean isDefaultMentionRepliedUser() {
         return AllowedMentionsData.isDefaultMentionRepliedUser();
+    }
+
+    /**
+     * Sets the default value for {@link #mentionRepliedUser(boolean)}
+     *
+     * <p>Default: <b>true</b>
+     *
+     * @param mention True, if replies should mention by default
+     */
+    static void setDefaultMentionRepliedUser(boolean mention) {
+        AllowedMentionsData.setDefaultMentionRepliedUser(mention);
     }
 
     /**
@@ -190,7 +189,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * <br>You can use {@link Collections#emptyList()} to remove all components from the message.
      *
      * <p><b>Example: Set action rows</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * final List<MessageTopLevelComponent> list = new ArrayList<>();
      * list.add(ActionRow.of(selectMenu)); // first row
      * list.add(ActionRow.of(button1, button2)); // second row (shows below the first)
@@ -198,14 +197,14 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * channel.sendMessage("Content here")
      *   .setComponents(list)
      *   .queue();
-     * }
+     *}
      *
      * <p><b>Example: Remove action rows</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * channel.sendMessage("Content here")
      *    .setComponents(List.of())
      *    .queue();
-     * }
+     *}
      *
      * @param  components
      *         The {@link MessageTopLevelComponent MessageTopLevelComponents} to set, can be empty to remove components,
@@ -229,20 +228,20 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * <br>You can call this method without anything to remove all components from the message.
      *
      * <p><b>Example: Set action rows</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * channel.sendMessage("Content here")
      *   .setComponents(
      *     ActionRow.of(selectMenu), // first row
      *     ActionRow.of(button1, button2)) // second row (shows below the first)
      *   .queue();
-     * }
+     *}
      *
      * <p><b>Example: Remove action rows</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * channel.sendMessage("Content here")
      *   .setComponents()
      *   .queue();
-     * }
+     *}
      *
      * @param  components
      *         The {@link MessageTopLevelComponent MessageTopLevelComponents} to set, can be empty to remove components,
@@ -377,7 +376,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * <p><b>Example</b><br>
      * Create an embed with a custom image, uploaded alongside the message:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * MessageEmbed embed = new EmbedBuilder()
      *         .setDescription("Image of a cute cat")
      *         .setImage("attachment://cat.png") // here "cat.png" is the name used in the FileUpload.fromData factory method
@@ -389,7 +388,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * channel.sendMessageEmbeds(embed)
      *        .setFiles(file)
      *        .queue();
-     * }
+     *}
      *
      * @param  files
      *         The {@link FileUpload FileUploads} to attach to the message,
@@ -415,7 +414,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * <p><b>Example</b><br>
      * Create an embed with a custom image, uploaded alongside the message:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * MessageEmbed embed = new EmbedBuilder()
      *         .setDescription("Image of a cute cat")
      *         .setImage("attachment://cat.png") // here "cat.png" is the name used in the FileUpload.fromData factory method
@@ -427,7 +426,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * channel.sendMessageEmbeds(embed)
      *        .setFiles(file)
      *        .queue();
-     * }
+     *}
      *
      * @param  files
      *         The {@link FileUpload FileUploads} to attach to the message,

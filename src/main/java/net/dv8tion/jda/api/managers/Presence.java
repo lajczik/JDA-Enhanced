@@ -46,26 +46,6 @@ public interface Presence {
     OnlineStatus getStatus();
 
     /**
-     * The current Activity for this session.
-     * <br>This might not be what the Discord Client displays due to session clashing!
-     *
-     * @return The {@link net.dv8tion.jda.api.entities.Activity Activity}
-     *         of the current session or null if no activity is set
-     */
-    @Nullable
-    Activity getActivity();
-
-    /**
-     * Whether the current session is marked as afk or not.
-     *
-     * <p>This is relevant to client accounts to monitor
-     * whether new messages should trigger mobile push-notifications.
-     *
-     * @return True if this session is marked as afk
-     */
-    boolean isIdle();
-
-    /**
      * Sets the {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} for this session
      *
      * @param  status
@@ -76,6 +56,16 @@ public interface Presence {
      *         if the provided OnlineStatus is {@link net.dv8tion.jda.api.OnlineStatus#UNKNOWN UNKNOWN}
      */
     void setStatus(@Nullable OnlineStatus status);
+
+    /**
+     * The current Activity for this session.
+     * <br>This might not be what the Discord Client displays due to session clashing!
+     *
+     * @return The {@link net.dv8tion.jda.api.entities.Activity Activity}
+     * of the current session or null if no activity is set
+     */
+    @Nullable
+    Activity getActivity();
 
     /**
      * Sets the {@link net.dv8tion.jda.api.entities.Activity Activity} for this session.
@@ -93,6 +83,16 @@ public interface Presence {
      * @see    net.dv8tion.jda.api.entities.Activity#streaming(String, String)
      */
     void setActivity(@Nullable Activity activity);
+
+    /**
+     * Whether the current session is marked as afk or not.
+     *
+     * <p>This is relevant to client accounts to monitor
+     * whether new messages should trigger mobile push-notifications.
+     *
+     * @return True if this session is marked as afk
+     */
+    boolean isIdle();
 
     /**
      * Sets whether this session should be marked as afk or not

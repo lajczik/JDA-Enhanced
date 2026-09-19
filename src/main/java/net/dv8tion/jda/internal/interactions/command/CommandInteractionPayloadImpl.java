@@ -48,9 +48,9 @@ public class CommandInteractionPayloadImpl extends InteractionImpl implements Co
     private final Long2ObjectMap<Object> resolved = new Long2ObjectOpenHashMap<>();
     private final String name;
     private final boolean isGuildCommand;
+    private final Command.Type commandType;
     private String subcommand;
     private String group;
-    private final Command.Type commandType;
 
     @SuppressWarnings("fallthrough")
     public CommandInteractionPayloadImpl(JDAImpl jda, DataObject data) {

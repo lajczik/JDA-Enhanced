@@ -33,8 +33,6 @@ import javax.annotation.Nonnull;
  * and thus does not guarantee receiving a valid file.
  */
 public final class FileType {
-    private static final Pattern EXTENSION_PATTERN = Pattern.compile("[\\w\\-.]+");
-
     /** Matches any image supported by the Discord client. */
     public static final FileType IMAGE = new FileType("image");
     /** Matches any video supported by the Discord client. */
@@ -42,6 +40,7 @@ public final class FileType {
     /** Matches any audio supported by the Discord client. */
     public static final FileType AUDIO = new FileType("audio");
 
+    private static final Pattern EXTENSION_PATTERN = Pattern.compile("[\\w\\-.]+");
     private final String value;
 
     @ApiStatus.Internal

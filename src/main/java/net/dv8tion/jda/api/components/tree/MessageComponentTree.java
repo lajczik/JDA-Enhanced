@@ -36,30 +36,6 @@ import javax.annotation.Nonnull;
  * @see ComponentTree
  */
 public interface MessageComponentTree extends ComponentTree<MessageTopLevelComponentUnion> {
-    @Nonnull
-    @Override
-    @CheckReturnValue
-    MessageComponentTree replace(@Nonnull ComponentReplacer replacer);
-
-    @Nonnull
-    @Override
-    @CheckReturnValue
-    MessageComponentTree withDisabled(boolean disabled);
-
-    @Nonnull
-    @Override
-    @CheckReturnValue
-    default MessageComponentTree asDisabled() {
-        return (MessageComponentTree) ComponentTree.super.asDisabled();
-    }
-
-    @Nonnull
-    @Override
-    @CheckReturnValue
-    default MessageComponentTree asEnabled() {
-        return (MessageComponentTree) ComponentTree.super.asEnabled();
-    }
-
     /**
      * Creates a {@link MessageComponentTree} from the given top-level message components.
      *
@@ -90,5 +66,29 @@ public interface MessageComponentTree extends ComponentTree<MessageTopLevelCompo
     @Nonnull
     static MessageComponentTree of(@Nonnull MessageTopLevelComponent... components) {
         return of(Arrays.asList(components));
+    }
+
+    @Nonnull
+    @Override
+    @CheckReturnValue
+    MessageComponentTree replace(@Nonnull ComponentReplacer replacer);
+
+    @Nonnull
+    @Override
+    @CheckReturnValue
+    MessageComponentTree withDisabled(boolean disabled);
+
+    @Nonnull
+    @Override
+    @CheckReturnValue
+    default MessageComponentTree asDisabled() {
+        return (MessageComponentTree) ComponentTree.super.asDisabled();
+    }
+
+    @Nonnull
+    @Override
+    @CheckReturnValue
+    default MessageComponentTree asEnabled() {
+        return (MessageComponentTree) ComponentTree.super.asEnabled();
     }
 }

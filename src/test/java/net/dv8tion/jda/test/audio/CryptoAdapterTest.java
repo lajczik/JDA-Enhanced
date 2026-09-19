@@ -40,6 +40,39 @@ public class CryptoAdapterTest {
     private static final int TEST_SSRC = 5678;
     private static final int TEST_EXTENSION = 0xBEDE;
 
+    private static AudioPacket getMinimalPacket() {
+        ByteBuffer rawPacket = ByteBuffer.allocate(12 + 4);
+
+        rawPacket.put(AudioPacket.RTP_VERSION_PAD_EXTEND);
+        rawPacket.put(AudioPacket.RTP_PAYLOAD_TYPE);
+        rawPacket.putChar(TEST_SEQ);
+        rawPacket.putInt(TEST_TIMESTAMP);
+        rawPacket.putInt(TEST_SSRC);
+        rawPacket.put(TEST_PAYLOAD.getBytes(StandardCharsets.UTF_8));
+
+        return new AudioPacket(rawPacket.array());
+    }
+
+    private static AudioPacket getPacketWithExtension() {
+        ByteBuffer rawPacket = ByteBuffer.allocate(16 + 4);
+
+        rawPacket.put((byte) (AudioPacket.RTP_VERSION_PAD_EXTEND | 0x10));
+        rawPacket.put(AudioPacket.RTP_PAYLOAD_TYPE);
+        rawPacket.putChar(TEST_SEQ);
+        rawPacket.putInt(TEST_TIMESTAMP);
+        rawPacket.putInt(TEST_SSRC);
+        rawPacket.putInt(TEST_EXTENSION);
+        rawPacket.put(TEST_PAYLOAD.getBytes(StandardCharsets.UTF_8));
+
+        return new AudioPacket(rawPacket.flip());
+    }
+
+    private static byte[] getKey() {
+        byte[] key = new byte[32];
+        ThreadLocalRandom.current().nextBytes(key);
+        return key;
+    }
+
     @EnumSource
     @ParameterizedTest
     void testMinimalRoundtrip(AudioEncryption encryption) {
@@ -172,38 +205,5 @@ public class CryptoAdapterTest {
             assertThat(decrypted.getTimestamp()).isEqualTo(TEST_TIMESTAMP);
             assertThat(decrypted.getSSRC()).isEqualTo(TEST_SSRC);
         }
-    }
-
-    private static AudioPacket getMinimalPacket() {
-        ByteBuffer rawPacket = ByteBuffer.allocate(12 + 4);
-
-        rawPacket.put(AudioPacket.RTP_VERSION_PAD_EXTEND);
-        rawPacket.put(AudioPacket.RTP_PAYLOAD_TYPE);
-        rawPacket.putChar(TEST_SEQ);
-        rawPacket.putInt(TEST_TIMESTAMP);
-        rawPacket.putInt(TEST_SSRC);
-        rawPacket.put(TEST_PAYLOAD.getBytes(StandardCharsets.UTF_8));
-
-        return new AudioPacket(rawPacket.array());
-    }
-
-    private static AudioPacket getPacketWithExtension() {
-        ByteBuffer rawPacket = ByteBuffer.allocate(16 + 4);
-
-        rawPacket.put((byte) (AudioPacket.RTP_VERSION_PAD_EXTEND | 0x10));
-        rawPacket.put(AudioPacket.RTP_PAYLOAD_TYPE);
-        rawPacket.putChar(TEST_SEQ);
-        rawPacket.putInt(TEST_TIMESTAMP);
-        rawPacket.putInt(TEST_SSRC);
-        rawPacket.putInt(TEST_EXTENSION);
-        rawPacket.put(TEST_PAYLOAD.getBytes(StandardCharsets.UTF_8));
-
-        return new AudioPacket(rawPacket.flip());
-    }
-
-    private static byte[] getKey() {
-        byte[] key = new byte[32];
-        ThreadLocalRandom.current().nextBytes(key);
-        return key;
     }
 }

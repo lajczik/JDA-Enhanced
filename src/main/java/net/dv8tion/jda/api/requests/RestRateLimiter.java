@@ -167,40 +167,6 @@ public interface RestRateLimiter {
      */
     interface GlobalRateLimit {
         /**
-         * The current global rate-limit reset time.
-         * <br>This is the rate-limit applied on the bot token.
-         *
-         * @return The timestamp when the global rate-limit expires (unix timestamp in milliseconds)
-         */
-        long getClassic();
-
-        /**
-         * Set the current global rate-limit reset time.
-         * <br>This is the rate-limit applied on the bot token.
-         *
-         * @param timestamp
-         *        The timestamp when the global rate-limit expires (unix timestamp in milliseconds)
-         */
-        void setClassic(long timestamp);
-
-        /**
-         * The current cloudflare rate-limit reset time.
-         * <br>This is the rate-limit applied on the current IP.
-         *
-         * @return The timestamp when the cloudflare rate-limit expires (unix timestamp in milliseconds)
-         */
-        long getCloudflare();
-
-        /**
-         * Set the current cloudflare rate-limit reset time.
-         * <br>This is the rate-limit applied on the current IP.
-         *
-         * @param timestamp
-         *        The timestamp when the cloudflare rate-limit expires (unix timestamp in milliseconds)
-         */
-        void setCloudflare(long timestamp);
-
-        /**
          * Creates a default instance of this interface.
          * <br>This uses {@link AtomicLong} to keep track of rate-limits.
          *
@@ -233,6 +199,38 @@ public interface RestRateLimiter {
                 }
             };
         }
+
+        /**
+         * The current global rate-limit reset time.
+         * <br>This is the rate-limit applied on the bot token.
+         *
+         * @return The timestamp when the global rate-limit expires (unix timestamp in milliseconds)
+         */
+        long getClassic();
+
+        /**
+         * Set the current global rate-limit reset time.
+         * <br>This is the rate-limit applied on the bot token.
+         *
+         * @param timestamp The timestamp when the global rate-limit expires (unix timestamp in milliseconds)
+         */
+        void setClassic(long timestamp);
+
+        /**
+         * The current cloudflare rate-limit reset time.
+         * <br>This is the rate-limit applied on the current IP.
+         *
+         * @return The timestamp when the cloudflare rate-limit expires (unix timestamp in milliseconds)
+         */
+        long getCloudflare();
+
+        /**
+         * Set the current cloudflare rate-limit reset time.
+         * <br>This is the rate-limit applied on the current IP.
+         *
+         * @param timestamp The timestamp when the cloudflare rate-limit expires (unix timestamp in milliseconds)
+         */
+        void setCloudflare(long timestamp);
     }
 
     /**

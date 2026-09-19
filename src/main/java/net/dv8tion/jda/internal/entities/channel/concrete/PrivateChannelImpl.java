@@ -54,6 +54,10 @@ public class PrivateChannelImpl extends AbstractChannelImpl<PrivateChannelImpl>
         return user;
     }
 
+    public void setUser(User user) {
+        this.user = user;
+    }
+
     @Nonnull
     @Override
     public String getName() {
@@ -63,6 +67,12 @@ public class PrivateChannelImpl extends AbstractChannelImpl<PrivateChannelImpl>
     @Override
     public long getLatestMessageIdLong() {
         return latestMessageId;
+    }
+
+    @Override
+    public PrivateChannelImpl setLatestMessageIdLong(long latestMessageId) {
+        this.latestMessageId = latestMessageId;
+        return this;
     }
 
     @Override
@@ -109,16 +119,6 @@ public class PrivateChannelImpl extends AbstractChannelImpl<PrivateChannelImpl>
     @Override
     public boolean canDeleteOtherUsersMessages() {
         return false;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    @Override
-    public PrivateChannelImpl setLatestMessageIdLong(long latestMessageId) {
-        this.latestMessageId = latestMessageId;
-        return this;
     }
 
     @Override

@@ -38,12 +38,11 @@ import javax.annotation.Nullable;
 
 public class GuildWelcomeScreenManagerImpl extends ManagerBase<GuildWelcomeScreenManager>
         implements GuildWelcomeScreenManager {
-    private final Guild guild;
-
-    protected boolean enabled;
-    protected String description;
     protected final List<GuildWelcomeScreen.Channel> channels =
             new ArrayList<>(GuildWelcomeScreen.MAX_WELCOME_CHANNELS);
+    private final Guild guild;
+    protected boolean enabled;
+    protected String description;
 
     public GuildWelcomeScreenManagerImpl(Guild guild) {
         super(guild.getJDA(), Route.Guilds.MODIFY_WELCOME_SCREEN.compile(guild.getId()));

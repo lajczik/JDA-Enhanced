@@ -73,7 +73,7 @@ import javax.annotation.Nonnull;
  * <br>For this, you can use {@link IReplaceable#replace(ComponentReplacer)} on component containers and {@link ComponentTree}.
  *
  * <p>For example:
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  *     public class MyButtonListener extends ListenerAdapter {
  *         @Override
  *         public void onButtonInteraction(ButtonInteractionEvent event) {
@@ -83,11 +83,11 @@ import javax.annotation.Nonnull;
  *             event.editComponents(clickedAsDisabled).queue();
  *         }
  *     }
- * }
+ *}
  *
  * You can also easily disable all components:
  *
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  *     public class MyButtonListener extends ListenerAdapter {
  *         @Override
  *         public void onButtonInteraction(ButtonInteractionEvent event) {
@@ -97,7 +97,7 @@ import javax.annotation.Nonnull;
  *             event.editComponents(everythingAsDisabled).queue();
  *         }
  *     }
- * }
+ *}
  *
  * <p>This is separate from {@linkplain ActionComponent#getCustomId() custom IDs}
  * which you can only find on components that trigger interactions.
@@ -133,18 +133,6 @@ public class ComponentsV2Example extends ListenerAdapter {
                 .addCommands(Commands.slash("components_v2_sample", "Yippie!"))
                 .addCommands(Commands.slash("components_v2_butterfly", "Butterflies!"))
                 .queue();
-    }
-
-    @Override
-    public void onSlashCommandInteraction(@Nonnull SlashCommandInteractionEvent event) {
-        switch (event.getName()) {
-            case "components_v2_sample":
-                onComponentsV2Sample(event);
-                break;
-            case "components_v2_butterfly":
-                onComponentsV2Butterfly(event);
-                break;
-        }
     }
 
     private static void onComponentsV2Sample(@Nonnull SlashCommandInteractionEvent event) {
@@ -217,10 +205,10 @@ public class ComponentsV2Example extends ListenerAdapter {
                                 // Set an "alternative text", useful for accessibility
                                 .withDescription("Butterfly Fields"),
                         TextDisplay.of("""
-                                        The Butterfly Fields is a prairie field covered in bountiful fauna. In the fields, players once again find Butterflies that can help reach otherwise difficult to access places. The field contains gateways into three of Prairie's main locations: Prairie Village, Bird Nest - with a Spirit Gate requiring 4 Prairie Regular Spirits relived - and the Prairie Caves - with a Spirit Gate requiring 2 Isle Regular Spirits and 3 Prairie Regular Spirits relived. A Passage Mask can be found to the left side, near the cave with Prairie Child of Light #1, to light and do Passage Quest #4. For a new player, Village is the only available path.
+                                The Butterfly Fields is a prairie field covered in bountiful fauna. In the fields, players once again find Butterflies that can help reach otherwise difficult to access places. The field contains gateways into three of Prairie's main locations: Prairie Village, Bird Nest - with a Spirit Gate requiring 4 Prairie Regular Spirits relived - and the Prairie Caves - with a Spirit Gate requiring 2 Isle Regular Spirits and 3 Prairie Regular Spirits relived. A Passage Mask can be found to the left side, near the cave with Prairie Child of Light #1, to light and do Passage Quest #4. For a new player, Village is the only available path.
 
-                                        *Source: [Daylight_Prairie#Butterfly_Fields](https://sky-children-of-the-light.fandom.com/wiki/Daylight_Prairie#Butterfly_Fields)*
-                                        """)),
+                                *Source: [Daylight_Prairie#Butterfly_Fields](https://sky-children-of-the-light.fandom.com/wiki/Daylight_Prairie#Butterfly_Fields)*
+                                """)),
                 TextDisplay.of("-# Page 2/9"),
                 Separator.createDivider(Separator.Spacing.SMALL),
                 ActionRow.of(
@@ -319,5 +307,17 @@ public class ComponentsV2Example extends ListenerAdapter {
         }
 
         return Icon.from(stream);
+    }
+
+    @Override
+    public void onSlashCommandInteraction(@Nonnull SlashCommandInteractionEvent event) {
+        switch (event.getName()) {
+            case "components_v2_sample":
+                onComponentsV2Sample(event);
+                break;
+            case "components_v2_butterfly":
+                onComponentsV2Butterfly(event);
+                break;
+        }
     }
 }

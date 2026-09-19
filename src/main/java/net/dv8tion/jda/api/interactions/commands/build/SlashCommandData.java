@@ -44,6 +44,103 @@ import javax.annotation.Nonnull;
  * Extension of {@link CommandData} which allows setting slash-command specific settings such as options and subcommands.
  */
 public interface SlashCommandData extends CommandData {
+    /**
+     * Converts the provided {@link Command} into a SlashCommandData instance.
+     *
+     * @param command The command to convert
+     * @return An instance of SlashCommandData
+     * @throws IllegalArgumentException If null is provided or the command has illegal configuration
+     */
+    @Nonnull
+    static SlashCommandData fromCommand(@Nonnull Command command) {
+        Checks.notNull(command, "Command");
+        if (command.getType() != Command.Type.SLASH) {
+            throw new IllegalArgumentException(
+                    "Cannot convert command of type " + command.getType() + " to SlashCommandData!");
+        }
+
+        CommandDataImpl data = new CommandDataImpl(command.getName(), command.getDescription());
+        data.setContexts(command.getContexts());
+        data.setIntegrationTypes(command.getIntegrationTypes());
+        data.setNSFW(command.isNSFW());
+        data.setDefaultPermissions(command.getDefaultPermissions());
+        // Command localizations are unmodifiable, make a copy
+        data.setNameLocalizations(command.getNameLocalizations().toMap());
+        data.setDescriptionLocalizations(command.getDescriptionLocalizations().toMap());
+        command.getOptions().stream().map(OptionData::fromOption).forEach(data::addOptions);
+        command.getSubcommands().stream().map(SubcommandData::fromSubcommand).forEach(data::addSubcommands);
+        command.getSubcommandGroups().stream()
+                .map(SubcommandGroupData::fromGroup)
+                .forEach(data::addSubcommandGroups);
+        return data;
+    }
+
+    /**
+     * Parses the provided serialization back into a SlashCommandData instance.
+     * <br>This is the reverse function for {@link SlashCommandData#toData()}.
+     *
+     * @param object The serialized {@link DataObject} representing the command
+     * @return The parsed SlashCommandData instance, which can be further configured through setters
+     * @throws net.dv8tion.jda.api.exceptions.ParsingException If the serialized object is missing required fields
+     * @throws IllegalArgumentException If any of the values are failing the respective checks such as length
+     * @see CommandData#fromData(DataObject)
+     * @see Commands#fromList(Collection)
+     */
+    @Nonnull
+    static SlashCommandData fromData(@Nonnull DataObject object) {
+        Checks.notNull(object, "DataObject");
+        String name = object.getString("name");
+        Command.Type commandType = Command.Type.fromId(object.getInt("type", 1));
+        if (commandType != Command.Type.SLASH) {
+            throw new IllegalArgumentException(
+                    "Cannot convert command of type " + commandType + " to SlashCommandData!");
+        }
+
+        String description = object.getString("description");
+        DataArray options = object.optArray("options").orElseGet(DataArray::empty);
+        CommandDataImpl command = new CommandDataImpl(name, description);
+        if (!object.isNull("contexts")) {
+            command.setContexts(object.getArray("contexts").stream(DataArray::getString)
+                    .map(InteractionContextType::fromKey)
+                    .collect(Helpers.toUnmodifiableEnumSet(InteractionContextType.class)));
+        } else {
+            command.setContexts(
+                    Helpers.unmodifiableEnumSet(InteractionContextType.GUILD, InteractionContextType.BOT_DM));
+        }
+
+        if (!object.isNull("integration_types")) {
+            command.setIntegrationTypes(object.getArray("integration_types").stream(DataArray::getString)
+                    .map(IntegrationType::fromKey)
+                    .collect(Helpers.toUnmodifiableEnumSet(IntegrationType.class)));
+        } else {
+            command.setIntegrationTypes(Helpers.unmodifiableEnumSet(IntegrationType.GUILD_INSTALL));
+        }
+
+        command.setNSFW(object.getBoolean("nsfw"));
+
+        command.setDefaultPermissions(
+                object.isNull("default_member_permissions")
+                        ? DefaultMemberPermissions.ENABLED
+                        : DefaultMemberPermissions.enabledFor(object.getLong("default_member_permissions")));
+
+        command.setNameLocalizations(LocalizationUtils.mapFromProperty(object, "name_localizations"));
+        command.setDescriptionLocalizations(LocalizationUtils.mapFromProperty(object, "description_localizations"));
+        options.stream(DataArray::getObject).forEach(opt -> {
+            OptionType type = OptionType.fromKey(opt.getInt("type"));
+            switch (type) {
+                case SUB_COMMAND:
+                    command.addSubcommands(SubcommandData.fromData(opt));
+                    break;
+                case SUB_COMMAND_GROUP:
+                    command.addSubcommandGroups(SubcommandGroupData.fromData(opt));
+                    break;
+                default:
+                    command.addOptions(OptionData.fromData(opt));
+            }
+        });
+        return command;
+    }
+
     @Nonnull
     @Override
     SlashCommandData setLocalizationFunction(@Nonnull LocalizationFunction localizationFunction);
@@ -89,20 +186,6 @@ public interface SlashCommandData extends CommandData {
     SlashCommandData setNSFW(boolean nsfw);
 
     /**
-     * Configure the description
-     *
-     * @param  description
-     *         The description, 1-{@value #MAX_DESCRIPTION_LENGTH} characters
-     *
-     * @throws IllegalArgumentException
-     *         If the name is null or not between 1-{@value #MAX_DESCRIPTION_LENGTH} characters
-     *
-     * @return The builder, for chaining
-     */
-    @Nonnull
-    SlashCommandData setDescription(@Nonnull String description);
-
-    /**
      * Sets a {@link DiscordLocale language-specific} localizations of this command's description.
      *
      * @param  locale
@@ -124,6 +207,32 @@ public interface SlashCommandData extends CommandData {
     SlashCommandData setDescriptionLocalization(@Nonnull DiscordLocale locale, @Nonnull String description);
 
     /**
+     * The configured description
+     *
+     * @return The description
+     */
+    @Nonnull
+    String getDescription();
+
+    /**
+     * Configure the description
+     *
+     * @param description The description, 1-{@value #MAX_DESCRIPTION_LENGTH} characters
+     * @return The builder, for chaining
+     * @throws IllegalArgumentException If the name is null or not between 1-{@value #MAX_DESCRIPTION_LENGTH} characters
+     */
+    @Nonnull
+    SlashCommandData setDescription(@Nonnull String description);
+
+    /**
+     * The localizations of this command's description for {@link DiscordLocale various languages}.
+     *
+     * @return The {@link LocalizationMap} containing the mapping from {@link DiscordLocale} to the localized description
+     */
+    @Nonnull
+    LocalizationMap getDescriptionLocalizations();
+
+    /**
      * Sets multiple {@link DiscordLocale language-specific} localizations of this command's description.
      *
      * @param  map
@@ -142,34 +251,18 @@ public interface SlashCommandData extends CommandData {
     SlashCommandData setDescriptionLocalizations(@Nonnull Map<DiscordLocale, String> map);
 
     /**
-     * The configured description
-     *
-     * @return The description
-     */
-    @Nonnull
-    String getDescription();
-
-    /**
-     * The localizations of this command's description for {@link DiscordLocale various languages}.
-     *
-     * @return The {@link LocalizationMap} containing the mapping from {@link DiscordLocale} to the localized description
-     */
-    @Nonnull
-    LocalizationMap getDescriptionLocalizations();
-
-    /**
      * Removes all options that evaluate to {@code true} under the provided {@code condition}.
      * <br>This will not affect options within subcommands.
      * Use {@link SubcommandData#removeOptions(Predicate)} instead.
      *
      * <p><b>Example: Remove all options</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * command.removeOptions(option -> true);
-     * }
+     *}
      * <p><b>Example: Remove all options that are required</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * command.removeOptions(option -> option.isRequired());
-     * }
+     *}
      *
      * @param  condition
      *         The removal condition (must not throw)
@@ -201,9 +294,9 @@ public interface SlashCommandData extends CommandData {
      * Use {@link SubcommandGroupData#removeSubcommand(Predicate)} instead.
      *
      * <p><b>Example: Remove all subcommands</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * command.removeSubcommands(subcommand -> true);
-     * }
+     *}
      *
      * @param  condition
      *         The removal condition (must not throw)
@@ -233,9 +326,9 @@ public interface SlashCommandData extends CommandData {
      * Removes all subcommand groups that evaluate to {@code true} under the provided {@code condition}.
      *
      * <p><b>Example: Remove all subcommand groups</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * command.removeSubcommandGroups(group -> true);
-     * }
+     *}
      *
      * @param  condition
      *         The removal condition (must not throw)
@@ -448,7 +541,7 @@ public interface SlashCommandData extends CommandData {
      * for the same command, is not supported.
      *
      * <p>Valid command layouts are as follows:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * command
      * |-- subcommand
      * |__ subcommand group
@@ -461,7 +554,7 @@ public interface SlashCommandData extends CommandData {
      * command
      * |-- option
      * |__ option
-     * }
+     *}
      *
      * Having an option and subcommand simultaneously is not allowed.
      *
@@ -484,7 +577,7 @@ public interface SlashCommandData extends CommandData {
      * for the same command, is not supported.
      *
      * <p>Valid command layouts are as follows:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * command
      * |-- subcommand
      * |__ subcommand group
@@ -497,7 +590,7 @@ public interface SlashCommandData extends CommandData {
      * command
      * |-- option
      * |__ option
-     * }
+     *}
      *
      * Having an option and subcommand simultaneously is not allowed.
      *
@@ -523,7 +616,7 @@ public interface SlashCommandData extends CommandData {
      * for the same command, is not supported.
      *
      * <p>Valid command layouts are as follows:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * command
      * |-- subcommand
      * |__ subcommand group
@@ -536,7 +629,7 @@ public interface SlashCommandData extends CommandData {
      * command
      * |-- option
      * |__ option
-     * }
+     *}
      *
      * Having an option and subcommand simultaneously is not allowed.
      *
@@ -559,7 +652,7 @@ public interface SlashCommandData extends CommandData {
      * for the same command, is not supported.
      *
      * <p>Valid command layouts are as follows:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * command
      * |-- subcommand
      * |__ subcommand group
@@ -572,7 +665,7 @@ public interface SlashCommandData extends CommandData {
      * command
      * |-- option
      * |__ option
-     * }
+     *}
      *
      * Having an option and subcommand simultaneously is not allowed.
      *
@@ -589,112 +682,5 @@ public interface SlashCommandData extends CommandData {
     default SlashCommandData addSubcommandGroups(@Nonnull Collection<? extends SubcommandGroupData> groups) {
         Checks.noneNull(groups, "SubcommandGroups");
         return addSubcommandGroups(groups.toArray(new SubcommandGroupData[0]));
-    }
-
-    /**
-     * Converts the provided {@link Command} into a SlashCommandData instance.
-     *
-     * @param  command
-     *         The command to convert
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the command has illegal configuration
-     *
-     * @return An instance of SlashCommandData
-     */
-    @Nonnull
-    static SlashCommandData fromCommand(@Nonnull Command command) {
-        Checks.notNull(command, "Command");
-        if (command.getType() != Command.Type.SLASH) {
-            throw new IllegalArgumentException(
-                    "Cannot convert command of type " + command.getType() + " to SlashCommandData!");
-        }
-
-        CommandDataImpl data = new CommandDataImpl(command.getName(), command.getDescription());
-        data.setContexts(command.getContexts());
-        data.setIntegrationTypes(command.getIntegrationTypes());
-        data.setNSFW(command.isNSFW());
-        data.setDefaultPermissions(command.getDefaultPermissions());
-        // Command localizations are unmodifiable, make a copy
-        data.setNameLocalizations(command.getNameLocalizations().toMap());
-        data.setDescriptionLocalizations(command.getDescriptionLocalizations().toMap());
-        command.getOptions().stream().map(OptionData::fromOption).forEach(data::addOptions);
-        command.getSubcommands().stream().map(SubcommandData::fromSubcommand).forEach(data::addSubcommands);
-        command.getSubcommandGroups().stream()
-                .map(SubcommandGroupData::fromGroup)
-                .forEach(data::addSubcommandGroups);
-        return data;
-    }
-
-    /**
-     * Parses the provided serialization back into a SlashCommandData instance.
-     * <br>This is the reverse function for {@link SlashCommandData#toData()}.
-     *
-     * @param  object
-     *         The serialized {@link DataObject} representing the command
-     *
-     * @throws net.dv8tion.jda.api.exceptions.ParsingException
-     *         If the serialized object is missing required fields
-     * @throws IllegalArgumentException
-     *         If any of the values are failing the respective checks such as length
-     *
-     * @return The parsed SlashCommandData instance, which can be further configured through setters
-     *
-     * @see    CommandData#fromData(DataObject)
-     * @see    Commands#fromList(Collection)
-     */
-    @Nonnull
-    static SlashCommandData fromData(@Nonnull DataObject object) {
-        Checks.notNull(object, "DataObject");
-        String name = object.getString("name");
-        Command.Type commandType = Command.Type.fromId(object.getInt("type", 1));
-        if (commandType != Command.Type.SLASH) {
-            throw new IllegalArgumentException(
-                    "Cannot convert command of type " + commandType + " to SlashCommandData!");
-        }
-
-        String description = object.getString("description");
-        DataArray options = object.optArray("options").orElseGet(DataArray::empty);
-        CommandDataImpl command = new CommandDataImpl(name, description);
-        if (!object.isNull("contexts")) {
-            command.setContexts(object.getArray("contexts").stream(DataArray::getString)
-                    .map(InteractionContextType::fromKey)
-                    .collect(Helpers.toUnmodifiableEnumSet(InteractionContextType.class)));
-        } else {
-            command.setContexts(
-                    Helpers.unmodifiableEnumSet(InteractionContextType.GUILD, InteractionContextType.BOT_DM));
-        }
-
-        if (!object.isNull("integration_types")) {
-            command.setIntegrationTypes(object.getArray("integration_types").stream(DataArray::getString)
-                    .map(IntegrationType::fromKey)
-                    .collect(Helpers.toUnmodifiableEnumSet(IntegrationType.class)));
-        } else {
-            command.setIntegrationTypes(Helpers.unmodifiableEnumSet(IntegrationType.GUILD_INSTALL));
-        }
-
-        command.setNSFW(object.getBoolean("nsfw"));
-
-        command.setDefaultPermissions(
-                object.isNull("default_member_permissions")
-                        ? DefaultMemberPermissions.ENABLED
-                        : DefaultMemberPermissions.enabledFor(object.getLong("default_member_permissions")));
-
-        command.setNameLocalizations(LocalizationUtils.mapFromProperty(object, "name_localizations"));
-        command.setDescriptionLocalizations(LocalizationUtils.mapFromProperty(object, "description_localizations"));
-        options.stream(DataArray::getObject).forEach(opt -> {
-            OptionType type = OptionType.fromKey(opt.getInt("type"));
-            switch (type) {
-                case SUB_COMMAND:
-                    command.addSubcommands(SubcommandData.fromData(opt));
-                    break;
-                case SUB_COMMAND_GROUP:
-                    command.addSubcommandGroups(SubcommandGroupData.fromData(opt));
-                    break;
-                default:
-                    command.addOptions(OptionData.fromData(opt));
-            }
-        });
-        return command;
     }
 }

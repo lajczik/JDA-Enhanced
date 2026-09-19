@@ -212,6 +212,11 @@ public class DetachedGuildImpl implements Guild, IDetachableEntityMixin {
         return features;
     }
 
+    public DetachedGuildImpl setFeatures(Set<String> features) {
+        this.features = Collections.unmodifiableSet(features);
+        return this;
+    }
+
     @Override
     public String getSplashId() {
         throw detachedException();
@@ -239,6 +244,11 @@ public class DetachedGuildImpl implements Guild, IDetachableEntityMixin {
     @Override
     public DiscordLocale getLocale() {
         return preferredLocale;
+    }
+
+    public DetachedGuildImpl setLocale(DiscordLocale locale) {
+        this.preferredLocale = locale;
+        return this;
     }
 
     @Nullable
@@ -972,6 +982,8 @@ public class DetachedGuildImpl implements Guild, IDetachableEntityMixin {
         throw detachedException();
     }
 
+    // ---- Setters -----
+
     @Nonnull
     @Override
     public RoleOrderAction modifyRolePositions(boolean useAscendingOrder) {
@@ -982,18 +994,6 @@ public class DetachedGuildImpl implements Guild, IDetachableEntityMixin {
     @Override
     public GuildWelcomeScreenManager modifyWelcomeScreen() {
         throw detachedException();
-    }
-
-    // ---- Setters -----
-
-    public DetachedGuildImpl setFeatures(Set<String> features) {
-        this.features = Collections.unmodifiableSet(features);
-        return this;
-    }
-
-    public DetachedGuildImpl setLocale(DiscordLocale locale) {
-        this.preferredLocale = locale;
-        return this;
     }
 
     // -- Object overrides --

@@ -36,12 +36,12 @@ public class EventManagerProxy implements IEventManager {
         this.executor = executor;
     }
 
-    public void setSubject(IEventManager subject) {
-        this.subject = subject == null ? new InterfacedEventManager() : subject;
-    }
-
     public IEventManager getSubject() {
         return subject;
+    }
+
+    public void setSubject(IEventManager subject) {
+        this.subject = subject == null ? new InterfacedEventManager() : subject;
     }
 
     @Override

@@ -29,7 +29,7 @@ import javax.annotation.Nonnull;
  *
  * <p><b>Example</b>
  *
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * // Given some arbitrary input string
  * String input = "Hello World";
  *
@@ -43,11 +43,11 @@ import javax.annotation.Nonnull;
  *
  * // ["Hello World"]
  * SplitUtil.split(input, 50, true, Strategy.SPACE);
- * }
+ *}
  *
  * <p>In a more applied use-case, you can also define a smaller limit so it can fit into codeblocks of a message:
  *
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * public List<String> getRoleNames(Guild guild)
  * {
  *    // Create a newline separated list of role names from the guild
@@ -65,7 +65,7 @@ import javax.annotation.Nonnull;
  *                 .map(block -> "```\n" + block + "```")
  *                 .collect(Collectors.toList());
  * }
- * }
+ *}
  *
  * @see #split(String, int, Strategy...)
  * @see #split(String, int, boolean, Strategy...)
@@ -186,26 +186,6 @@ public class SplitUtil {
      */
     public interface Strategy {
         /**
-         * Implements a splitting strategy.
-         *
-         * <p>The goal of a strategy is to implement a greedy algorithm to find the optimal point to split the string.
-         * Ideally, this should be close to the {@code limit}.
-         *
-         * <p>This should not return an offset larger than {@code limit}.
-         * Any offset lower than the input offset, is interpreted as unsuccessful.
-         *
-         * @param  string
-         *         The input string
-         * @param  offset
-         *         The current offset where to start your substring
-         * @param  limit
-         *         The maximum length your substring should be
-         *
-         * @return The exclusive end index of your chunk, negative to indicate failure. (should be in range of {@code offset < x <= limit}).
-         */
-        int apply(@Nonnull String string, int offset, int limit);
-
-        /**
          * Strategy which splits at any character to satisfy the limit.
          * <br>This is the default strategy if none is provided, and should ideally only be the final one in your list.
          */
@@ -257,5 +237,21 @@ public class SplitUtil {
                 return -1;
             };
         }
+
+        /**
+         * Implements a splitting strategy.
+         *
+         * <p>The goal of a strategy is to implement a greedy algorithm to find the optimal point to split the string.
+         * Ideally, this should be close to the {@code limit}.
+         *
+         * <p>This should not return an offset larger than {@code limit}.
+         * Any offset lower than the input offset, is interpreted as unsuccessful.
+         *
+         * @param string The input string
+         * @param offset The current offset where to start your substring
+         * @param limit The maximum length your substring should be
+         * @return The exclusive end index of your chunk, negative to indicate failure. (should be in range of {@code offset < x <= limit}).
+         */
+        int apply(@Nonnull String string, int offset, int limit);
     }
 }

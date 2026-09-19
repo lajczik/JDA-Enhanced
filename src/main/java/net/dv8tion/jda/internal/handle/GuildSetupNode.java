@@ -16,11 +16,7 @@
 
 package net.dv8tion.jda.internal.handle;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongIterator;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.longs.*;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import net.dv8tion.jda.api.audio.hooks.ConnectionListener;
 import net.dv8tion.jda.api.audio.hooks.ConnectionStatus;
@@ -46,22 +42,21 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 
 public class GuildSetupNode {
+    final Type type;
     private final long id;
     private final GuildSetupController controller;
 
     @SuppressWarnings("JdkObsolete")
     private final List<DataObject> cachedEvents = new LinkedList<>();
 
+    boolean requestedChunk;
+    boolean firedUnavailableJoin = false;
+    boolean markedUnavailable = false;
+    GuildSetupController.Status status = GuildSetupController.Status.INIT;
     private Long2ObjectMap<DataObject> members;
     private LongSet removedMembers;
     private DataObject partialGuild;
     private int expectedMemberCount = 1;
-    boolean requestedChunk;
-
-    final Type type;
-    boolean firedUnavailableJoin = false;
-    boolean markedUnavailable = false;
-    GuildSetupController.Status status = GuildSetupController.Status.INIT;
 
     GuildSetupNode(long id, GuildSetupController controller, Type type) {
         this.id = id;

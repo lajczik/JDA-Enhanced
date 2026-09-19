@@ -73,6 +73,22 @@ public enum AutoModTriggerType {
     }
 
     /**
+     * The {@link AutoModTriggerType} that matches the provided key.
+     *
+     * @param key The key to match
+     * @return The matching {@link AutoModTriggerType} or {@link #UNKNOWN}
+     */
+    @Nonnull
+    public static AutoModTriggerType fromKey(int key) {
+        for (AutoModTriggerType trigger : values()) {
+            if (trigger.key == key) {
+                return trigger;
+            }
+        }
+        return UNKNOWN;
+    }
+
+    /**
      * The raw API key used to indicate this type.
      *
      * @return The int key
@@ -110,23 +126,5 @@ public enum AutoModTriggerType {
      */
     public boolean isEventTypeSupported(@Nonnull AutoModEventType type) {
         return type != null && eventTypes.contains(type);
-    }
-
-    /**
-     * The {@link AutoModTriggerType} that matches the provided key.
-     *
-     * @param  key
-     *         The key to match
-     *
-     * @return The matching {@link AutoModTriggerType} or {@link #UNKNOWN}
-     */
-    @Nonnull
-    public static AutoModTriggerType fromKey(int key) {
-        for (AutoModTriggerType trigger : values()) {
-            if (trigger.key == key) {
-                return trigger;
-            }
-        }
-        return UNKNOWN;
     }
 }

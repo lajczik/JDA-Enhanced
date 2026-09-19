@@ -56,15 +56,15 @@ public class Response implements Closeable {
     public final int code;
     public final String message;
     public final long retryAfter;
+    private final HttpHeaders headers;
+    private final String url;
+    private final Set<String> cfRays;
     /**
      * The response body, retained by this Response. Released in {@link #close()}.
      * May be null for error responses.
      */
     private ByteBuf byteBuf;
 
-    private final HttpHeaders headers;
-    private final String url;
-    private final Set<String> cfRays;
     private String fallbackString;
     private Object object;
     private boolean attemptedParsing = false;

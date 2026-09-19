@@ -22,7 +22,9 @@ import net.dv8tion.jda.api.utils.MediaType;
 import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.IOUtil;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;

@@ -46,23 +46,23 @@ import javax.annotation.Nullable;
  *
  * <p><b>Examples</b><br>
  * Given a JSON object such as:
- * {@snippet lang="JSON":
+ * {@snippet lang = "JSON":
  * {
  *     "array": [{
  *         "foo": "bar"
  *     }]
  * }
- * }
+ *}
  *
  * The content of {@code "foo"} can be accessed using the code:
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * String foo = DataPath.getString(root, "array[0].foo");
- * }
+ *}
  *
  * <p>With the safe-access operator {@code "?"}, you can also allow missing values within your path:
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * String foo = DataPath.getString(root, "array[1]?.foo", "default");
- * }
+ *}
  * This will result in {@code foo == "default"}, since the array element 1 is marked as optional, and missing in the actual object.
  */
 public class DataPath {

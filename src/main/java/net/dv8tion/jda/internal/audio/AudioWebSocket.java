@@ -51,14 +51,11 @@ import net.dv8tion.jda.internal.utils.NettyUtils;
 import net.dv8tion.jda.internal.utils.SerializationUtil;
 import org.slf4j.Logger;
 
-import java.net.*;
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
@@ -67,16 +64,6 @@ class AudioWebSocket implements DaveProtocolCallbacks {
     public static final Logger LOG = JDALogger.getLog(AudioWebSocket.class);
     public static final int DISCORD_SECRET_KEY_LENGTH = 32;
     private static final byte[] UDP_KEEP_ALIVE = {(byte) 0xC9, 0, 0, 0, 0, 0, 0, 0, 0};
-
-    protected volatile AudioEncryption encryption;
-    protected volatile CryptoAdapter crypto;
-    public volatile Channel channel;
-    protected EventLoopGroup group;
-    protected boolean ownsEventLoopGroup;
-    protected volatile CloseFrameInfo serverCloseFrame;
-    protected volatile CloseFrameInfo clientCloseFrame;
-
-    private DaveSession daveSession;
     private final AudioConnection audioConnection;
     private final ConnectionListener listener;
     private final ScheduledExecutorService keepAlivePool;
@@ -84,7 +71,14 @@ class AudioWebSocket implements DaveProtocolCallbacks {
     private final String sessionId;
     private final String token;
     private final String wssEndpoint;
-
+    public volatile Channel channel;
+    protected volatile AudioEncryption encryption;
+    protected volatile CryptoAdapter crypto;
+    protected EventLoopGroup group;
+    protected boolean ownsEventLoopGroup;
+    protected volatile CloseFrameInfo serverCloseFrame;
+    protected volatile CloseFrameInfo clientCloseFrame;
+    private DaveSession daveSession;
     private volatile ConnectionStatus connectionStatus = ConnectionStatus.NOT_CONNECTED;
     private boolean ready = false;
     private boolean reconnecting = false;
@@ -133,8 +127,23 @@ class AudioWebSocket implements DaveProtocolCallbacks {
         }
     }
 
-    void setDaveSession(DaveSession daveSession) {
-        this.daveSession = daveSession;
+    private static ByteBuffer toByteBuffer(ByteBuf buf) {
+        if (buf.nioBufferCount() == 1) {
+            return buf.nioBuffer();
+        }
+        // Consolidate multiple NIO buffers into a single contiguous ByteBuffer
+        // without leaking a copy() ByteBuf
+        ByteBuffer[] nioBuffers = buf.nioBuffers();
+        int totalLen = 0;
+        for (ByteBuffer b : nioBuffers) {
+            totalLen += b.remaining();
+        }
+        ByteBuffer combined = ByteBuffer.allocateDirect(totalLen);
+        for (ByteBuffer b : nioBuffers) {
+            combined.put(b);
+        }
+        combined.flip();
+        return combined;
     }
 
     /* Used by AudioConnection */
@@ -443,6 +452,10 @@ class AudioWebSocket implements DaveProtocolCallbacks {
         return daveSession;
     }
 
+    void setDaveSession(DaveSession daveSession) {
+        this.daveSession = daveSession;
+    }
+
     private void sendBinary(int opcode, ByteBuffer payload) {
         if (channel != null && channel.isActive()) {
             ByteBuf buffer = channel.alloc().buffer(1 + payload.remaining());
@@ -491,25 +504,6 @@ class AudioWebSocket implements DaveProtocolCallbacks {
             default:
                 LOG.trace("-> UNKNOWN OP {}", opcode);
         }
-    }
-
-    private static ByteBuffer toByteBuffer(ByteBuf buf) {
-        if (buf.nioBufferCount() == 1) {
-            return buf.nioBuffer();
-        }
-        // Consolidate multiple NIO buffers into a single contiguous ByteBuffer
-        // without leaking a copy() ByteBuf
-        ByteBuffer[] nioBuffers = buf.nioBuffers();
-        int totalLen = 0;
-        for (ByteBuffer b : nioBuffers) {
-            totalLen += b.remaining();
-        }
-        ByteBuffer combined = ByteBuffer.allocateDirect(totalLen);
-        for (ByteBuffer b : nioBuffers) {
-            combined.put(b);
-        }
-        combined.flip();
-        return combined;
     }
 
     @Override
@@ -837,6 +831,10 @@ class AudioWebSocket implements DaveProtocolCallbacks {
         // related to the threadpool shutdown.
     }
 
+    private User getUser(long userId) {
+        return getJDA().getUserById(userId);
+    }
+
     private class AudioWebSocketHandler extends SimpleChannelInboundHandler<Object> {
         private final WebSocketClientHandshaker handshaker;
         private boolean disconnectedHandled = false;
@@ -912,9 +910,5 @@ class AudioWebSocket implements DaveProtocolCallbacks {
             handleCallbackError(cause);
             ctx.close();
         }
-    }
-
-    private User getUser(long userId) {
-        return getJDA().getUserById(userId);
     }
 }

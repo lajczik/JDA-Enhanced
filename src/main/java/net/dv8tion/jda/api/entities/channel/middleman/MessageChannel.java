@@ -489,7 +489,7 @@ public interface MessageChannel extends Channel, Formattable {
      * </ul>
      *
      * <p><b>Example: Attachment Images</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Make a file upload instance which refers to a local file called "myFile.png"
      * // The second parameter "image.png" is the filename we tell discord to use for the attachment
      * FileUpload file = FileUpload.fromData(new File("myFile.png"), "image.png");
@@ -504,7 +504,7 @@ public interface MessageChannel extends Channel, Formattable {
      * channel.sendMessageEmbeds(embed) // send the embed
      *        .addFiles(file) // add the file as attachment
      *        .queue();
-     * }
+     *}
      *
      * @param  embed
      *         {@link MessageEmbed} to send
@@ -558,7 +558,7 @@ public interface MessageChannel extends Channel, Formattable {
      * </ul>
      *
      * <p><b>Example: Attachment Images</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Make a file upload instance which refers to a local file called "myFile.png"
      * // The second parameter "image.png" is the filename we tell discord to use for the attachment
      * FileUpload file = FileUpload.fromData(new File("myFile.png"), "image.png");
@@ -573,7 +573,7 @@ public interface MessageChannel extends Channel, Formattable {
      * channel.sendMessageEmbeds(Collections.singleton(embed)) // send the embeds
      *        .addFiles(file) // add the file as attachment
      *        .queue();
-     * }
+     *}
      *
      * @param  embeds
      *         {@link MessageEmbed MessageEmbeds} to use (up to {@value Message#MAX_EMBED_COUNT})
@@ -837,7 +837,7 @@ public interface MessageChannel extends Channel, Formattable {
      * </ul>
      *
      * <p><b>Example: Attachment Images</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Make a file upload instance which refers to a local file called "myFile.png"
      * // The second parameter "image.png" is the filename we tell discord to use for the attachment
      * FileUpload file = FileUpload.fromData(new File("myFile.png"), "image.png");
@@ -852,7 +852,7 @@ public interface MessageChannel extends Channel, Formattable {
      * channel.sendFiles(Collections.singleton(file)) // send the file upload
      *        .addEmbeds(embed) // add the embed you want to reference the file with
      *        .queue();
-     * }
+     *}
      *
      * @param  files
      *         The {@link FileUpload FileUploads} to attach to the message
@@ -911,7 +911,7 @@ public interface MessageChannel extends Channel, Formattable {
      * </ul>
      *
      * <p><b>Example: Attachment Images</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Make a file upload instance which refers to a local file called "myFile.png"
      * // The second parameter "image.png" is the filename we tell discord to use for the attachment
      * FileUpload file = FileUpload.fromData(new File("myFile.png"), "image.png");
@@ -926,7 +926,7 @@ public interface MessageChannel extends Channel, Formattable {
      * channel.sendFiles(file) // send the file upload
      *        .addEmbeds(embed) // add the embed you want to reference the file with
      *        .queue();
-     * }
+     *}
      *
      * @param  files
      *         The {@link FileUpload FileUploads} to attach to the message
@@ -1275,7 +1275,7 @@ public interface MessageChannel extends Channel, Formattable {
      * overflows in channels with a long message history.</u></b>
      *
      * <p><b>Examples</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public CompletableFuture<List<Message>> getMessagesByUser(MessageChannel channel, User user) {
      *     return channel.getIterableHistory()
      *         .takeAsync(1000) // Collect 1000 messages
@@ -1285,7 +1285,7 @@ public interface MessageChannel extends Channel, Formattable {
      *                 .collect(Collectors.toList())
      *         );
      * }
-     * }
+     *}
      *
      * @throws InsufficientPermissionException
      *         If this is a {@link GuildMessageChannel GuildMessageChannel}
@@ -1861,7 +1861,7 @@ public interface MessageChannel extends Channel, Formattable {
      * The {@code limit} determines the amount of messages being retrieved.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public void resendFirstMessage(MessageChannel channel)
      * {
      *     channel.getHistoryFromBeginning(1).queue(history ->
@@ -1875,7 +1875,7 @@ public interface MessageChannel extends Channel, Formattable {
      *             channel.sendMessage("No history for this channel!").queue();
      *     });
      * }
-     * }
+     *}
      *
      * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
@@ -3152,13 +3152,13 @@ public interface MessageChannel extends Channel, Formattable {
      * The provided parameters are {@link MessageTopLevelComponent MessageTopLevelComponents} such as {@link ActionRow} which contain a list of components to arrange in the respective layout.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * List<ActionRow> rows = Arrays.asList(
      *   ActionRow.of(Button.success("prompt:accept", "Accept"), Button.danger("prompt:reject", "Reject")), // 1st row below message
      *   ActionRow.of(Button.link(url, "Help")) // 2nd row below message
      * );
      * channel.editMessageComponentsById(messageId, rows).queue();
-     * }
+     *}
      *
      * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
@@ -3222,13 +3222,13 @@ public interface MessageChannel extends Channel, Formattable {
      * The provided parameters are {@link MessageTopLevelComponent MessageTopLevelComponents} such as {@link ActionRow} which contain a list of components to arrange in the respective layout.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * List<ActionRow> rows = Arrays.asList(
      *   ActionRow.of(Button.success("prompt:accept", "Accept"), Button.danger("prompt:reject", "Reject")), // 1st row below message
      *   ActionRow.of(Button.link(url, "Help")) // 2nd row below message
      * );
      * channel.editMessageComponentsById(messageId, rows).queue();
-     * }
+     *}
      *
      * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
@@ -3290,12 +3290,12 @@ public interface MessageChannel extends Channel, Formattable {
      * The provided parameters are {@link MessageTopLevelComponent MessageTopLevelComponents} such as {@link ActionRow} which contain a list of components to arrange in the respective layout.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * channel.editMessageComponentsById(messageId,
      *   ActionRow.of(Button.success("prompt:accept", "Accept"), Button.danger("prompt:reject", "Reject")), // 1st row below message
      *   ActionRow.of(Button.link(url, "Help")) // 2nd row below message
      * ).queue();
-     * }
+     *}
      *
      * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
@@ -3358,12 +3358,12 @@ public interface MessageChannel extends Channel, Formattable {
      * The provided parameters are {@link MessageTopLevelComponent MessageTopLevelComponents} such as {@link ActionRow} which contain a list of components to arrange in the respective layout.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * channel.editMessageComponentsById(messageId,
      *   ActionRow.of(Button.success("prompt:accept", "Accept"), Button.danger("prompt:reject", "Reject")), // 1st row below message
      *   ActionRow.of(Button.link(url, "Help")) // 2nd row below message
      * ).queue();
-     * }
+     *}
      *
      * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
@@ -3426,14 +3426,14 @@ public interface MessageChannel extends Channel, Formattable {
      * The provided parameters are {@link MessageTopLevelComponent MessageTopLevelComponents} such as {@link ActionRow} which contain a list of components to arrange in the respective layout.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * channel.editMessageComponentsById(messageId,
      *   MessageComponentTree.of(
      *     ActionRow.of(Button.success("prompt:accept", "Accept"), Button.danger("prompt:reject", "Reject")), // 1st row below message
      *     ActionRow.of(Button.link(url, "Help")) // 2nd row below message
      *   )
      * ).queue();
-     * }
+     *}
      *
      * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>
@@ -3498,14 +3498,14 @@ public interface MessageChannel extends Channel, Formattable {
      * The provided parameters are {@link MessageTopLevelComponent MessageTopLevelComponents} such as {@link ActionRow} which contain a list of components to arrange in the respective layout.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * channel.editMessageComponentsById(messageId,
      *   MessageComponentTree.of(
      *     ActionRow.of(Button.success("prompt:accept", "Accept"), Button.danger("prompt:reject", "Reject")), // 1st row below message
      *     ActionRow.of(Button.link(url, "Help")) // 2nd row below message
      *   )
      * ).queue();
-     * }
+     *}
      *
      * <p>The following {@link ErrorResponse ErrorResponses} are possible:
      * <ul>

@@ -47,6 +47,16 @@ public class EventConsistencyComplianceTest {
                 UpdateEvent.class, Event.class, GenericEvent.class));
     }
 
+    private static void validateHookMethod(Method method) {
+        int modifiers = method.getModifiers();
+        softly.assertThat(modifiers)
+                .as("Modifiers for method %s", method.getName())
+                .isEqualTo(Modifier.PUBLIC);
+        softly.assertThat(method.getReturnType())
+                .as("Return type for method %s", method.getName())
+                .isSameAs(Void.TYPE);
+    }
+
     @AfterEach
     void assertAllSoftly() {
         softly.assertAll();
@@ -90,15 +100,5 @@ public class EventConsistencyComplianceTest {
                     .as("Dangling method found in ListenerAdapter " + method.getName())
                     .isTrue();
         }
-    }
-
-    private static void validateHookMethod(Method method) {
-        int modifiers = method.getModifiers();
-        softly.assertThat(modifiers)
-                .as("Modifiers for method %s", method.getName())
-                .isEqualTo(Modifier.PUBLIC);
-        softly.assertThat(method.getReturnType())
-                .as("Return type for method %s", method.getName())
-                .isSameAs(Void.TYPE);
     }
 }

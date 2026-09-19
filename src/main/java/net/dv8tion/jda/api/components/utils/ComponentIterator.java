@@ -67,6 +67,24 @@ public class ComponentIterator implements Iterator<Component> {
         return StreamSupport.stream(spliterator, false);
     }
 
+    @Nullable
+    private static Iterator<? extends Component> getIteratorForComponent(Component component) {
+        if (component instanceof Container container) {
+            return container.getComponents().iterator();
+        } else if (component instanceof ActionRow actionRow) {
+            return actionRow.getComponents().iterator();
+        } else if (component instanceof Section section) {
+            List<Component> sectionComponents = new ArrayList<>(section.getContentComponents());
+            sectionComponents.add(section.getAccessory());
+
+            return sectionComponents.iterator();
+        } else if (component instanceof Label label) {
+            return List.of(label.getChild()).iterator();
+        }
+
+        return null;
+    }
+
     @Override
     public boolean hasNext() {
         ensureNestedIteratorHasNext();
@@ -94,23 +112,5 @@ public class ComponentIterator implements Iterator<Component> {
         while (!stack.isEmpty() && !stack.peek().hasNext()) {
             stack.pop();
         }
-    }
-
-    @Nullable
-    private static Iterator<? extends Component> getIteratorForComponent(Component component) {
-        if (component instanceof Container container) {
-            return container.getComponents().iterator();
-        } else if (component instanceof ActionRow actionRow) {
-            return actionRow.getComponents().iterator();
-        } else if (component instanceof Section section) {
-            List<Component> sectionComponents = new ArrayList<>(section.getContentComponents());
-            sectionComponents.add(section.getAccessory());
-
-            return sectionComponents.iterator();
-        } else if (component instanceof Label label) {
-            return List.of(label.getChild()).iterator();
-        }
-
-        return null;
     }
 }

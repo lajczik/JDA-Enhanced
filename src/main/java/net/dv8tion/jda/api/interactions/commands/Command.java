@@ -315,8 +315,8 @@ public interface Command extends ISnowflake, ICommandReference {
          */
         public static final int MAX_STRING_VALUE_LENGTH = 100;
 
-        private String name;
         private final LocalizationMap nameLocalizations = new LocalizationMap(this::checkName);
+        private String name;
         private long intValue = 0;
         private double doubleValue = Double.NaN;
         private String stringValue = null;
@@ -444,6 +444,24 @@ public interface Command extends ISnowflake, ICommandReference {
         /**
          * Sets the name localizations of this choice.
          *
+         * @param map The map from which to transfer the translated names
+         * @return This builder instance, for chaining
+         * @throws IllegalArgumentException <ul>
+         * <li>If the map is null</li>
+         * <li>If the map contains an {@link DiscordLocale#UNKNOWN} key</li>
+         * <li>If the map contains a name which does not pass the corresponding {@link #setName(String) name check}</li>
+         * </ul>
+         */
+        @Nonnull
+        public Choice setNameLocalizations(@Nonnull Map<DiscordLocale, String> map) {
+            // Checks are done in LocalizationMap
+            nameLocalizations.setTranslations(map);
+            return this;
+        }
+
+        /**
+         * Sets the name localizations of this choice.
+         *
          * @param  locale
          *         The locale to associate the translated name with
          * @param  name
@@ -462,28 +480,6 @@ public interface Command extends ISnowflake, ICommandReference {
         @Nonnull
         public Choice setNameLocalization(@Nonnull DiscordLocale locale, @Nonnull String name) {
             nameLocalizations.setTranslation(locale, name);
-            return this;
-        }
-
-        /**
-         * Sets the name localizations of this choice.
-         *
-         * @param  map
-         *         The map from which to transfer the translated names
-         *
-         * @throws IllegalArgumentException
-         *         <ul>
-         *             <li>If the map is null</li>
-         *             <li>If the map contains an {@link DiscordLocale#UNKNOWN} key</li>
-         *             <li>If the map contains a name which does not pass the corresponding {@link #setName(String) name check}</li>
-         *         </ul>
-         *
-         * @return This builder instance, for chaining
-         */
-        @Nonnull
-        public Choice setNameLocalizations(@Nonnull Map<DiscordLocale, String> map) {
-            // Checks are done in LocalizationMap
-            nameLocalizations.setTranslations(map);
             return this;
         }
 
@@ -608,10 +604,10 @@ public interface Command extends ISnowflake, ICommandReference {
         private final boolean required, autoComplete;
         private final Set<ChannelType> channelTypes;
         private final List<Choice> choices;
+        private final FileTypesImpl fileTypes;
         private Number minValue;
         private Number maxValue;
         private Integer minLength, maxLength;
-        private final FileTypesImpl fileTypes;
 
         public Option(@Nonnull DataObject json) {
             this.name = json.getString("name");

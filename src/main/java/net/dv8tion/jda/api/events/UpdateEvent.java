@@ -43,7 +43,7 @@ public interface UpdateEvent<E, T> extends GenericEvent {
      * The field name for the updated property
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * @Override
      * public void onGenericRoleUpdate(GenericRoleUpdateEvent event) {
      *     switch (event.getPropertyIdentifier()) {
@@ -56,7 +56,7 @@ public interface UpdateEvent<E, T> extends GenericEvent {
      *         break;
      *     }
      * }
-     * }
+     *}
      *
      * @return The name of the updated property
      */

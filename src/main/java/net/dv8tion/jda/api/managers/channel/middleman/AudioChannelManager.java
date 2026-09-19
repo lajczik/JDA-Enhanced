@@ -29,14 +29,14 @@ import javax.annotation.Nonnull;
  * Manager providing functionality common for all {@link net.dv8tion.jda.api.entities.channel.middleman.AudioChannel AudioChannels}.
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * manager.setBitrate(48000)
  *        .setRegion(Region.AUTOMATIC)
  *        .queue();
  * manager.reset(ChannelManager.REGION | ChannelManager.BITRATE)
  *        .setRegion(Region.BRAZIL)
  *        .queue();
- * }
+ *}
  *
  * @param <T> The channel type
  * @param <M> The manager type

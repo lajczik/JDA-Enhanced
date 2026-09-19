@@ -22,7 +22,9 @@ import net.dv8tion.jda.api.entities.RoleMemberCount;
 import net.dv8tion.jda.api.entities.RoleMemberCounts;
 import org.jetbrains.annotations.Unmodifiable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 

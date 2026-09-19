@@ -60,6 +60,30 @@ public class ThreadingConfig {
         this.shutdownAudioPool = true;
     }
 
+    @Nonnull
+    public static ScheduledThreadPoolExecutor newScheduler(
+            int coreSize, Supplier<String> identifier, String baseName, boolean daemon) {
+        ScheduledThreadPoolExecutor executor =
+                new ScheduledThreadPoolExecutor(coreSize, new CountingThreadFactory(identifier, baseName, daemon));
+        executor.setRemoveOnCancelPolicy(true);
+        return executor;
+    }
+
+    @Nonnull
+    public static ExecutorService newVirtualThreadExecutor(@Nonnull String prefix) {
+        return Executors.newThreadPerTaskExecutor(new CountingThreadFactory(() -> prefix, "", true, true));
+    }
+
+    @Nonnull
+    public static ScheduledThreadPoolExecutor newScheduler(int coreSize, Supplier<String> identifier, String baseName) {
+        return newScheduler(coreSize, identifier, baseName, true);
+    }
+
+    @Nonnull
+    public static ThreadingConfig getDefault() {
+        return new ThreadingConfig();
+    }
+
     public void setRateLimitScheduler(@Nullable ScheduledExecutorService executor, boolean shutdown) {
         this.rateLimitScheduler = executor;
         this.shutdownRateLimitScheduler = shutdown;
@@ -73,20 +97,6 @@ public class ThreadingConfig {
     public void setGatewayPool(@Nullable ScheduledExecutorService executor, boolean shutdown) {
         this.gatewayPool = executor;
         this.shutdownGatewayPool = shutdown;
-    }
-
-    @Nonnull
-    public static ScheduledThreadPoolExecutor newScheduler(
-            int coreSize, Supplier<String> identifier, String baseName, boolean daemon) {
-        ScheduledThreadPoolExecutor executor =
-                new ScheduledThreadPoolExecutor(coreSize, new CountingThreadFactory(identifier, baseName, daemon));
-        executor.setRemoveOnCancelPolicy(true);
-        return executor;
-    }
-
-    @Nonnull
-    public static ExecutorService newVirtualThreadExecutor(@Nonnull String prefix) {
-        return Executors.newThreadPerTaskExecutor(new CountingThreadFactory(() -> prefix, "", true, true));
     }
 
     public void setEventPool(@Nullable ExecutorService executor, boolean shutdown) {
@@ -230,11 +240,6 @@ public class ThreadingConfig {
         return shutdownAudioPool;
     }
 
-    @Nonnull
-    public static ScheduledThreadPoolExecutor newScheduler(int coreSize, Supplier<String> identifier, String baseName) {
-        return newScheduler(coreSize, identifier, baseName, true);
-    }
-
     public void init(@Nonnull Supplier<String> identifier) {
         if (this.rateLimitScheduler == null) {
             this.rateLimitScheduler = newScheduler(2, identifier, "RateLimit-Scheduler", false);
@@ -249,10 +254,5 @@ public class ThreadingConfig {
             this.eventPool = newVirtualThreadExecutor(identifier.get() + " Event");
             this.shutdownEventPool = true;
         }
-    }
-
-    @Nonnull
-    public static ThreadingConfig getDefault() {
-        return new ThreadingConfig();
     }
 }

@@ -46,26 +46,6 @@ public class SecurityIncidentActions {
     }
 
     /**
-     * The time until when invites are paused.
-     *
-     * @return The time until invites are paused, or null if unpaused
-     */
-    @Nullable
-    public OffsetDateTime getInvitesDisabledUntil() {
-        return invitesDisabledUntil == 0 ? null : Helpers.toOffset(invitesDisabledUntil);
-    }
-
-    /**
-     * The time until when direct messages are paused.
-     *
-     * @return The time until direct messages are paused, or null if unpaused
-     */
-    @Nullable
-    public OffsetDateTime getDirectMessagesDisabledUntil() {
-        return directMessagesDisabledUntil == 0 ? null : Helpers.toOffset(directMessagesDisabledUntil);
-    }
-
-    /**
      * Incidents state, which disables all active security incidents.
      * <br>The resulting object is used with {@link Guild#modifySecurityIncidents(SecurityIncidentActions)} to update the active incidents of the guild.
      *
@@ -97,6 +77,26 @@ public class SecurityIncidentActions {
                 directMessagesDisabledUntil == null
                         ? 0
                         : directMessagesDisabledUntil.toInstant().toEpochMilli());
+    }
+
+    /**
+     * The time until when invites are paused.
+     *
+     * @return The time until invites are paused, or null if unpaused
+     */
+    @Nullable
+    public OffsetDateTime getInvitesDisabledUntil() {
+        return invitesDisabledUntil == 0 ? null : Helpers.toOffset(invitesDisabledUntil);
+    }
+
+    /**
+     * The time until when direct messages are paused.
+     *
+     * @return The time until direct messages are paused, or null if unpaused
+     */
+    @Nullable
+    public OffsetDateTime getDirectMessagesDisabledUntil() {
+        return directMessagesDisabledUntil == 0 ? null : Helpers.toOffset(directMessagesDisabledUntil);
     }
 
     @Override

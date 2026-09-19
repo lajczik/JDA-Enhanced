@@ -66,7 +66,10 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -82,138 +85,6 @@ import javax.annotation.Nullable;
  * @see JDABuilder
  */
 public interface JDA extends IGuildChannelContainer<Channel> {
-    /**
-     * Represents the connection status of JDA and its Main WebSocket.
-     */
-    enum Status {
-        /**JDA is currently setting up supporting systems like the AudioSystem.*/
-        INITIALIZING(true),
-        /**JDA has finished setting up supporting systems and is ready to log in.*/
-        INITIALIZED(true),
-        /**JDA is currently attempting to log in.*/
-        LOGGING_IN(true),
-        /**JDA is currently attempting to connect it's websocket to Discord.*/
-        CONNECTING_TO_WEBSOCKET(true),
-        /**JDA has successfully connected it's websocket to Discord and is sending authentication*/
-        IDENTIFYING_SESSION(true),
-        /**JDA has sent authentication to discord and is awaiting confirmation*/
-        AWAITING_LOGIN_CONFIRMATION(true),
-        /**JDA is populating internal objects.
-         * This process often takes the longest of all Statuses (besides CONNECTED)*/
-        LOADING_SUBSYSTEMS(true),
-        /**JDA has finished loading everything, is receiving information from Discord and is firing events.*/
-        CONNECTED(true),
-        /**JDA's main websocket has been disconnected. This <b>DOES NOT</b> mean JDA has shutdown permanently.
-         * This is an in-between status. Most likely ATTEMPTING_TO_RECONNECT or SHUTTING_DOWN/SHUTDOWN will soon follow.*/
-        DISCONNECTED,
-        /** JDA session has been added to {@link net.dv8tion.jda.api.utils.SessionController SessionController}
-         * and is awaiting to be dequeued for reconnecting.*/
-        RECONNECT_QUEUED,
-        /**When trying to reconnect to Discord JDA encountered an issue, most likely related to a lack of internet connection,
-         * and is waiting to try reconnecting again.*/
-        WAITING_TO_RECONNECT,
-        /**JDA has been disconnected from Discord and is currently trying to reestablish the connection.*/
-        ATTEMPTING_TO_RECONNECT,
-        /**JDA has received a shutdown request or has been disconnected from Discord and reconnect is disabled, thus,
-         * JDA is in the process of shutting down*/
-        SHUTTING_DOWN,
-        /**JDA has finished shutting down and this instance can no longer be used to communicate with the Discord servers.*/
-        SHUTDOWN,
-        /**While attempting to authenticate, Discord reported that the provided authentication information was invalid.*/
-        FAILED_TO_LOGIN;
-
-        private final boolean isInit;
-
-        Status(boolean isInit) {
-            this.isInit = isInit;
-        }
-
-        Status() {
-            this.isInit = false;
-        }
-
-        public boolean isInit() {
-            return isInit;
-        }
-    }
-
-    /**
-     * Represents the information used to create this shard.
-     */
-    class ShardInfo {
-        /** Default sharding config with one shard */
-        public static final ShardInfo SINGLE = new ShardInfo(0, 1);
-
-        int shardId;
-        int shardTotal;
-
-        public ShardInfo(int shardId, int shardTotal) {
-            this.shardId = shardId;
-            this.shardTotal = shardTotal;
-        }
-
-        /**
-         * Represents the id of the shard of the current instance.
-         * <br>This value will be between 0 and ({@link #getShardTotal()} - 1).
-         *
-         * @return The id of the currently logged in shard.
-         */
-        public int getShardId() {
-            return shardId;
-        }
-
-        /**
-         * The total amount of shards based on the value provided during JDA instance creation using
-         * {@link JDABuilder#useSharding(int, int)}.
-         * <br>This <b>does not</b> query Discord to determine the total number of shards.
-         * <br>This <b>does not</b> represent the amount of logged in shards.
-         * <br>It strictly represents the integer value provided to discord
-         * representing the total amount of shards that the developer indicated that it was going to use when
-         * initially starting JDA.
-         *
-         * @return The total of shards based on the total provided by the developer during JDA initialization.
-         */
-        public int getShardTotal() {
-            return shardTotal;
-        }
-
-        /**
-         * Provides a shortcut method for easily printing shard info.
-         * <br>Format: "[# / #]"
-         * <br>Where the first # is shardId and the second # is shardTotal.
-         *
-         * @return A String representing the information used to build this shard.
-         */
-        @Nonnull
-        public String getShardString() {
-            return "[" + shardId + " / " + shardTotal + "]";
-        }
-
-        @Nonnull
-        @Override
-        public String toString() {
-            return new EntityString(this)
-                    .addMetadata("currentShard", getShardString())
-                    .addMetadata("totalShards", getShardTotal())
-                    .toString();
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (!(o instanceof ShardInfo)) {
-                return false;
-            }
-
-            ShardInfo oInfo = (ShardInfo) o;
-            return shardId == oInfo.getShardId() && shardTotal == oInfo.getShardTotal();
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(shardId, shardTotal);
-        }
-    }
-
     /**
      * Gets the current {@link net.dv8tion.jda.api.JDA.Status Status} of the JDA instance.
      *
@@ -272,11 +143,11 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      * <br>This will request the current user from the API and calculate the time the response took.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * jda.getRestPing().queue((time) ->
      *     channel.sendMessageFormat("Ping: %d ms", time).queue()
      * );
-     * }
+     *}
      *
      * @return {@link net.dv8tion.jda.api.requests.RestAction RestAction} - Type: long
      *
@@ -389,14 +260,14 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      * You can use {@link #shutdownNow()} to cancel all pending requests and immediately shutdown.
      *
      * <p><b>Example</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * jda.shutdown();
      * // Allow at most 10 seconds for remaining requests to finish
      * if (!jda.awaitShutdown(10, TimeUnit.SECONDS)) {
      *     jda.shutdownNow(); // Cancel all remaining requests
      *     jda.awaitShutdown(); // Wait until shutdown is complete (indefinitely)
      * }
-     * }
+     *}
      *
      * <p><b>This will not implicitly call {@code shutdown()}, you are responsible to ensure that the shutdown process has started.</b>
      *
@@ -423,14 +294,14 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      * You can use {@link #shutdownNow()} to cancel all pending requests and immediately shutdown.
      *
      * <p><b>Example</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * jda.shutdown();
      * // Allow at most 10 seconds for remaining requests to finish
      * if (!jda.awaitShutdown(Duration.ofSeconds(10))) {
      *     jda.shutdownNow(); // Cancel all remaining requests
      *     jda.awaitShutdown(); // Wait until shutdown is complete (indefinitely)
      * }
-     * }
+     *}
      *
      * <p><b>This will not implicitly call {@code shutdown()}, you are responsible to ensure that the shutdown process has started.</b>
      *
@@ -460,14 +331,14 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      * You can use {@link #shutdownNow()} to cancel all pending requests and immediately shutdown.
      *
      * <p><b>Example</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * jda.shutdown();
      * // Allow at most 10 seconds for remaining requests to finish
      * if (!jda.awaitShutdown(Duration.ofSeconds(10))) {
      *     jda.shutdownNow(); // Cancel all remaining requests
      *     jda.awaitShutdown(); // Wait until shutdown is complete (indefinitely)
      * }
-     * }
+     *}
      *
      * <p><b>This will not implicitly call {@code shutdown()}, you are responsible to ensure that the shutdown process has started.</b>
      *
@@ -604,17 +475,6 @@ public interface JDA extends IGuildChannelContainer<Channel> {
     DirectAudioController getDirectAudioController();
 
     /**
-     * Changes the internal EventManager.
-     *
-     * <p>The default EventManager is {@link net.dv8tion.jda.api.hooks.InterfacedEventManager InterfacedEventListener}.
-     * <br>There is also an {@link net.dv8tion.jda.api.hooks.AnnotatedEventManager AnnotatedEventManager} available.
-     *
-     * @param  manager
-     *         The new EventManager to use
-     */
-    void setEventManager(@Nullable IEventManager manager);
-
-    /**
      * Adds all provided listeners to the event-listeners that will be used to handle events.
      * This uses the {@link net.dv8tion.jda.api.hooks.InterfacedEventManager InterfacedEventListener} by default.
      * To switch to the {@link net.dv8tion.jda.api.hooks.AnnotatedEventManager AnnotatedEventManager}, use {@link #setEventManager(IEventManager)}.
@@ -661,7 +521,7 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      * <p><b>Example:</b>
      *
      * <p>Listening to a message from a channel and a user, after using a slash command:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * final Duration timeout = Duration.ofSeconds(5);
      * event.reply("Reply in " + TimeFormat.RELATIVE.after(timeout) + " if you can!")
      *         .setEphemeral(true)
@@ -676,7 +536,7 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      *         .subscribe(messageEvent -> {
      *             event.getHook().editOriginal("You sent: " + messageEvent.getMessage().getContentRaw()).queue();
      *         });
-     * }
+     *}
      *
      * @param  eventType
      *         Type of the event to listen to
@@ -819,7 +679,7 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      * <p><b>Examples</b>
      *
      * <p>Set list to 2 commands:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * jda.updateCommands()
      *   .addCommands(Commands.slash("ping", "Gives the current ping"))
      *   .addCommands(Commands.slash("ban", "Ban the target user")
@@ -827,12 +687,12 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      *     .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.BAN_MEMBERS))
      *     .addOption(OptionType.USER, "user", "The user to ban", true))
      *   .queue();
-     * }
+     *}
      *
      * <p>Delete all commands:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * jda.updateCommands().queue();
-     * }
+     *}
      *
      * @return {@link CommandListUpdateAction}
      *
@@ -1564,13 +1424,13 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      * You can use {@link CacheRestAction#useCache(boolean) action.useCache(false)} to force an update.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public void sendMessage(JDA jda, long userId, String content) {
      *     jda.openPrivateChannelById(userId)
      *        .flatMap(channel -> channel.sendMessage(content))
      *        .queue();
      * }
-     * }
+     *}
      *
      * @param  userId
      *         The id of the target user
@@ -1595,13 +1455,13 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      * You can use {@link CacheRestAction#useCache(boolean) action.useCache(false)} to force an update.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public void sendMessage(JDA jda, String userId, String content) {
      *     jda.openPrivateChannelById(userId)
      *        .flatMap(channel -> channel.sendMessage(content))
      *        .queue();
      * }
-     * }
+     *}
      *
      * @param  userId
      *         The id of the target user
@@ -1825,6 +1685,16 @@ public interface JDA extends IGuildChannelContainer<Channel> {
     IEventManager getEventManager();
 
     /**
+     * Changes the internal EventManager.
+     *
+     * <p>The default EventManager is {@link net.dv8tion.jda.api.hooks.InterfacedEventManager InterfacedEventListener}.
+     * <br>There is also an {@link net.dv8tion.jda.api.hooks.AnnotatedEventManager AnnotatedEventManager} available.
+     *
+     * @param manager The new EventManager to use
+     */
+    void setEventManager(@Nullable IEventManager manager);
+
+    /**
      * Returns the currently logged in account represented by {@link net.dv8tion.jda.api.entities.SelfUser SelfUser}.
      * <br>Account settings <b>cannot</b> be modified using this object. If you wish to modify account settings please
      * use the AccountManager which is accessible by {@link net.dv8tion.jda.api.entities.SelfUser#getManager()}.
@@ -1877,16 +1747,6 @@ public interface JDA extends IGuildChannelContainer<Channel> {
     int getMaxReconnectDelay();
 
     /**
-     * Sets whether or not JDA should try to automatically reconnect if a connection-error is encountered.
-     * <br>This will use an incremental reconnect (timeouts are increased each time an attempt fails).
-     *
-     * <p>Default is <b>true</b>.
-     *
-     * @param  reconnect If true - enables autoReconnect
-     */
-    void setAutoReconnect(boolean reconnect);
-
-    /**
      * Whether the Requester should retry when
      * a {@link java.net.SocketTimeoutException SocketTimeoutException} occurs.
      *
@@ -1901,6 +1761,16 @@ public interface JDA extends IGuildChannelContainer<Channel> {
      * @return True if JDA will attempt to automatically reconnect when a connection-error is encountered.
      */
     boolean isAutoReconnect();
+
+    /**
+     * Sets whether or not JDA should try to automatically reconnect if a connection-error is encountered.
+     * <br>This will use an incremental reconnect (timeouts are increased each time an attempt fails).
+     *
+     * <p>Default is <b>true</b>.
+     *
+     * @param  reconnect If true - enables autoReconnect
+     */
+    void setAutoReconnect(boolean reconnect);
 
     /**
      * Used to determine if JDA will process MESSAGE_DELETE_BULK messages received from Discord as a single
@@ -2251,4 +2121,168 @@ public interface JDA extends IGuildChannelContainer<Channel> {
     @Nonnull
     @CheckReturnValue
     ApplicationManager getApplicationManager();
+
+    /**
+     * Represents the connection status of JDA and its Main WebSocket.
+     */
+    enum Status {
+        /**
+         * JDA is currently setting up supporting systems like the AudioSystem.
+         */
+        INITIALIZING(true),
+        /**
+         * JDA has finished setting up supporting systems and is ready to log in.
+         */
+        INITIALIZED(true),
+        /**
+         * JDA is currently attempting to log in.
+         */
+        LOGGING_IN(true),
+        /**
+         * JDA is currently attempting to connect it's websocket to Discord.
+         */
+        CONNECTING_TO_WEBSOCKET(true),
+        /**
+         * JDA has successfully connected it's websocket to Discord and is sending authentication
+         */
+        IDENTIFYING_SESSION(true),
+        /**
+         * JDA has sent authentication to discord and is awaiting confirmation
+         */
+        AWAITING_LOGIN_CONFIRMATION(true),
+        /**
+         * JDA is populating internal objects.
+         * This process often takes the longest of all Statuses (besides CONNECTED)
+         */
+        LOADING_SUBSYSTEMS(true),
+        /**
+         * JDA has finished loading everything, is receiving information from Discord and is firing events.
+         */
+        CONNECTED(true),
+        /**
+         * JDA's main websocket has been disconnected. This <b>DOES NOT</b> mean JDA has shutdown permanently.
+         * This is an in-between status. Most likely ATTEMPTING_TO_RECONNECT or SHUTTING_DOWN/SHUTDOWN will soon follow.
+         */
+        DISCONNECTED,
+        /**
+         * JDA session has been added to {@link net.dv8tion.jda.api.utils.SessionController SessionController}
+         * and is awaiting to be dequeued for reconnecting.
+         */
+        RECONNECT_QUEUED,
+        /**
+         * When trying to reconnect to Discord JDA encountered an issue, most likely related to a lack of internet connection,
+         * and is waiting to try reconnecting again.
+         */
+        WAITING_TO_RECONNECT,
+        /**
+         * JDA has been disconnected from Discord and is currently trying to reestablish the connection.
+         */
+        ATTEMPTING_TO_RECONNECT,
+        /**
+         * JDA has received a shutdown request or has been disconnected from Discord and reconnect is disabled, thus,
+         * JDA is in the process of shutting down
+         */
+        SHUTTING_DOWN,
+        /**
+         * JDA has finished shutting down and this instance can no longer be used to communicate with the Discord servers.
+         */
+        SHUTDOWN,
+        /**
+         * While attempting to authenticate, Discord reported that the provided authentication information was invalid.
+         */
+        FAILED_TO_LOGIN;
+
+        private final boolean isInit;
+
+        Status(boolean isInit) {
+            this.isInit = isInit;
+        }
+
+        Status() {
+            this.isInit = false;
+        }
+
+        public boolean isInit() {
+            return isInit;
+        }
+    }
+
+    /**
+     * Represents the information used to create this shard.
+     */
+    class ShardInfo {
+        /**
+         * Default sharding config with one shard
+         */
+        public static final ShardInfo SINGLE = new ShardInfo(0, 1);
+
+        int shardId;
+        int shardTotal;
+
+        public ShardInfo(int shardId, int shardTotal) {
+            this.shardId = shardId;
+            this.shardTotal = shardTotal;
+        }
+
+        /**
+         * Represents the id of the shard of the current instance.
+         * <br>This value will be between 0 and ({@link #getShardTotal()} - 1).
+         *
+         * @return The id of the currently logged in shard.
+         */
+        public int getShardId() {
+            return shardId;
+        }
+
+        /**
+         * The total amount of shards based on the value provided during JDA instance creation using
+         * {@link JDABuilder#useSharding(int, int)}.
+         * <br>This <b>does not</b> query Discord to determine the total number of shards.
+         * <br>This <b>does not</b> represent the amount of logged in shards.
+         * <br>It strictly represents the integer value provided to discord
+         * representing the total amount of shards that the developer indicated that it was going to use when
+         * initially starting JDA.
+         *
+         * @return The total of shards based on the total provided by the developer during JDA initialization.
+         */
+        public int getShardTotal() {
+            return shardTotal;
+        }
+
+        /**
+         * Provides a shortcut method for easily printing shard info.
+         * <br>Format: "[# / #]"
+         * <br>Where the first # is shardId and the second # is shardTotal.
+         *
+         * @return A String representing the information used to build this shard.
+         */
+        @Nonnull
+        public String getShardString() {
+            return "[" + shardId + " / " + shardTotal + "]";
+        }
+
+        @Nonnull
+        @Override
+        public String toString() {
+            return new EntityString(this)
+                    .addMetadata("currentShard", getShardString())
+                    .addMetadata("totalShards", getShardTotal())
+                    .toString();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof ShardInfo)) {
+                return false;
+            }
+
+            ShardInfo oInfo = (ShardInfo) o;
+            return shardId == oInfo.getShardId() && shardTotal == oInfo.getShardTotal();
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(shardId, shardTotal);
+        }
+    }
 }

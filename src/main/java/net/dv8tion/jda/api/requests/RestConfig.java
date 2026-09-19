@@ -51,38 +51,42 @@ public class RestConfig {
             SequentialRestRateLimiter::new;
 
     /**
-     * Whether to use {@code X-RateLimit-Reset-After} to determine the rate-limit backoff.
-     * <br>If this is disabled, the default {@link RestRateLimiter} will use the {@code X-RateLimit-Reset} header timestamp to compute the relative backoff.
+     * Provide a custom suffix for the user-agent.
+     * <br>By default, this will use {@link #USER_AGENT}.
      *
-     * @param  relativeRateLimit
-     *         True, to use relative reset after
+     * @param  suffix
+     *         The custom suffix to append, or null to disable
      *
      * @return The current RestConfig for chaining convenience
      */
     @Nonnull
-    public RestConfig setRelativeRateLimit(boolean relativeRateLimit) {
-        this.relativeRateLimit = relativeRateLimit;
+    public RestConfig setUserAgentSuffix(@Nullable String suffix) {
+        if (suffix == null || suffix.isBlank()) {
+            this.userAgent = USER_AGENT;
+        } else {
+            this.userAgent = USER_AGENT + " " + suffix.trim();
+        }
         return this;
     }
 
     /**
-     * Provide a custom implementation of {@link RestRateLimiter}.
-     * <br>By default, this will use the {@link SequentialRestRateLimiter}.
+     * The adapted user-agent with the custom {@link #setUserAgentSuffix(String) suffix}.
      *
-     * @param  rateLimiter
-     *         The new implementation
-     *
-     * @throws IllegalArgumentException
-     *         If the provided rate-limiter is null
-     *
-     * @return The current RestConfig for chaining convenience
+     * @return The user-agent
      */
     @Nonnull
-    public RestConfig setRateLimiterFactory(
-            @Nonnull Function<? super RestRateLimiter.RateLimitConfig, ? extends RestRateLimiter> rateLimiter) {
-        Checks.notNull(rateLimiter, "RateLimiter");
-        this.rateLimiter = rateLimiter;
-        return this;
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    /**
+     * The configured base-url for REST-api requests.
+     *
+     * @return The base-url
+     */
+    @Nonnull
+    public String getBaseUrl() {
+        return baseUrl;
     }
 
     /**
@@ -112,68 +116,6 @@ public class RestConfig {
     }
 
     /**
-     * Provide a custom suffix for the user-agent.
-     * <br>By default, this will use {@link #USER_AGENT}.
-     *
-     * @param  suffix
-     *         The custom suffix to append, or null to disable
-     *
-     * @return The current RestConfig for chaining convenience
-     */
-    @Nonnull
-    public RestConfig setUserAgentSuffix(@Nullable String suffix) {
-        if (suffix == null || suffix.isBlank()) {
-            this.userAgent = USER_AGENT;
-        } else {
-            this.userAgent = USER_AGENT + " " + suffix.trim();
-        }
-        return this;
-    }
-
-    /**
-     * Provide an interceptor to update outgoing requests with custom headers or other modifications.
-     * <br>Be careful not to replace any important headers, like authorization or content-type.
-     * This is allowed by JDA, to allow proper use of {@link #setBaseUrl(String)} with any exotic proxy.
-     *
-     * <p><b>Example</b>
-     * {@snippet lang="java":
-     * setCustomBuilder((request) -> {
-     *     request.header("X-My-Header", "MyValue");
-     * })
-     * }
-     *
-     * @param  customBuilder
-     *         The request interceptor, or null to disable
-     *
-     * @return The current RestConfig for chaining convenience
-     */
-    @Nonnull
-    public RestConfig setCustomBuilder(@Nullable Consumer<? super HttpClientRequest> customBuilder) {
-        this.customBuilder = customBuilder;
-        return this;
-    }
-
-    /**
-     * The adapted user-agent with the custom {@link #setUserAgentSuffix(String) suffix}.
-     *
-     * @return The user-agent
-     */
-    @Nonnull
-    public String getUserAgent() {
-        return userAgent;
-    }
-
-    /**
-     * The configured base-url for REST-api requests.
-     *
-     * @return The base-url
-     */
-    @Nonnull
-    public String getBaseUrl() {
-        return baseUrl;
-    }
-
-    /**
      * The configured rate-limiter implementation.
      *
      * @return The rate-limiter
@@ -181,6 +123,26 @@ public class RestConfig {
     @Nonnull
     public Function<? super RestRateLimiter.RateLimitConfig, ? extends RestRateLimiter> getRateLimiterFactory() {
         return rateLimiter;
+    }
+
+    /**
+     * Provide a custom implementation of {@link RestRateLimiter}.
+     * <br>By default, this will use the {@link SequentialRestRateLimiter}.
+     *
+     * @param  rateLimiter
+     *         The new implementation
+     *
+     * @throws IllegalArgumentException
+     *         If the provided rate-limiter is null
+     *
+     * @return The current RestConfig for chaining convenience
+     */
+    @Nonnull
+    public RestConfig setRateLimiterFactory(
+            @Nonnull Function<? super RestRateLimiter.RateLimitConfig, ? extends RestRateLimiter> rateLimiter) {
+        Checks.notNull(rateLimiter, "RateLimiter");
+        this.rateLimiter = rateLimiter;
+        return this;
     }
 
     /**
@@ -194,6 +156,29 @@ public class RestConfig {
     }
 
     /**
+     * Provide an interceptor to update outgoing requests with custom headers or other modifications.
+     * <br>Be careful not to replace any important headers, like authorization or content-type.
+     * This is allowed by JDA, to allow proper use of {@link #setBaseUrl(String)} with any exotic proxy.
+     *
+     * <p><b>Example</b>
+     * {@snippet lang = "java":
+     * setCustomBuilder((request) -> {
+     *     request.header("X-My-Header", "MyValue");
+     * })
+     *}
+     *
+     * @param  customBuilder
+     *         The request interceptor, or null to disable
+     *
+     * @return The current RestConfig for chaining convenience
+     */
+    @Nonnull
+    public RestConfig setCustomBuilder(@Nullable Consumer<? super HttpClientRequest> customBuilder) {
+        this.customBuilder = customBuilder;
+        return this;
+    }
+
+    /**
      * Whether to use {@code X-RateLimit-Reset-After} to determine the rate-limit backoff.
      * <br>If this is disabled, the default {@link RestRateLimiter} will use the {@code X-RateLimit-Reset} header timestamp to compute the relative backoff.
      *
@@ -201,5 +186,18 @@ public class RestConfig {
      */
     public boolean isRelativeRateLimit() {
         return relativeRateLimit;
+    }
+
+    /**
+     * Whether to use {@code X-RateLimit-Reset-After} to determine the rate-limit backoff.
+     * <br>If this is disabled, the default {@link RestRateLimiter} will use the {@code X-RateLimit-Reset} header timestamp to compute the relative backoff.
+     *
+     * @param relativeRateLimit True, to use relative reset after
+     * @return The current RestConfig for chaining convenience
+     */
+    @Nonnull
+    public RestConfig setRelativeRateLimit(boolean relativeRateLimit) {
+        this.relativeRateLimit = relativeRateLimit;
+        return this;
     }
 }

@@ -33,7 +33,7 @@ import javax.annotation.Nullable;
  * Manager providing functionality to update one or more fields for a {@link GuildWelcomeScreen}.
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * manager.setEnabled(false)
  *        .setDescription(null)
  *        .setWelcomeChannels()
@@ -45,7 +45,7 @@ import javax.annotation.Nullable;
  *                GuildWelcomeScreen.Channel.of(generalChannel, "Go have a chat", Emoji.fromUnicode("U+1F4AC"))
  *        ))
  *        .queue();
- * }
+ *}
  *
  * @see Guild#modifyWelcomeScreen()
  */
@@ -148,15 +148,6 @@ public interface GuildWelcomeScreenManager extends Manager<GuildWelcomeScreenMan
     List<GuildWelcomeScreen.Channel> getWelcomeChannels();
 
     /**
-     * Removes all welcome channels.
-     *
-     * @return GuildWelcomeScreenManager for chaining convenience
-     */
-    @Nonnull
-    @CheckReturnValue
-    GuildWelcomeScreenManager clearWelcomeChannels();
-
-    /**
      * Sets the welcome channels of the welcome screen.
      *
      * <p>The order of the {@link Collection} defines in what order the channels appear on Discord.
@@ -202,4 +193,13 @@ public interface GuildWelcomeScreenManager extends Manager<GuildWelcomeScreenMan
         Checks.notNull(channels, "Welcome channels");
         return setWelcomeChannels(Arrays.asList(channels));
     }
+
+    /**
+     * Removes all welcome channels.
+     *
+     * @return GuildWelcomeScreenManager for chaining convenience
+     */
+    @Nonnull
+    @CheckReturnValue
+    GuildWelcomeScreenManager clearWelcomeChannels();
 }

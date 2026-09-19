@@ -41,6 +41,18 @@ public interface RadioGroup extends ICustomId, LabelChildComponent {
     /** The maximum number of options a radio group can have. ({@value}) */
     int OPTIONS_MAX_AMOUNT = 10;
 
+    /**
+     * Creates a new radio group builder with the provided custom ID.
+     *
+     * @param customId The custom ID, can be used to pass data to handlers
+     * @return The new builder
+     * @throws IllegalArgumentException If the ID is {@code null} or blank
+     */
+    @Nonnull
+    static Builder create(@Nonnull String customId) {
+        return new Builder(customId);
+    }
+
     @Nonnull
     @Override
     RadioGroup withUniqueId(int uniqueId);
@@ -66,22 +78,6 @@ public interface RadioGroup extends ICustomId, LabelChildComponent {
     boolean isRequired();
 
     /**
-     * Creates a new radio group builder with the provided custom ID.
-     *
-     * @param  customId
-     *         The custom ID, can be used to pass data to handlers
-     *
-     * @throws IllegalArgumentException
-     *         If the ID is {@code null} or blank
-     *
-     * @return The new builder
-     */
-    @Nonnull
-    static Builder create(@Nonnull String customId) {
-        return new Builder(customId);
-    }
-
-    /**
      * Creates a new preconfigured {@link RadioGroup.Builder} with the same settings used for this radio group.
      * <br>This can be useful to create an updated version of this radio group without needing to rebuild it from scratch.
      *
@@ -101,9 +97,9 @@ public interface RadioGroup extends ICustomId, LabelChildComponent {
      * @see RadioGroup#create(String)
      */
     class Builder {
+        protected final List<RadioGroupOption> options = new ArrayList<>();
         protected int uniqueId = -1;
         protected String customId;
-        protected final List<RadioGroupOption> options = new ArrayList<>();
         protected boolean required = true;
 
         protected Builder(@Nonnull String customId) {
@@ -117,25 +113,6 @@ public interface RadioGroup extends ICustomId, LabelChildComponent {
          */
         public int getUniqueId() {
             return uniqueId;
-        }
-
-        /**
-         * The custom ID of this radio group.
-         *
-         * @return The custom ID
-         */
-        @Nonnull
-        public String getCustomId() {
-            return customId;
-        }
-
-        /**
-         * Whether this radio group requires an option to be selected.
-         *
-         * @return {@code true} if an option must be selected by the user
-         */
-        public boolean isRequired() {
-            return required;
         }
 
         /**
@@ -158,6 +135,16 @@ public interface RadioGroup extends ICustomId, LabelChildComponent {
         }
 
         /**
+         * The custom ID of this radio group.
+         *
+         * @return The custom ID
+         */
+        @Nonnull
+        public String getCustomId() {
+            return customId;
+        }
+
+        /**
          * Sets the custom ID of this radio group.
          * <br>This is typically used to carry data between the modal creator and the modal handler.
          *
@@ -174,6 +161,29 @@ public interface RadioGroup extends ICustomId, LabelChildComponent {
             Checks.notBlank(customId, "Custom ID");
             Checks.notLonger(customId, CUSTOM_ID_MAX_LENGTH, "Custom ID");
             this.customId = customId;
+            return this;
+        }
+
+        /**
+         * Whether this radio group requires an option to be selected.
+         *
+         * @return {@code true} if an option must be selected by the user
+         */
+        public boolean isRequired() {
+            return required;
+        }
+
+        /**
+         * Sets whether this radio group must have an option selected.
+         *
+         * <p>Radio groups are required by default.
+         *
+         * @param required {@code true} if a value must be selected before submitting
+         * @return This instance for chaining convenience
+         */
+        @Nonnull
+        public Builder setRequired(boolean required) {
+            this.required = required;
             return this;
         }
 
@@ -292,22 +302,6 @@ public interface RadioGroup extends ICustomId, LabelChildComponent {
         @Nonnull
         public List<RadioGroupOption> getOptions() {
             return options;
-        }
-
-        /**
-         * Sets whether this radio group must have an option selected.
-         *
-         * <p>Radio groups are required by default.
-         *
-         * @param  required
-         *         {@code true} if a value must be selected before submitting
-         *
-         * @return This instance for chaining convenience
-         */
-        @Nonnull
-        public Builder setRequired(boolean required) {
-            this.required = required;
-            return this;
         }
 
         /**

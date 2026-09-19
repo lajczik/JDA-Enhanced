@@ -22,10 +22,10 @@ import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import javax.annotation.Nonnull;
 
 public class ShardingConfig {
+    private final boolean useShutdownNow;
     private int shardsTotal;
     private int intents;
     private MemberCachePolicy memberCachePolicy;
-    private final boolean useShutdownNow;
 
     public ShardingConfig(int shardsTotal, boolean useShutdownNow, int intents, MemberCachePolicy memberCachePolicy) {
         this.shardsTotal = shardsTotal;
@@ -34,12 +34,17 @@ public class ShardingConfig {
         this.memberCachePolicy = memberCachePolicy;
     }
 
-    public void setShardsTotal(int shardsTotal) {
-        this.shardsTotal = shardsTotal;
+    @Nonnull
+    public static ShardingConfig getDefault() {
+        return new ShardingConfig(1, false, GatewayIntent.ALL_INTENTS, MemberCachePolicy.ALL);
     }
 
     public int getShardsTotal() {
         return shardsTotal;
+    }
+
+    public void setShardsTotal(int shardsTotal) {
+        this.shardsTotal = shardsTotal;
     }
 
     public int getIntents() {
@@ -52,10 +57,5 @@ public class ShardingConfig {
 
     public boolean isUseShutdownNow() {
         return useShutdownNow;
-    }
-
-    @Nonnull
-    public static ShardingConfig getDefault() {
-        return new ShardingConfig(1, false, GatewayIntent.ALL_INTENTS, MemberCachePolicy.ALL);
     }
 }

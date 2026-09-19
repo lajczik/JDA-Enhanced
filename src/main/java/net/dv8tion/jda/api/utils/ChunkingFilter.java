@@ -41,16 +41,6 @@ public interface ChunkingFilter {
     ChunkingFilter NONE = (x) -> false;
 
     /**
-     * Decide whether the specified guild should chunk members.
-     *
-     * @param  guildId
-     *         The guild id
-     *
-     * @return True, if this guild should chunk
-     */
-    boolean filter(long guildId);
-
-    /**
      * Factory method to chunk a whitelist of guild ids.
      * <br>All guilds that are not mentioned will use lazy loading.
      *
@@ -104,4 +94,12 @@ public interface ChunkingFilter {
             return true;
         };
     }
+
+    /**
+     * Decide whether the specified guild should chunk members.
+     *
+     * @param guildId The guild id
+     * @return True, if this guild should chunk
+     */
+    boolean filter(long guildId);
 }

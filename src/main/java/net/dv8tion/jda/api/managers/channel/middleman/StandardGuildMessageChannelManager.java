@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
  * Manager providing functionality common for all {@link net.dv8tion.jda.api.entities.channel.middleman.StandardGuildMessageChannel StandardGuildMessageChannels}.
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * manager.setName("help")
  *        .setTopic("Java is to Javascript as ham is to hamster")
  *        .queue();
@@ -36,7 +36,7 @@ import javax.annotation.Nullable;
  *        .setTopic("nsfw-commits")
  *        .setNSFW(true)
  *        .queue();
- * }
+ *}
  *
  * @see StandardGuildMessageChannel#getManager()
  */

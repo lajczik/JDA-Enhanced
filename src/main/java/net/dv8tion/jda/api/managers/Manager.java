@@ -32,6 +32,20 @@ import javax.annotation.Nonnull;
  */
 public interface Manager<M extends Manager<M>> extends AuditableRestAction<Void> {
     /**
+     * Whether internal checks for missing permissions are enabled
+     * <br>When this is disabled the chances of hitting a
+     * {@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS ErrorResponse.MISSING_PERMISSIONS} is increased significantly,
+     * otherwise JDA will check permissions and cancel the execution using
+     * {@link net.dv8tion.jda.api.exceptions.InsufficientPermissionException InsufficientPermissionException}.
+     *
+     * @return True, if internal permission checks are enabled
+     * @see #setPermissionChecksEnabled(boolean)
+     */
+    static boolean isPermissionChecksEnabled() {
+        return ManagerBase.isPermissionChecksEnabled();
+    }
+
+    /**
      * Enables internal checks for missing permissions
      * <br>When this is disabled the chances of hitting a
      * {@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS ErrorResponse.MISSING_PERMISSIONS} is increased significantly,
@@ -46,21 +60,6 @@ public interface Manager<M extends Manager<M>> extends AuditableRestAction<Void>
      */
     static void setPermissionChecksEnabled(boolean enable) {
         ManagerBase.setPermissionChecksEnabled(enable);
-    }
-
-    /**
-     * Whether internal checks for missing permissions are enabled
-     * <br>When this is disabled the chances of hitting a
-     * {@link net.dv8tion.jda.api.requests.ErrorResponse#MISSING_PERMISSIONS ErrorResponse.MISSING_PERMISSIONS} is increased significantly,
-     * otherwise JDA will check permissions and cancel the execution using
-     * {@link net.dv8tion.jda.api.exceptions.InsufficientPermissionException InsufficientPermissionException}.
-     *
-     * @return True, if internal permission checks are enabled
-     *
-     * @see    #setPermissionChecksEnabled(boolean)
-     */
-    static boolean isPermissionChecksEnabled() {
-        return ManagerBase.isPermissionChecksEnabled();
     }
 
     @Nonnull

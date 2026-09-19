@@ -89,8 +89,20 @@ public class DetachedRoleImpl implements Role, RoleMixin<DetachedRoleImpl> {
     }
 
     @Override
+    public DetachedRoleImpl setName(String name) {
+        this.name = name;
+        return this;
+    }
+
+    @Override
     public boolean isManaged() {
         return managed;
+    }
+
+    @Override
+    public DetachedRoleImpl setManaged(boolean managed) {
+        this.managed = managed;
+        return this;
     }
 
     @Override
@@ -99,8 +111,20 @@ public class DetachedRoleImpl implements Role, RoleMixin<DetachedRoleImpl> {
     }
 
     @Override
+    public DetachedRoleImpl setHoisted(boolean hoisted) {
+        this.hoisted = hoisted;
+        return this;
+    }
+
+    @Override
     public boolean isMentionable() {
         return mentionable;
+    }
+
+    @Override
+    public DetachedRoleImpl setMentionable(boolean mentionable) {
+        this.mentionable = mentionable;
+        return this;
     }
 
     @Override
@@ -206,10 +230,27 @@ public class DetachedRoleImpl implements Role, RoleMixin<DetachedRoleImpl> {
         return tags == null ? RoleTagsImpl.EMPTY : tags;
     }
 
+    @Override
+    public DetachedRoleImpl setTags(DataObject tags) {
+        if (this.tags == null) {
+            return this;
+        }
+        this.tags = new RoleTagsImpl(tags);
+        return this;
+    }
+
     @Nullable
     @Override
     public RoleIcon getIcon() {
         return icon;
+    }
+
+    // -- Setters --
+
+    @Override
+    public DetachedRoleImpl setIcon(RoleIcon icon) {
+        this.icon = icon;
+        return this;
     }
 
     @Nonnull
@@ -245,14 +286,6 @@ public class DetachedRoleImpl implements Role, RoleMixin<DetachedRoleImpl> {
         return new EntityString(this).setName(getName()).toString();
     }
 
-    // -- Setters --
-
-    @Override
-    public DetachedRoleImpl setName(String name) {
-        this.name = name;
-        return this;
-    }
-
     @Override
     public DetachedRoleImpl setPrimaryColor(int color) {
         this.primaryColor = color;
@@ -272,24 +305,6 @@ public class DetachedRoleImpl implements Role, RoleMixin<DetachedRoleImpl> {
     }
 
     @Override
-    public DetachedRoleImpl setManaged(boolean managed) {
-        this.managed = managed;
-        return this;
-    }
-
-    @Override
-    public DetachedRoleImpl setHoisted(boolean hoisted) {
-        this.hoisted = hoisted;
-        return this;
-    }
-
-    @Override
-    public DetachedRoleImpl setMentionable(boolean mentionable) {
-        this.mentionable = mentionable;
-        return this;
-    }
-
-    @Override
     public DetachedRoleImpl setRawPermissions(long rawPermissions) {
         this.rawPermissions = rawPermissions;
         return this;
@@ -298,21 +313,6 @@ public class DetachedRoleImpl implements Role, RoleMixin<DetachedRoleImpl> {
     @Override
     public DetachedRoleImpl setRawPosition(int rawPosition) {
         this.rawPosition = rawPosition;
-        return this;
-    }
-
-    @Override
-    public DetachedRoleImpl setTags(DataObject tags) {
-        if (this.tags == null) {
-            return this;
-        }
-        this.tags = new RoleTagsImpl(tags);
-        return this;
-    }
-
-    @Override
-    public DetachedRoleImpl setIcon(RoleIcon icon) {
-        this.icon = icon;
         return this;
     }
 }

@@ -71,6 +71,36 @@ public class GuildStickerImpl extends RichStickerImpl implements GuildSticker {
         this.owner = owner;
     }
 
+    private static void checkManagePermissions(@Nonnull Guild guild, @Nullable UserSnowflake owner) {
+        SelfMember selfMember = guild.getSelfMember();
+        if (owner != null) {
+            if (owner.getIdLong() == selfMember.getIdLong()) {
+                checkCreateOrManagePermissions(guild);
+            } else {
+                if (!selfMember.hasPermission(Permission.MANAGE_GUILD_EXPRESSIONS)) {
+                    throw new InsufficientPermissionException(guild, Permission.MANAGE_GUILD_EXPRESSIONS);
+                }
+            }
+        } else {
+            // We don't know if we own the sticker, let's assume we do
+            checkCreateOrManagePermissions(guild);
+        }
+    }
+
+    public static void checkCreateOrManagePermissions(@Nonnull Guild guild) {
+        checkCreateOrManagePermissions(
+                guild,
+                "Managing a sticker requires either MANAGE_GUILD_EXPRESSIONS or CREATE_GUILD_EXPRESSIONS permissions");
+    }
+
+    private static void checkCreateOrManagePermissions(@Nonnull Guild guild, @Nonnull String message) {
+        SelfMember selfMember = guild.getSelfMember();
+        if (!selfMember.hasPermission(Permission.MANAGE_GUILD_EXPRESSIONS)
+                && !selfMember.hasPermission(Permission.CREATE_GUILD_EXPRESSIONS)) {
+            throw new InsufficientPermissionException(guild, Permission.MANAGE_GUILD_EXPRESSIONS, message);
+        }
+    }
+
     @Nonnull
     @Override
     public GuildSticker asGuildSticker() {
@@ -80,6 +110,11 @@ public class GuildStickerImpl extends RichStickerImpl implements GuildSticker {
     @Override
     public boolean isAvailable() {
         return available;
+    }
+
+    public GuildStickerImpl setAvailable(boolean available) {
+        this.available = available;
+        return this;
     }
 
     @Override
@@ -140,45 +175,10 @@ public class GuildStickerImpl extends RichStickerImpl implements GuildSticker {
         return new AuditableRestActionImpl<>(jda, route);
     }
 
-    private static void checkManagePermissions(@Nonnull Guild guild, @Nullable UserSnowflake owner) {
-        SelfMember selfMember = guild.getSelfMember();
-        if (owner != null) {
-            if (owner.getIdLong() == selfMember.getIdLong()) {
-                checkCreateOrManagePermissions(guild);
-            } else {
-                if (!selfMember.hasPermission(Permission.MANAGE_GUILD_EXPRESSIONS)) {
-                    throw new InsufficientPermissionException(guild, Permission.MANAGE_GUILD_EXPRESSIONS);
-                }
-            }
-        } else {
-            // We don't know if we own the sticker, let's assume we do
-            checkCreateOrManagePermissions(guild);
-        }
-    }
-
-    public static void checkCreateOrManagePermissions(@Nonnull Guild guild) {
-        checkCreateOrManagePermissions(
-                guild,
-                "Managing a sticker requires either MANAGE_GUILD_EXPRESSIONS or CREATE_GUILD_EXPRESSIONS permissions");
-    }
-
-    private static void checkCreateOrManagePermissions(@Nonnull Guild guild, @Nonnull String message) {
-        SelfMember selfMember = guild.getSelfMember();
-        if (!selfMember.hasPermission(Permission.MANAGE_GUILD_EXPRESSIONS)
-                && !selfMember.hasPermission(Permission.CREATE_GUILD_EXPRESSIONS)) {
-            throw new InsufficientPermissionException(guild, Permission.MANAGE_GUILD_EXPRESSIONS, message);
-        }
-    }
-
     @Nonnull
     @Override
     public GuildStickerManager getManager() {
         return new GuildStickerManagerImpl(getGuild(), getGuildIdLong(), this);
-    }
-
-    public GuildStickerImpl setAvailable(boolean available) {
-        this.available = available;
-        return this;
     }
 
     public GuildStickerImpl copy() {

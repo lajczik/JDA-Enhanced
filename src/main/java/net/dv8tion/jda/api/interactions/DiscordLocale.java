@@ -76,6 +76,40 @@ public enum DiscordLocale {
     }
 
     /**
+     * Converts the provided locale tag (such as {@code en-GB} or {@code fr}) to the enum constant
+     *
+     * @param localeTag The locale tag
+     * @return The DiscordLocale constant or {@link #UNKNOWN}
+     * @throws IllegalArgumentException If the locale tag is null
+     */
+    @Nonnull
+    public static DiscordLocale from(@Nonnull String localeTag) {
+        Checks.notNull(localeTag, "Locale tag");
+
+        for (DiscordLocale discordLocale : values()) {
+            if (discordLocale.locale.equals(localeTag)) {
+                return discordLocale;
+            }
+        }
+
+        return UNKNOWN;
+    }
+
+    /**
+     * Converts the provided {@link Locale} to the enum constant
+     *
+     * @param locale The locale
+     * @return The DiscordLocale constant or {@link #UNKNOWN}
+     * @throws IllegalArgumentException If the locale is null
+     */
+    @Nonnull
+    public static DiscordLocale from(@Nonnull Locale locale) {
+        Checks.notNull(locale, "Locale");
+
+        return from(locale.toLanguageTag());
+    }
+
+    /**
      * The locale tag, could be parsed by {@link Locale#forLanguageTag(String)}
      *
      * @return The locale tag
@@ -120,47 +154,5 @@ public enum DiscordLocale {
     @Nonnull
     public String getNativeName() {
         return nativeName;
-    }
-
-    /**
-     * Converts the provided locale tag (such as {@code en-GB} or {@code fr}) to the enum constant
-     *
-     * @param  localeTag
-     *         The locale tag
-     *
-     * @throws IllegalArgumentException
-     *         If the locale tag is null
-     *
-     * @return The DiscordLocale constant or {@link #UNKNOWN}
-     */
-    @Nonnull
-    public static DiscordLocale from(@Nonnull String localeTag) {
-        Checks.notNull(localeTag, "Locale tag");
-
-        for (DiscordLocale discordLocale : values()) {
-            if (discordLocale.locale.equals(localeTag)) {
-                return discordLocale;
-            }
-        }
-
-        return UNKNOWN;
-    }
-
-    /**
-     * Converts the provided {@link Locale} to the enum constant
-     *
-     * @param  locale
-     *         The locale
-     *
-     * @throws IllegalArgumentException
-     *         If the locale is null
-     *
-     * @return The DiscordLocale constant or {@link #UNKNOWN}
-     */
-    @Nonnull
-    public static DiscordLocale from(@Nonnull Locale locale) {
-        Checks.notNull(locale, "Locale");
-
-        return from(locale.toLanguageTag());
     }
 }

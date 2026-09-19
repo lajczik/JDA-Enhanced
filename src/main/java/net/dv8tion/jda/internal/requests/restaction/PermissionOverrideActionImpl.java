@@ -45,16 +45,15 @@ import javax.annotation.Nonnull;
 
 public class PermissionOverrideActionImpl extends AuditableRestActionImpl<PermissionOverride>
         implements PermissionOverrideAction {
-    private boolean isOverride = true;
-    private boolean allowSet = false;
-    private boolean denySet = false;
-
-    private long allow = 0;
-    private long deny = 0;
     private final IPermissionContainerMixin<?> channel;
     private final IPermissionHolder permissionHolder;
     private final boolean isRole;
     private final long id;
+    private boolean isOverride = true;
+    private boolean allowSet = false;
+    private boolean denySet = false;
+    private long allow = 0;
+    private long deny = 0;
 
     public PermissionOverrideActionImpl(PermissionOverride override) {
         super(
@@ -149,9 +148,31 @@ public class PermissionOverrideActionImpl extends AuditableRestActionImpl<Permis
         return getCurrentAllow();
     }
 
+    @Nonnull
+    @Override
+    @CheckReturnValue
+    public PermissionOverrideActionImpl setAllowed(long allowBits) {
+        checkPermissions(getOriginalAllow() ^ allowBits);
+        this.allow = allowBits;
+        this.deny = getCurrentDeny() & ~allowBits;
+        allowSet = denySet = true;
+        return this;
+    }
+
     @Override
     public long getDenied() {
         return getCurrentDeny();
+    }
+
+    @Nonnull
+    @Override
+    @CheckReturnValue
+    public PermissionOverrideActionImpl setDenied(long denyBits) {
+        checkPermissions(getOriginalDeny() ^ denyBits);
+        this.deny = denyBits;
+        this.allow = getCurrentAllow() & ~denyBits;
+        allowSet = denySet = true;
+        return this;
     }
 
     @Override
@@ -171,30 +192,8 @@ public class PermissionOverrideActionImpl extends AuditableRestActionImpl<Permis
 
     @Nonnull
     @Override
-    @CheckReturnValue
-    public PermissionOverrideActionImpl setAllowed(long allowBits) {
-        checkPermissions(getOriginalAllow() ^ allowBits);
-        this.allow = allowBits;
-        this.deny = getCurrentDeny() & ~allowBits;
-        allowSet = denySet = true;
-        return this;
-    }
-
-    @Nonnull
-    @Override
     public PermissionOverrideAction grant(long allowBits) {
         return setAllowed(getCurrentAllow() | allowBits);
-    }
-
-    @Nonnull
-    @Override
-    @CheckReturnValue
-    public PermissionOverrideActionImpl setDenied(long denyBits) {
-        checkPermissions(getOriginalDeny() ^ denyBits);
-        this.deny = denyBits;
-        this.allow = getCurrentAllow() & ~denyBits;
-        allowSet = denySet = true;
-        return this;
     }
 
     @Nonnull

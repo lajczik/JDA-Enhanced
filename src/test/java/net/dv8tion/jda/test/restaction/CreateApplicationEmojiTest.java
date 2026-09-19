@@ -39,6 +39,10 @@ public class CreateApplicationEmojiTest extends RestActionTest {
     private static final String EXAMPLE_NAME = "thinking";
     private static final Icon EXAMPLE_ICON = Icon.from(new byte[] {1, 2, 3});
 
+    static Stream<Arguments> testNullArguments() {
+        return Stream.of(arguments(null, null), arguments(null, EXAMPLE_ICON), arguments(EXAMPLE_NAME, null));
+    }
+
     @BeforeEach
     void setupMocks() {
         when(jda.createApplicationEmoji(any(), any())).thenCallRealMethod();
@@ -49,10 +53,6 @@ public class CreateApplicationEmojiTest extends RestActionTest {
     @ParameterizedTest
     void testNullArguments(String name, Icon icon) {
         assertThatIllegalArgumentException().isThrownBy(() -> jda.createApplicationEmoji(name, icon));
-    }
-
-    static Stream<Arguments> testNullArguments() {
-        return Stream.of(arguments(null, null), arguments(null, EXAMPLE_ICON), arguments(EXAMPLE_NAME, null));
     }
 
     @Test

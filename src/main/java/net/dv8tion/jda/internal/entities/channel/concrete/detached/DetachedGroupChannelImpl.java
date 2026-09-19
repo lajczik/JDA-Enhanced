@@ -63,6 +63,12 @@ public class DetachedGroupChannelImpl extends AbstractChannelImpl<DetachedGroupC
     }
 
     @Override
+    public DetachedGroupChannelImpl setLatestMessageIdLong(long latestMessageId) {
+        this.latestMessageId = latestMessageId;
+        return this;
+    }
+
+    @Override
     public boolean canTalk() {
         return false;
     }
@@ -110,12 +116,6 @@ public class DetachedGroupChannelImpl extends AbstractChannelImpl<DetachedGroupC
     @Override
     public boolean canDeleteOtherUsersMessages() {
         return false;
-    }
-
-    @Override
-    public DetachedGroupChannelImpl setLatestMessageIdLong(long latestMessageId) {
-        this.latestMessageId = latestMessageId;
-        return this;
     }
 
     @Override

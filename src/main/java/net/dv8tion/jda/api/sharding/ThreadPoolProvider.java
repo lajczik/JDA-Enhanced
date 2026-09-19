@@ -34,6 +34,20 @@ import javax.annotation.Nullable;
  */
 public interface ThreadPoolProvider<T extends ExecutorService> {
     /**
+     * Provider that initializes with a {@link DefaultShardManagerBuilder#setShardsTotal(int) shard_total}
+     * and provides the same pool to share between shards.
+     *
+     * @param init Function to initialize the shared pool, called with the shard total
+     * @param <T> The type of executor
+     * @return The lazy pool provider
+     */
+    @Nonnull
+    static <T extends ExecutorService> LazySharedProvider<T> lazy(@Nonnull IntFunction<T> init) {
+        Checks.notNull(init, "Initializer");
+        return new LazySharedProvider<>(init);
+    }
+
+    /**
      * Provides an instance of the specified executor, or null
      *
      * @param  shardId
@@ -54,23 +68,6 @@ public interface ThreadPoolProvider<T extends ExecutorService> {
      */
     default boolean shouldShutdownAutomatically(int shardId) {
         return false;
-    }
-
-    /**
-     * Provider that initializes with a {@link DefaultShardManagerBuilder#setShardsTotal(int) shard_total}
-     * and provides the same pool to share between shards.
-     *
-     * @param  init
-     *         Function to initialize the shared pool, called with the shard total
-     * @param  <T>
-     *         The type of executor
-     *
-     * @return The lazy pool provider
-     */
-    @Nonnull
-    static <T extends ExecutorService> LazySharedProvider<T> lazy(@Nonnull IntFunction<T> init) {
-        Checks.notNull(init, "Initializer");
-        return new LazySharedProvider<>(init);
     }
 
     final class LazySharedProvider<T extends ExecutorService> implements ThreadPoolProvider<T> {

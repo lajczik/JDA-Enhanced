@@ -298,35 +298,6 @@ public interface AttachedFile extends AutoCloseable {
     }
 
     /**
-     * Used internally to build the multipart request.
-     *
-     * <p>
-     * The index can be used as a unique identifier for the multipart name, which is
-     * required to be unique by Discord.
-     *
-     * @param builder
-     *                The {@link MultipartBody.Builder} used for the request body
-     * @param index
-     *                The index of the attachment, ignored for
-     *                {@link AttachmentUpdate}
-     */
-    void addPart(@Nonnull MultipartBody.Builder builder, int index);
-
-    /**
-     * Used internally to build attachment descriptions for requests.
-     * <br>
-     * This contains the id/index of the attachment, and the name of the file.
-     *
-     * @param index
-     *              The reference index (should be same as
-     *              {@link #addPart(MultipartBody.Builder, int)})
-     *
-     * @return {@link DataObject} for the attachment
-     */
-    @Nonnull
-    DataObject toAttachmentData(int index);
-
-    /**
      * Build a complete request using the provided files and payload data.
      *
      * @param files
@@ -394,6 +365,31 @@ public interface AttachedFile extends AutoCloseable {
 
         return builder;
     }
+
+    /**
+     * Used internally to build the multipart request.
+     *
+     * <p>
+     * The index can be used as a unique identifier for the multipart name, which is
+     * required to be unique by Discord.
+     *
+     * @param builder The {@link MultipartBody.Builder} used for the request body
+     * @param index The index of the attachment, ignored for
+     * {@link AttachmentUpdate}
+     */
+    void addPart(@Nonnull MultipartBody.Builder builder, int index);
+
+    /**
+     * Used internally to build attachment descriptions for requests.
+     * <br>
+     * This contains the id/index of the attachment, and the name of the file.
+     *
+     * @param index The reference index (should be same as
+     * {@link #addPart(MultipartBody.Builder, int)})
+     * @return {@link DataObject} for the attachment
+     */
+    @Nonnull
+    DataObject toAttachmentData(int index);
 
     /**
      * Forces the underlying resource to be closed, even if the file is already

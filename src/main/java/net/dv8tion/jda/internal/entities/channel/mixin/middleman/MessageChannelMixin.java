@@ -47,7 +47,9 @@ import net.dv8tion.jda.api.utils.messages.MessagePollData;
 import net.dv8tion.jda.internal.entities.channel.mixin.ChannelMixin;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.CheckReturnValue;

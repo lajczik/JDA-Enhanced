@@ -280,29 +280,6 @@ public enum ErrorResponse {
         this.meaning = meaning;
     }
 
-    public int getCode() {
-        return code;
-    }
-
-    @Nonnull
-    public String getMeaning() {
-        return meaning;
-    }
-
-    /**
-     * Tests whether the given throwable is an {@link ErrorResponseException} with {@link ErrorResponseException#getErrorResponse()} equal to this.
-     * <br>This is very useful in combination with {@link RestAction#onErrorMap(Predicate, Function)} and {@link RestAction#onErrorFlatMap(Predicate, Function)}!
-     *
-     * @param  throwable
-     *         The throwable to test
-     *
-     * @return True, if the error response is equal to this
-     */
-    public boolean test(Throwable throwable) {
-        return throwable instanceof ErrorResponseException
-                && ((ErrorResponseException) throwable).getErrorResponse() == this;
-    }
-
     /**
      * Provides a tests whether a given throwable is an {@link ErrorResponseException} with {@link ErrorResponseException#getErrorResponse()} being one of the provided responses.
      * <br>This is very useful in combination with {@link RestAction#onErrorMap(Predicate, Function)} and {@link RestAction#onErrorFlatMap(Predicate, Function)}!
@@ -357,5 +334,26 @@ public enum ErrorResponse {
             return SERVER_ERROR;
         }
         return ErrorResponse.fromCode(obj.getInt("code"));
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    @Nonnull
+    public String getMeaning() {
+        return meaning;
+    }
+
+    /**
+     * Tests whether the given throwable is an {@link ErrorResponseException} with {@link ErrorResponseException#getErrorResponse()} equal to this.
+     * <br>This is very useful in combination with {@link RestAction#onErrorMap(Predicate, Function)} and {@link RestAction#onErrorFlatMap(Predicate, Function)}!
+     *
+     * @param throwable The throwable to test
+     * @return True, if the error response is equal to this
+     */
+    public boolean test(Throwable throwable) {
+        return throwable instanceof ErrorResponseException
+                && ((ErrorResponseException) throwable).getErrorResponse() == this;
     }
 }

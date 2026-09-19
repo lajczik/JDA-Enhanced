@@ -124,6 +124,12 @@ public class DetachedMemberImpl implements Member, MemberMixin<DetachedMemberImp
     }
 
     @Override
+    public DetachedMemberImpl setTimeOutEnd(long time) {
+        this.timeOutEnd = time;
+        return this;
+    }
+
+    @Override
     public GuildVoiceState getVoiceState() {
         throw detachedException();
     }
@@ -158,13 +164,31 @@ public class DetachedMemberImpl implements Member, MemberMixin<DetachedMemberImp
     }
 
     @Override
+    public DetachedMemberImpl setNickname(String nickname) {
+        this.nickname = nickname;
+        return this;
+    }
+
+    @Override
     public String getAvatarId() {
         return avatarId;
     }
 
     @Override
+    public DetachedMemberImpl setAvatarId(String avatarId) {
+        this.avatarId = avatarId;
+        return this;
+    }
+
+    @Override
     public String getBannerId() {
         return bannerId;
+    }
+
+    @Override
+    public DetachedMemberImpl setBannerId(String bannerId) {
+        this.bannerId = bannerId;
+        return this;
     }
 
     @Nonnull
@@ -336,6 +360,12 @@ public class DetachedMemberImpl implements Member, MemberMixin<DetachedMemberImp
     }
 
     @Override
+    public DetachedMemberImpl setPending(boolean pending) {
+        this.pending = pending;
+        return this;
+    }
+
+    @Override
     public long getIdLong() {
         return user.getIdLong();
     }
@@ -363,28 +393,15 @@ public class DetachedMemberImpl implements Member, MemberMixin<DetachedMemberImp
         return interactionPermissions;
     }
 
+    public DetachedMemberImpl setInteractionPermissions(@Nonnull MemberInteractionPermissions interactionPermissions) {
+        this.interactionPermissions = interactionPermissions;
+        return this;
+    }
+
     @Nonnull
     @Override
     public AuditableRestAction<Void> modifyFlags(@Nonnull Collection<MemberFlag> newFlags) {
         throw detachedException();
-    }
-
-    @Override
-    public DetachedMemberImpl setNickname(String nickname) {
-        this.nickname = nickname;
-        return this;
-    }
-
-    @Override
-    public DetachedMemberImpl setAvatarId(String avatarId) {
-        this.avatarId = avatarId;
-        return this;
-    }
-
-    @Override
-    public DetachedMemberImpl setBannerId(String bannerId) {
-        this.bannerId = bannerId;
-        return this;
     }
 
     @Override
@@ -400,25 +417,8 @@ public class DetachedMemberImpl implements Member, MemberMixin<DetachedMemberImp
     }
 
     @Override
-    public DetachedMemberImpl setTimeOutEnd(long time) {
-        this.timeOutEnd = time;
-        return this;
-    }
-
-    @Override
-    public DetachedMemberImpl setPending(boolean pending) {
-        this.pending = pending;
-        return this;
-    }
-
-    @Override
     public DetachedMemberImpl setFlags(int flags) {
         this.flags = flags;
-        return this;
-    }
-
-    public DetachedMemberImpl setInteractionPermissions(@Nonnull MemberInteractionPermissions interactionPermissions) {
-        this.interactionPermissions = interactionPermissions;
         return this;
     }
 

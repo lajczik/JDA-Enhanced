@@ -34,10 +34,6 @@ public enum AudioEncryption {
         this.key = name().toLowerCase(Locale.ROOT);
     }
 
-    public String getKey() {
-        return key;
-    }
-
     public static AudioEncryption getPreferredMode(DataArray array) {
         AudioEncryption encryption = null;
         for (Object o : array) {
@@ -70,5 +66,9 @@ public enum AudioEncryption {
             default:
                 return null;
         }
+    }
+
+    public String getKey() {
+        return key;
     }
 }

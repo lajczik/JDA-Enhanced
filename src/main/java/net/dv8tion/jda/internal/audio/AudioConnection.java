@@ -43,7 +43,9 @@ import net.dv8tion.jda.internal.utils.ResizingByteBuf;
 import org.slf4j.Logger;
 import tomp2p.opuswrapper.Opus;
 
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -65,22 +67,18 @@ public class AudioConnection {
 
     static final ByteBuffer silenceBytes = ByteBuffer.wrap(new byte[] {(byte) 0xF8, (byte) 0xFF, (byte) 0xFE});
     private static boolean printedError = false;
-
-    protected volatile DatagramChannel udpChannel;
+    protected final ReentrantLock readyLock = new ReentrantLock();
+    protected final Condition readyCondvar = readyLock.newCondition();
     private final ResizingByteBuf decryptBuffer = new ResizingByteBuf(1024);
-    private ShortBuffer opusInputBuffer = null;
-    private ByteBuffer opusOutputBuffer = null;
-
     private final Int2LongMap ssrcMap;
     private final Int2ObjectMap<Decoder> opusDecoders = new Int2ObjectOpenHashMap<>();
     private final HashMap<User, Queue<AudioData>> combinedQueue = new HashMap<>();
     private final String threadIdentifier;
     private final AudioWebSocket webSocket;
     private final JDAImpl api;
-
-    protected final ReentrantLock readyLock = new ReentrantLock();
-    protected final Condition readyCondvar = readyLock.newCondition();
-
+    protected volatile DatagramChannel udpChannel;
+    private ShortBuffer opusInputBuffer = null;
+    private ByteBuffer opusOutputBuffer = null;
     private AudioChannel channel;
     private PointerByReference opusEncoder;
     private ScheduledExecutorService combinedAudioExecutor;
@@ -537,6 +535,16 @@ public class AudioConnection {
         webSocket.send(VoiceCode.USER_SPEAKING_UPDATE, obj);
     }
 
+    private static class AudioData {
+        private final long time;
+        private final short[] data;
+
+        private AudioData(short[] data) {
+            this.time = System.currentTimeMillis();
+            this.data = data;
+        }
+    }
+
     private class PacketProvider implements IPacketProvider {
         private final ResizingByteBuf buffer = new ResizingByteBuf(2048);
         private char seq = 0; // Sequence of audio packets. Used to determine the order of the packets.
@@ -688,16 +696,6 @@ public class AudioConnection {
             LOG.warn("Cannot send audio packet because JDA cannot navigate the route to Discord.\n"
                     + "Are you sure you have internet connection? It is likely that you've lost connection.");
             webSocket.close(ConnectionStatus.ERROR_LOST_CONNECTION);
-        }
-    }
-
-    private static class AudioData {
-        private final long time;
-        private final short[] data;
-
-        private AudioData(short[] data) {
-            this.time = System.currentTimeMillis();
-            this.data = data;
         }
     }
 }

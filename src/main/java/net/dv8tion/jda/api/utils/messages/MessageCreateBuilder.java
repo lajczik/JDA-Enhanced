@@ -43,7 +43,7 @@ import javax.annotation.Nullable;
  * <br>This can be used to build a request and send it to various API endpoints.
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * try (FileUpload file = FileUpload.fromData(new File("wave.gif"))) {
  *     MessageCreateData data = new MessageCreateBuilder()
  *       .setContent("Hello guys!")
@@ -55,7 +55,7 @@ import javax.annotation.Nullable;
  *         channel.sendMessage(data).queue();
  *     }
  * } // closes wave.gif if an error occurred
- * }
+ *}
  *
  * @see MessageChannel#sendMessage(MessageCreateData)
  * @see IReplyCallback#reply(MessageCreateData) IReplyCallback.reply(data)

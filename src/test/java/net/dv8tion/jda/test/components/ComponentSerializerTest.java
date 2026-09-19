@@ -33,6 +33,12 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class ComponentSerializerTest extends AbstractComponentTest {
+    static Stream<Arguments> getSerializerTestCases() {
+        return Arrays.stream(Component.Type.values())
+                .map(type -> ComponentTestData.getMinimalComponent(Component.class, type))
+                .map(Arguments::of);
+    }
+
     @MethodSource("getSerializerTestCases")
     @ParameterizedTest
     void testSerializer(Component component) {
@@ -56,11 +62,5 @@ public class ComponentSerializerTest extends AbstractComponentTest {
     @ParameterizedTest
     void testToStringMethods(Component component) {
         assertWithSnapshot(component.toString(), component.getType().toString());
-    }
-
-    static Stream<Arguments> getSerializerTestCases() {
-        return Arrays.stream(Component.Type.values())
-                .map(type -> ComponentTestData.getMinimalComponent(Component.class, type))
-                .map(Arguments::of);
     }
 }

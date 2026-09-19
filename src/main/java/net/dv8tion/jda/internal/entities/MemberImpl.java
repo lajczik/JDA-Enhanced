@@ -132,6 +132,12 @@ public class MemberImpl implements Member, MemberMixin<MemberImpl> {
     }
 
     @Override
+    public MemberImpl setTimeOutEnd(long time) {
+        this.timeOutEnd = time;
+        return this;
+    }
+
+    @Override
     public GuildVoiceStateImpl getVoiceState() {
         return guild.getVoiceState(this);
     }
@@ -178,13 +184,31 @@ public class MemberImpl implements Member, MemberMixin<MemberImpl> {
     }
 
     @Override
+    public MemberImpl setNickname(String nickname) {
+        this.nickname = nickname;
+        return this;
+    }
+
+    @Override
     public String getAvatarId() {
         return avatarId;
     }
 
     @Override
+    public MemberImpl setAvatarId(String avatarId) {
+        this.avatarId = avatarId;
+        return this;
+    }
+
+    @Override
     public String getBannerId() {
         return bannerId;
+    }
+
+    @Override
+    public MemberImpl setBannerId(String bannerId) {
+        this.bannerId = bannerId;
+        return this;
     }
 
     @Nonnull
@@ -444,6 +468,12 @@ public class MemberImpl implements Member, MemberMixin<MemberImpl> {
     }
 
     @Override
+    public MemberImpl setPending(boolean pending) {
+        this.pending = pending;
+        return this;
+    }
+
+    @Override
     public long getIdLong() {
         return user.getIdLong();
     }
@@ -471,24 +501,6 @@ public class MemberImpl implements Member, MemberMixin<MemberImpl> {
     }
 
     @Override
-    public MemberImpl setNickname(String nickname) {
-        this.nickname = nickname;
-        return this;
-    }
-
-    @Override
-    public MemberImpl setAvatarId(String avatarId) {
-        this.avatarId = avatarId;
-        return this;
-    }
-
-    @Override
-    public MemberImpl setBannerId(String bannerId) {
-        this.bannerId = bannerId;
-        return this;
-    }
-
-    @Override
     public MemberImpl setJoinDate(long joinDate) {
         this.joinDate = joinDate;
         return this;
@@ -497,18 +509,6 @@ public class MemberImpl implements Member, MemberMixin<MemberImpl> {
     @Override
     public MemberImpl setBoostDate(long boostDate) {
         this.boostDate = boostDate;
-        return this;
-    }
-
-    @Override
-    public MemberImpl setTimeOutEnd(long time) {
-        this.timeOutEnd = time;
-        return this;
-    }
-
-    @Override
-    public MemberImpl setPending(boolean pending) {
-        this.pending = pending;
         return this;
     }
 

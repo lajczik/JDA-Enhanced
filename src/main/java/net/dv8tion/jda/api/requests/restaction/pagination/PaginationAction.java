@@ -45,7 +45,7 @@ import javax.annotation.Nullable;
  * with a lock. Calling methods on this class from multiple threads is not recommended.
  *
  * <p><b>Examples</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * // Retrieves messages until the specified limit is reached. The messages will be limited after being filtered by the user.
  * // If the user hasn't sent enough messages this will go through all messages so it is recommended to add an additional end condition.
  * public static List<Message> getMessagesByUser(MessageChannel channel, User user, int limit) {
@@ -56,9 +56,9 @@ import javax.annotation.Nullable;
  *             .limit(limit); // limit on filtered stream will be checked independently from previous limit
  *     return messageStream.collect(Collectors.toList());
  * }
- * }
+ *}
  *
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * // Iterates messages in an async stream and stops once the limit has been reached.
  * public static void onEachMessageAsync(MessageChannel channel, Consumer<Message> consumer, int limit) {
  *     if (limit < 1)
@@ -71,7 +71,7 @@ import javax.annotation.Nullable;
  *         return counter.decrementAndGet() == 0;
  *     });
  * }
- * }
+ *}
  *
  * @param  <M>
  *         The current implementation used as chaining return value
@@ -90,7 +90,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      * <p>Fails if cache is enabled and the target id is newer than the current last id {@literal (id > last)}.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public MessagePaginationAction getOlderThan(MessageChannel channel, long time) {
      *     final long timestamp = TimeUtil.getDiscordTimestamp(time);
      *     final MessagePaginationAction paginator = channel.getIterableHistory();
@@ -104,7 +104,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      *             System.out.printf("%#s%n", message); // means: print display content
      *         return !empty; // means: continue if not empty
      *     });
-     * }
+     *}
      *
      * @param  id
      *         The snowflake ID to skip before, this is exclusive rather than inclusive
@@ -499,7 +499,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      * entities use {@link #forEachRemainingAsync(Procedure)}</b>
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * //deletes messages until it finds a user that is still in guild
      * public void cleanupMessages(MessagePaginationAction action)
      * {
@@ -513,7 +513,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      *         return true;
      *     });
      * }
-     * }
+     *}
      *
      * @param  action
      *         {@link net.dv8tion.jda.api.utils.Procedure Procedure} returning {@code true} if iteration should continue!
@@ -540,7 +540,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      * entities use {@link #forEachRemainingAsync(Procedure, Consumer)}</b>
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * //deletes messages until it finds a user that is still in guild
      * public void cleanupMessages(MessagePaginationAction action)
      * {
@@ -554,7 +554,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      *         return true;
      *     }, Throwable::printStackTrace);
      * }
-     * }
+     *}
      *
      * @param  action
      *         {@link net.dv8tion.jda.api.utils.Procedure Procedure} returning {@code true} if iteration should continue!
@@ -582,7 +582,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      * entities use {@link #forEachAsync(Procedure)}</b>
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * //deletes messages until it finds a user that is still in guild
      * public void cleanupMessages(MessagePaginationAction action)
      * {
@@ -596,7 +596,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      *         return true;
      *     });
      * }
-     * }
+     *}
      *
      * @param  action
      *         {@link net.dv8tion.jda.api.utils.Procedure Procedure} returning {@code true} if iteration should continue!
@@ -623,7 +623,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      * entities use {@link #forEachAsync(Procedure, Consumer)}</b>
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * //deletes messages until it finds a user that is still in guild
      * public void cleanupMessages(MessagePaginationAction action)
      * {
@@ -637,7 +637,7 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      *         return true;
      *     }, Throwable::printStackTrace);
      * }
-     * }
+     *}
      *
      * @param  action
      *         {@link net.dv8tion.jda.api.utils.Procedure Procedure} returning {@code true} if iteration should continue!
@@ -748,8 +748,8 @@ public interface PaginationAction<T, M extends PaginationAction<T, M>>
      * <br><b>It is recommended to use the highest possible limit for this task. (see {@link #limit(int)})</b>
      */
     class PaginationIterator<E> implements Iterator<E> {
-        protected Queue<E> items;
         protected final Supplier<List<E>> supply;
+        protected Queue<E> items;
 
         public PaginationIterator(Collection<E> queue, Supplier<List<E>> supply) {
             this.items = new ArrayDeque<>(queue);

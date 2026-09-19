@@ -39,24 +39,16 @@ import javax.annotation.Nonnull;
  * </ul>
  *
  * <p><b>Example</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * AutoModRuleData rule = AutoModRule.onMessage("Invite Links",
  *   TriggerConfig.keywordFilter("discord.gg/*") // trigger on all invite links
  *     .setAllowList("discord.gg/discord-api")   // except certain whitelisted ones
  * );
- * }
+ *}
  *
  * @see AutoModRule
  */
 public interface TriggerConfig extends SerializableData {
-    /**
-     * The type of trigger for this config.
-     *
-     * @return {@link AutoModTriggerType}
-     */
-    @Nonnull
-    AutoModTriggerType getType();
-
     /**
      * Trigger on mention thresholds in messages.
      *
@@ -222,4 +214,12 @@ public interface TriggerConfig extends SerializableData {
     static PresetKeywordTriggerConfig presetKeywordFilter(@Nonnull AutoModRule.KeywordPreset... presets) {
         return new PresetKeywordTriggerConfig().enablePresets(presets);
     }
+
+    /**
+     * The type of trigger for this config.
+     *
+     * @return {@link AutoModTriggerType}
+     */
+    @Nonnull
+    AutoModTriggerType getType();
 }

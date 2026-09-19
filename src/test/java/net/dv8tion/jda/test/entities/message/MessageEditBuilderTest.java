@@ -33,11 +33,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-import static net.dv8tion.jda.test.util.MockitoVerifyUtils.*;
+import static net.dv8tion.jda.test.util.MockitoVerifyUtils.assertInteractionsContainMethods;
+import static net.dv8tion.jda.test.util.MockitoVerifyUtils.getMethodsByPattern;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 public class MessageEditBuilderTest extends AbstractSnapshotTest {
+    private static Set<String> getMessageEditBuilderSetters() {
+        return getMethodsByPattern(MessageEditBuilder.class, "^(set|use).+$");
+    }
+
     @Test
     void testEmptyBuilder_fromMessage() {
         Message message = mock(Message.class);
@@ -77,9 +82,5 @@ public class MessageEditBuilderTest extends AbstractSnapshotTest {
         try (MessageEditData data = builder.build()) {
             assertWithSnapshot(data);
         }
-    }
-
-    private static Set<String> getMessageEditBuilderSetters() {
-        return getMethodsByPattern(MessageEditBuilder.class, "^(set|use).+$");
     }
 }

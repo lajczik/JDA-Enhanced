@@ -30,7 +30,7 @@ import javax.annotation.Nullable;
  * Manager providing functionality to update one or more fields for a {@link net.dv8tion.jda.api.entities.Webhook Webhook}.
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * manager.setName("GitHub Webhook")
  *        .setChannel(channel)
  *        .queue();
@@ -38,7 +38,7 @@ import javax.annotation.Nullable;
  *        .setName("Meme Feed")
  *        .setAvatar(null)
  *        .queue();
- * }
+ *}
  *
  * @see net.dv8tion.jda.api.entities.Webhook#getManager()
  */
@@ -115,6 +115,22 @@ public interface WebhookManager extends Manager<WebhookManager> {
     }
 
     /**
+     * Sets the {@link TextChannel TextChannel} of the selected {@link net.dv8tion.jda.api.entities.Webhook Webhook}.
+     *
+     * <p>A webhook channel <b>must not</b> be {@code null} and <b>must</b> be in the same {@link net.dv8tion.jda.api.entities.Guild Guild}!
+     *
+     * @param channel The new {@link TextChannel TextChannel}
+     * for the selected {@link net.dv8tion.jda.api.entities.Webhook Webhook}
+     * @return WebhookManager for chaining convenience
+     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException If the currently logged in account does not have the Permission {@link net.dv8tion.jda.api.Permission#MANAGE_WEBHOOKS MANAGE_WEBHOOKS}
+     * in the specified TextChannel
+     * @throws IllegalArgumentException If the provided channel is {@code null} or from a different Guild
+     */
+    @Nonnull
+    @CheckReturnValue
+    WebhookManager setChannel(@Nonnull TextChannel channel);
+
+    /**
      * The {@link net.dv8tion.jda.api.entities.Guild Guild} this Manager's
      * {@link net.dv8tion.jda.api.entities.Webhook Webhook} is in.
      * <br>This is logically the same as calling {@code getWebhook().getGuild()}
@@ -156,25 +172,4 @@ public interface WebhookManager extends Manager<WebhookManager> {
     @Nonnull
     @CheckReturnValue
     WebhookManager setAvatar(@Nullable Icon icon);
-
-    /**
-     * Sets the {@link TextChannel TextChannel} of the selected {@link net.dv8tion.jda.api.entities.Webhook Webhook}.
-     *
-     * <p>A webhook channel <b>must not</b> be {@code null} and <b>must</b> be in the same {@link net.dv8tion.jda.api.entities.Guild Guild}!
-     *
-     * @param  channel
-     *         The new {@link TextChannel TextChannel}
-     *         for the selected {@link net.dv8tion.jda.api.entities.Webhook Webhook}
-     *
-     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
-     *         If the currently logged in account does not have the Permission {@link net.dv8tion.jda.api.Permission#MANAGE_WEBHOOKS MANAGE_WEBHOOKS}
-     *         in the specified TextChannel
-     * @throws IllegalArgumentException
-     *         If the provided channel is {@code null} or from a different Guild
-     *
-     * @return WebhookManager for chaining convenience
-     */
-    @Nonnull
-    @CheckReturnValue
-    WebhookManager setChannel(@Nonnull TextChannel channel);
 }

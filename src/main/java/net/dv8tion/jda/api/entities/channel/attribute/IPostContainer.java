@@ -259,15 +259,6 @@ public interface IPostContainer extends IThreadContainer {
         }
 
         /**
-         * The underlying value as used by Discord.
-         *
-         * @return The raw order key
-         */
-        public int getKey() {
-            return order;
-        }
-
-        /**
          * The {@link SortOrder} for the provided key.
          *
          * @param  key
@@ -284,6 +275,15 @@ public interface IPostContainer extends IThreadContainer {
             }
 
             return UNKNOWN;
+        }
+
+        /**
+         * The underlying value as used by Discord.
+         *
+         * @return The raw order key
+         */
+        public int getKey() {
+            return order;
         }
     }
 }

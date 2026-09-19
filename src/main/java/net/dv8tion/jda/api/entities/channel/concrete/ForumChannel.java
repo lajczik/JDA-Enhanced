@@ -114,15 +114,6 @@ public interface ForumChannel
         }
 
         /**
-         * The underlying value as used by Discord.
-         *
-         * @return The raw order key
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * The {@link Layout} for the provided key.
          *
          * @param  key
@@ -139,6 +130,15 @@ public interface ForumChannel
             }
 
             return UNKNOWN;
+        }
+
+        /**
+         * The underlying value as used by Discord.
+         *
+         * @return The raw order key
+         */
+        public int getKey() {
+            return key;
         }
     }
 }

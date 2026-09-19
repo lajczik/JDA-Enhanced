@@ -54,9 +54,9 @@ public class ForumPostActionImpl extends RestActionImpl<ForumPost>
     private final MessageCreateBuilder builder;
     private final IPostContainer channel;
     private final LongSet appliedTags = new LongOpenHashSet();
+    protected Integer slowmode = null;
     private String name;
     private ThreadChannel.AutoArchiveDuration autoArchiveDuration;
-    protected Integer slowmode = null;
 
     public ForumPostActionImpl(IPostContainer channel, String name, MessageCreateBuilder builder) {
         super(channel.getJDA(), Route.Channels.CREATE_THREAD.compile(channel.getId()));

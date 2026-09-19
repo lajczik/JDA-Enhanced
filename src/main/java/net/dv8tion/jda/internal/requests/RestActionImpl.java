@@ -42,7 +42,8 @@ import javax.annotation.Nullable;
 
 public class RestActionImpl<T> implements RestAction<T> {
     public static final Logger LOG = JDALogger.getLog(RestAction.class);
-
+    protected static boolean passContext = true;
+    protected static long defaultTimeout = 0;
     private static Consumer<Object> DEFAULT_SUCCESS = o -> {};
     private static Consumer<? super Throwable> DEFAULT_FAILURE = t -> {
         if (t instanceof CancellationException || t instanceof TimeoutException) {
@@ -59,10 +60,6 @@ public class RestActionImpl<T> implements RestAction<T> {
             LOG.error("RestAction queue returned failure: [{}] {}", t.getClass().getSimpleName(), t.getMessage());
         }
     };
-
-    protected static boolean passContext = true;
-    protected static long defaultTimeout = 0;
-
     protected final JDAImpl api;
 
     private final Route.CompiledRoute route;
@@ -74,39 +71,6 @@ public class RestActionImpl<T> implements RestAction<T> {
     private long deadline = 0;
     private Object rawData;
     private BooleanSupplier checks;
-
-    public static void setPassContext(boolean enable) {
-        passContext = enable;
-    }
-
-    public static boolean isPassContext() {
-        return passContext;
-    }
-
-    public static void setDefaultFailure(Consumer<? super Throwable> callback) {
-        DEFAULT_FAILURE = callback == null ? t -> {} : callback;
-    }
-
-    public static void setDefaultSuccess(Consumer<Object> callback) {
-        DEFAULT_SUCCESS = callback == null ? t -> {} : callback;
-    }
-
-    public static void setDefaultTimeout(long timeout, @Nonnull TimeUnit unit) {
-        Checks.notNull(unit, "TimeUnit");
-        defaultTimeout = unit.toMillis(timeout);
-    }
-
-    public static long getDefaultTimeout() {
-        return defaultTimeout;
-    }
-
-    public static Consumer<? super Throwable> getDefaultFailure() {
-        return DEFAULT_FAILURE;
-    }
-
-    public static Consumer<Object> getDefaultSuccess() {
-        return DEFAULT_SUCCESS;
-    }
 
     public RestActionImpl(JDA api, Route.CompiledRoute route) {
         this(api, route, (RequestBody) null, null);
@@ -137,6 +101,39 @@ public class RestActionImpl<T> implements RestAction<T> {
         this.route = route;
         this.data = data;
         this.handler = handler;
+    }
+
+    public static boolean isPassContext() {
+        return passContext;
+    }
+
+    public static void setPassContext(boolean enable) {
+        passContext = enable;
+    }
+
+    public static void setDefaultTimeout(long timeout, @Nonnull TimeUnit unit) {
+        Checks.notNull(unit, "TimeUnit");
+        defaultTimeout = unit.toMillis(timeout);
+    }
+
+    public static long getDefaultTimeout() {
+        return defaultTimeout;
+    }
+
+    public static Consumer<? super Throwable> getDefaultFailure() {
+        return DEFAULT_FAILURE;
+    }
+
+    public static void setDefaultFailure(Consumer<? super Throwable> callback) {
+        DEFAULT_FAILURE = callback == null ? t -> {} : callback;
+    }
+
+    public static Consumer<Object> getDefaultSuccess() {
+        return DEFAULT_SUCCESS;
+    }
+
+    public static void setDefaultSuccess(Consumer<Object> callback) {
+        DEFAULT_SUCCESS = callback == null ? t -> {} : callback;
     }
 
     public void setErrorMapper(ErrorMapper errorMapper) {

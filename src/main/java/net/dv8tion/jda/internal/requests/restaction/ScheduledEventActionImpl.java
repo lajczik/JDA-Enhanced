@@ -44,12 +44,12 @@ import javax.annotation.Nullable;
 
 public class ScheduledEventActionImpl extends AuditableRestActionImpl<ScheduledEvent> implements ScheduledEventAction {
     protected final Guild guild;
+    protected final ScheduledEvent.Type entityType;
     protected String name, description;
     protected Icon image;
     protected long channelId;
     protected String location;
     protected OffsetDateTime startTime, endTime;
-    protected final ScheduledEvent.Type entityType;
 
     public ScheduledEventActionImpl(
             String name, String location, TemporalAccessor startTime, TemporalAccessor endTime, Guild guild) {

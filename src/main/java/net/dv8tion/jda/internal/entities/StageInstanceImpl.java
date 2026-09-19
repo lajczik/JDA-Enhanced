@@ -71,10 +71,20 @@ public class StageInstanceImpl implements StageInstance {
         return topic;
     }
 
+    public StageInstanceImpl setTopic(String topic) {
+        this.topic = topic;
+        return this;
+    }
+
     @Nonnull
     @Override
     public PrivacyLevel getPrivacyLevel() {
         return privacyLevel;
+    }
+
+    public StageInstanceImpl setPrivacyLevel(PrivacyLevel privacyLevel) {
+        this.privacyLevel = privacyLevel;
+        return this;
     }
 
     @Nonnull
@@ -90,16 +100,6 @@ public class StageInstanceImpl implements StageInstance {
     public StageInstanceManager getManager() {
         checkPermissions();
         return new StageInstanceManagerImpl(this);
-    }
-
-    public StageInstanceImpl setTopic(String topic) {
-        this.topic = topic;
-        return this;
-    }
-
-    public StageInstanceImpl setPrivacyLevel(PrivacyLevel privacyLevel) {
-        this.privacyLevel = privacyLevel;
-        return this;
     }
 
     @Override

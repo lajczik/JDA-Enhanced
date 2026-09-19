@@ -748,6 +748,16 @@ public enum ActionType {
         this.target = target;
     }
 
+    @Nonnull
+    public static ActionType from(int key) {
+        for (ActionType type : values()) {
+            if (type.key == key) {
+                return type;
+            }
+        }
+        return UNKNOWN;
+    }
+
     /**
      * The raw key used to identify types within the api.
      *
@@ -766,15 +776,5 @@ public enum ActionType {
     @Nonnull
     public TargetType getTargetType() {
         return target;
-    }
-
-    @Nonnull
-    public static ActionType from(int key) {
-        for (ActionType type : values()) {
-            if (type.key == key) {
-                return type;
-            }
-        }
-        return UNKNOWN;
     }
 }

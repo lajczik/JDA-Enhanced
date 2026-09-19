@@ -113,6 +113,16 @@ public enum CacheFlag {
     }
 
     /**
+     * Collects all cache flags that require privileged intents
+     *
+     * @return {@link EnumSet} of the cache flags that require the privileged intents
+     */
+    @Nonnull
+    public static EnumSet<CacheFlag> getPrivileged() {
+        return EnumSet.copyOf(privileged);
+    }
+
+    /**
      * The required {@link GatewayIntent} for this cache flag.
      *
      * @return The required intent, or null if no intents are required.
@@ -129,15 +139,5 @@ public enum CacheFlag {
      */
     public boolean isPresence() {
         return requiredIntent == GatewayIntent.GUILD_PRESENCES;
-    }
-
-    /**
-     * Collects all cache flags that require privileged intents
-     *
-     * @return {@link EnumSet} of the cache flags that require the privileged intents
-     */
-    @Nonnull
-    public static EnumSet<CacheFlag> getPrivileged() {
-        return EnumSet.copyOf(privileged);
     }
 }

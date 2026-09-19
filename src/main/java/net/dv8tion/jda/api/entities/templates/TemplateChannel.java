@@ -195,6 +195,7 @@ public class TemplateChannel implements ISnowflake {
     public int getBitrate() {
         return this.bitrate;
     }
+
     /**
      * The maximum amount of {@link net.dv8tion.jda.api.entities.Member Members} that can be in this
      * voice channel at once.

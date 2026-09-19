@@ -20,7 +20,7 @@ import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.api.utils.data.SerializableData;
 import net.dv8tion.jda.internal.utils.EntityString;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.Objects;
 
 import javax.annotation.Nonnull;
@@ -62,6 +62,10 @@ public class RoleColors implements SerializableData {
         this.primary = primary;
         this.secondary = secondary;
         this.tertiary = tertiary;
+    }
+
+    private static String colorToHex(int color) {
+        return color == Role.DEFAULT_COLOR_RAW ? null : Integer.toHexString(color);
     }
 
     /**
@@ -213,10 +217,6 @@ public class RoleColors implements SerializableData {
                 .addMetadata("secondary", colorToHex(secondary))
                 .addMetadata("tertiary", colorToHex(tertiary))
                 .toString();
-    }
-
-    private static String colorToHex(int color) {
-        return color == Role.DEFAULT_COLOR_RAW ? null : Integer.toHexString(color);
     }
 
     @Nonnull

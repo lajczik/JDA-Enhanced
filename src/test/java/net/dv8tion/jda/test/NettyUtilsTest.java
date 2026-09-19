@@ -23,9 +23,7 @@ import net.dv8tion.jda.internal.audio.AudioPacket;
 import net.dv8tion.jda.internal.utils.NettyUtils;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NettyUtilsTest {
     @Test

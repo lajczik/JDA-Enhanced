@@ -41,6 +41,10 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.mockito.Mockito.*;
 
 public class MessageCreateBuilderTest extends AbstractSnapshotTest {
+    private static Set<String> getMessageCreateBuilderSetters() {
+        return getMethodsByPattern(MessageCreateBuilder.class, "^(set|use).+$");
+    }
+
     @Test
     void testEmptyBuilder_fromMessage() {
         Message message = mock(Message.class);
@@ -83,9 +87,5 @@ public class MessageCreateBuilderTest extends AbstractSnapshotTest {
         try (MessageCreateData data = builder.build()) {
             assertWithSnapshot(data);
         }
-    }
-
-    private static Set<String> getMessageCreateBuilderSetters() {
-        return getMethodsByPattern(MessageCreateBuilder.class, "^(set|use).+$");
     }
 }

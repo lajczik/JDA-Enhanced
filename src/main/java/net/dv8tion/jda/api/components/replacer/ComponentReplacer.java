@@ -42,26 +42,6 @@ import javax.annotation.Nullable;
 @FunctionalInterface
 public interface ComponentReplacer {
     /**
-     * Attempts to replace or remove the given component.
-     *
-     * <p>If this method returns the same component and contains children,
-     * then this replacer will be applied recursively;
-     * otherwise, the component is not replaced.
-     *
-     * <p>The returned component must be compatible with the source (a {@link ActionRow} or a {@link Container} for example) it originated from.
-     *
-     * @param  oldComponent
-     *         The component which is attempted to be replaced
-     *
-     * @throws IllegalArgumentException
-     *         If {@code null} is passed
-     *
-     * @return A new, compatible component, the same component, or {@code null} to remove the component.
-     */
-    @Nullable
-    Component apply(@Nonnull Component oldComponent);
-
-    /**
      * Creates a new {@link ComponentReplacer} combining the provided replacers.
      *
      * <p>Each replacer will run one after the other,
@@ -199,4 +179,20 @@ public interface ComponentReplacer {
         Checks.notNull(update, "Component updater");
         return of(Component.class, component -> component.getUniqueId() == id, update);
     }
+
+    /**
+     * Attempts to replace or remove the given component.
+     *
+     * <p>If this method returns the same component and contains children,
+     * then this replacer will be applied recursively;
+     * otherwise, the component is not replaced.
+     *
+     * <p>The returned component must be compatible with the source (a {@link ActionRow} or a {@link Container} for example) it originated from.
+     *
+     * @param oldComponent The component which is attempted to be replaced
+     * @return A new, compatible component, the same component, or {@code null} to remove the component.
+     * @throws IllegalArgumentException If {@code null} is passed
+     */
+    @Nullable
+    Component apply(@Nonnull Component oldComponent);
 }

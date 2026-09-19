@@ -61,15 +61,6 @@ public interface InteractionCallbackAction<T> extends RestAction<T> {
             this.raw = raw;
         }
 
-        /**
-         * The raw integer key for this response type
-         *
-         * @return The raw key
-         */
-        public int getRaw() {
-            return raw;
-        }
-
         @Nonnull
         public static ResponseType fromId(int id) {
             for (ResponseType type : values()) {
@@ -78,6 +69,15 @@ public interface InteractionCallbackAction<T> extends RestAction<T> {
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The raw integer key for this response type
+         *
+         * @return The raw key
+         */
+        public int getRaw() {
+            return raw;
         }
     }
 }

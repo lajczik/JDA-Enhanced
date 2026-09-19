@@ -55,13 +55,13 @@ public class MessageCreateActionImpl extends RestActionImpl<Message>
     private MessageReferenceData messageReference;
     private boolean failOnInvalidReply = defaultFailOnInvalidReply;
 
-    public static void setDefaultFailOnInvalidReply(boolean fail) {
-        defaultFailOnInvalidReply = fail;
-    }
-
     public MessageCreateActionImpl(MessageChannel channel) {
         super(channel.getJDA(), Route.Messages.SEND_MESSAGE.compile(channel.getId()));
         this.channel = channel;
+    }
+
+    public static void setDefaultFailOnInvalidReply(boolean fail) {
+        defaultFailOnInvalidReply = fail;
     }
 
     @Override

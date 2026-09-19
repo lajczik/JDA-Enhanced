@@ -43,7 +43,7 @@ import javax.annotation.Nonnull;
  * </ul>
  *
  * <br>Extremely naive implementation of LocalizationFunction
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * public class MyFunction implements LocalizationFunction {
  *   @Override
  *   public Map<DiscordLocale, String> apply(String localizationKey) {
@@ -63,10 +63,10 @@ import javax.annotation.Nonnull;
  *     return map;
  *   }
  * }
- * }
+ *}
  *
  * Also, since this is a functional interface, the following is also possible
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * LocalizationFunction myfunc = s -> {
  *   Map<DiscordLocale, String> map = new HashMap<>();
  *    switch (localizationKey) {
@@ -83,7 +83,7 @@ import javax.annotation.Nonnull;
  *
  *    return map;
  * }
- * }
+ *}
  *
  * <p>
  * You can look at a complete localization example <a href="https://github.com/discord-jda/JDA/blob/master/src/examples/java/LocalizationExample.java" target="_blank">here</a>

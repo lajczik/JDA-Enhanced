@@ -80,8 +80,20 @@ public class StageChannelImpl extends AbstractStandardGuildChannelImpl<StageChan
     }
 
     @Override
+    public StageChannelImpl setBitrate(int bitrate) {
+        this.bitrate = bitrate;
+        return this;
+    }
+
+    @Override
     public int getUserLimit() {
         return userlimit;
+    }
+
+    @Override
+    public StageChannelImpl setUserLimit(int userlimit) {
+        this.userlimit = userlimit;
+        return this;
     }
 
     @Nullable
@@ -94,6 +106,11 @@ public class StageChannelImpl extends AbstractStandardGuildChannelImpl<StageChan
     @Override
     public StageInstance getStageInstance() {
         return instance;
+    }
+
+    public StageChannelImpl setStageInstance(StageInstance instance) {
+        this.instance = instance;
+        return this;
     }
 
     @Nonnull
@@ -126,8 +143,20 @@ public class StageChannelImpl extends AbstractStandardGuildChannelImpl<StageChan
     }
 
     @Override
+    public StageChannelImpl setSlowmode(int slowmode) {
+        this.slowmode = slowmode;
+        return this;
+    }
+
+    @Override
     public boolean isNSFW() {
         return ageRestricted;
+    }
+
+    @Override
+    public StageChannelImpl setNSFW(boolean ageRestricted) {
+        this.ageRestricted = ageRestricted;
+        return this;
     }
 
     @Override
@@ -139,6 +168,12 @@ public class StageChannelImpl extends AbstractStandardGuildChannelImpl<StageChan
     @Override
     public long getLatestMessageIdLong() {
         return latestMessageId;
+    }
+
+    @Override
+    public StageChannelImpl setLatestMessageIdLong(long latestMessageId) {
+        this.latestMessageId = latestMessageId;
+        return this;
     }
 
     @Nonnull
@@ -184,43 +219,8 @@ public class StageChannelImpl extends AbstractStandardGuildChannelImpl<StageChan
     }
 
     @Override
-    public StageChannelImpl setBitrate(int bitrate) {
-        this.bitrate = bitrate;
-        return this;
-    }
-
-    @Override
-    public StageChannelImpl setUserLimit(int userlimit) {
-        this.userlimit = userlimit;
-        return this;
-    }
-
-    @Override
     public StageChannelImpl setRegion(String region) {
         this.region = region;
-        return this;
-    }
-
-    public StageChannelImpl setStageInstance(StageInstance instance) {
-        this.instance = instance;
-        return this;
-    }
-
-    @Override
-    public StageChannelImpl setNSFW(boolean ageRestricted) {
-        this.ageRestricted = ageRestricted;
-        return this;
-    }
-
-    @Override
-    public StageChannelImpl setSlowmode(int slowmode) {
-        this.slowmode = slowmode;
-        return this;
-    }
-
-    @Override
-    public StageChannelImpl setLatestMessageIdLong(long latestMessageId) {
-        this.latestMessageId = latestMessageId;
         return this;
     }
 }

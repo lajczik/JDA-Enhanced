@@ -104,6 +104,27 @@ public class RoleConnectionMetadata implements SerializableData {
     }
 
     /**
+     * Parses a {@link RoleConnectionMetadata} from a {@link DataObject}.
+     * <br>This is the reverse of {@link #toData()}.
+     *
+     * @param data The data object to parse values from#
+     * @return The parsed metadata instance
+     * @throws IllegalArgumentException If the provided data object is null
+     * @throws net.dv8tion.jda.api.exceptions.ParsingException If the provided data does not have a valid int type value
+     */
+    @Nonnull
+    public static RoleConnectionMetadata fromData(@Nonnull DataObject data) {
+        Checks.notNull(data, "Data");
+        RoleConnectionMetadata metadata = new RoleConnectionMetadata(
+                MetadataType.fromValue(data.getInt("type")),
+                data.getString("name", null),
+                data.getString("key", null),
+                data.getString("description", null));
+        return metadata.setNameLocalizations(LocalizationUtils.mapFromProperty(data, "name_localizations"))
+                .setDescriptionLocalizations(LocalizationUtils.mapFromProperty(data, "description_localizations"));
+    }
+
+    /**
      * The type of the metadata.
      *
      * @return The type, or {@link MetadataType#UNKNOWN} if unknown
@@ -154,6 +175,29 @@ public class RoleConnectionMetadata implements SerializableData {
     }
 
     /**
+     * Sets multiple {@link DiscordLocale language-specific} localizations of this record's name.
+     *
+     * <p>This change will not take effect in Discord until you update the role connection metadata using {@link JDA#updateRoleConnectionMetadata(Collection)}.
+     *
+     * @param  map
+     *         The map from which to transfer the translated names
+     *
+     * @throws IllegalArgumentException
+     *         <ul>
+     *             <li>If the map is null</li>
+     *             <li>If the map contains an {@link DiscordLocale#UNKNOWN} key</li>
+     *             <li>If the map contains a name which is empty or more than {@value MAX_NAME_LENGTH} characters long</li>
+     *         </ul>
+     *
+     * @return This updated record instance
+     */
+    @Nonnull
+    public RoleConnectionMetadata setNameLocalizations(@Nonnull Map<DiscordLocale, String> map) {
+        this.nameLocalization.setTranslations(map);
+        return this;
+    }
+
+    /**
      * The localizations of this record's description for {@link DiscordLocale various languages}.
      *
      * @return The {@link LocalizationMap} containing the mapping from {@link DiscordLocale} to the localized description
@@ -161,6 +205,29 @@ public class RoleConnectionMetadata implements SerializableData {
     @Nonnull
     public LocalizationMap getDescriptionLocalizations() {
         return descriptionLocalization;
+    }
+
+    /**
+     * Sets multiple {@link DiscordLocale language-specific} localizations of this record's description.
+     *
+     * <p>This change will not take effect in Discord until you update the role connection metadata using {@link JDA#updateRoleConnectionMetadata(Collection)}.
+     *
+     * @param  map
+     *         The map from which to transfer the translated descriptions
+     *
+     * @throws IllegalArgumentException
+     *         <ul>
+     *             <li>If the map is null</li>
+     *             <li>If the map contains an {@link DiscordLocale#UNKNOWN} key</li>
+     *             <li>If the map contains a description which is empty or more than {@value MAX_DESCRIPTION_LENGTH} characters long</li>
+     *         </ul>
+     *
+     * @return This updated record instance
+     */
+    @Nonnull
+    public RoleConnectionMetadata setDescriptionLocalizations(@Nonnull Map<DiscordLocale, String> map) {
+        this.descriptionLocalization.setTranslations(map);
+        return this;
     }
 
     /**
@@ -190,29 +257,6 @@ public class RoleConnectionMetadata implements SerializableData {
     }
 
     /**
-     * Sets multiple {@link DiscordLocale language-specific} localizations of this record's name.
-     *
-     * <p>This change will not take effect in Discord until you update the role connection metadata using {@link JDA#updateRoleConnectionMetadata(Collection)}.
-     *
-     * @param  map
-     *         The map from which to transfer the translated names
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If the map is null</li>
-     *             <li>If the map contains an {@link DiscordLocale#UNKNOWN} key</li>
-     *             <li>If the map contains a name which is empty or more than {@value MAX_NAME_LENGTH} characters long</li>
-     *         </ul>
-     *
-     * @return This updated record instance
-     */
-    @Nonnull
-    public RoleConnectionMetadata setNameLocalizations(@Nonnull Map<DiscordLocale, String> map) {
-        this.nameLocalization.setTranslations(map);
-        return this;
-    }
-
-    /**
      * Sets a {@link DiscordLocale language-specific} localization of this record's description.
      *
      * <p>This change will not take effect in Discord until you update the role connection metadata using {@link JDA#updateRoleConnectionMetadata(Collection)}.
@@ -236,29 +280,6 @@ public class RoleConnectionMetadata implements SerializableData {
     public RoleConnectionMetadata setDescriptionLocalization(
             @Nonnull DiscordLocale locale, @Nonnull String description) {
         this.descriptionLocalization.setTranslation(locale, description);
-        return this;
-    }
-
-    /**
-     * Sets multiple {@link DiscordLocale language-specific} localizations of this record's description.
-     *
-     * <p>This change will not take effect in Discord until you update the role connection metadata using {@link JDA#updateRoleConnectionMetadata(Collection)}.
-     *
-     * @param  map
-     *         The map from which to transfer the translated descriptions
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If the map is null</li>
-     *             <li>If the map contains an {@link DiscordLocale#UNKNOWN} key</li>
-     *             <li>If the map contains a description which is empty or more than {@value MAX_DESCRIPTION_LENGTH} characters long</li>
-     *         </ul>
-     *
-     * @return This updated record instance
-     */
-    @Nonnull
-    public RoleConnectionMetadata setDescriptionLocalizations(@Nonnull Map<DiscordLocale, String> map) {
-        this.descriptionLocalization.setTranslations(map);
         return this;
     }
 
@@ -304,32 +325,6 @@ public class RoleConnectionMetadata implements SerializableData {
     }
 
     /**
-     * Parses a {@link RoleConnectionMetadata} from a {@link DataObject}.
-     * <br>This is the reverse of {@link #toData()}.
-     *
-     * @param  data
-     *         The data object to parse values from#
-     *
-     * @throws IllegalArgumentException
-     *         If the provided data object is null
-     * @throws net.dv8tion.jda.api.exceptions.ParsingException
-     *         If the provided data does not have a valid int type value
-     *
-     * @return The parsed metadata instance
-     */
-    @Nonnull
-    public static RoleConnectionMetadata fromData(@Nonnull DataObject data) {
-        Checks.notNull(data, "Data");
-        RoleConnectionMetadata metadata = new RoleConnectionMetadata(
-                MetadataType.fromValue(data.getInt("type")),
-                data.getString("name", null),
-                data.getString("key", null),
-                data.getString("description", null));
-        return metadata.setNameLocalizations(LocalizationUtils.mapFromProperty(data, "name_localizations"))
-                .setDescriptionLocalizations(LocalizationUtils.mapFromProperty(data, "description_localizations"));
-    }
-
-    /**
      * The type of metadata.
      * <br>Each metadata type offers a comparison operation that allows guilds to configure role requirements based on metadata values stored by the bot.
      * Bots specify a <b>metadata value</b> for each user and guilds specify the required <b>guild's configured value</b> within the guild role settings.
@@ -354,15 +349,6 @@ public class RoleConnectionMetadata implements SerializableData {
         }
 
         /**
-         * The raw value used by Discord.
-         *
-         * @return The raw value
-         */
-        public int getValue() {
-            return value;
-        }
-
-        /**
          * The MetadataType for the provided raw value.
          *
          * @param  value
@@ -378,6 +364,15 @@ public class RoleConnectionMetadata implements SerializableData {
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The raw value used by Discord.
+         *
+         * @return The raw value
+         */
+        public int getValue() {
+            return value;
         }
     }
 }

@@ -31,9 +31,21 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 public class ModalTest extends AbstractSnapshotTest {
+    static Stream<Arguments> modalComponents() {
+        return testComponents().map(Arguments::of);
+    }
+
+    static Stream<LabelChildComponent> testComponents() {
+        return ComponentTestData.getMinimalComponents()
+                .filter(LabelChildComponent.class::isInstance)
+                .filter(IDisableable.class::isInstance)
+                .map(LabelChildComponent.class::cast);
+    }
+
     @MethodSource("modalComponents")
     @ParameterizedTest
     void testDisabledComponents(SelectMenu component) {
@@ -68,16 +80,5 @@ public class ModalTest extends AbstractSnapshotTest {
                                 .toList())
                         .build())
                 .satisfies(exception -> assertWithSnapshot(exception.toString(), null));
-    }
-
-    static Stream<Arguments> modalComponents() {
-        return testComponents().map(Arguments::of);
-    }
-
-    static Stream<LabelChildComponent> testComponents() {
-        return ComponentTestData.getMinimalComponents()
-                .filter(LabelChildComponent.class::isInstance)
-                .filter(IDisableable.class::isInstance)
-                .map(LabelChildComponent.class::cast);
     }
 }

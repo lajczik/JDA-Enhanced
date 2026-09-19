@@ -117,7 +117,7 @@ import javax.annotation.Nonnull;
  * for you. You should <b><u>override</u></b> the methods provided by this class for your event listener implementation.
  *
  * <p><b>Example:</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * public class MyReadyListener extends ListenerAdapter {
  *     @Override
  *     public void onReady(ReadyEvent event) {
@@ -129,12 +129,38 @@ import javax.annotation.Nonnull;
  *         System.out.printf("[%s]: %s\n", event.getAuthor().getName(), event.getMessage().getContentDisplay());
  *     }
  * }
- * }
+ *}
  *
  * @see net.dv8tion.jda.api.hooks.EventListener EventListener
  * @see net.dv8tion.jda.api.hooks.InterfacedEventManager InterfacedEventManager
  */
 public abstract class ListenerAdapter implements EventListener {
+    private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
+    private static final ConcurrentMap<Class<?>, MethodHandle> methods = new ConcurrentHashMap<>();
+    private static final Set<Class<?>> unresolved;
+
+    static {
+        unresolved = ConcurrentHashMap.newKeySet();
+        Collections.addAll(
+                unresolved,
+                Object.class, // Objects aren't events
+                Event.class, // onEvent is final and would never be found
+                UpdateEvent.class, // onGenericUpdate has already been called
+                GenericEvent.class // onGenericEvent has already been called
+                );
+    }
+
+    private static MethodHandle findMethod(Class<?> clazz) {
+        String name = clazz.getSimpleName();
+        MethodType type = MethodType.methodType(Void.TYPE, clazz);
+        try {
+            name = "on" + name.substring(0, name.length() - "Event".length());
+            return lookup.findVirtual(ListenerAdapter.class, name, type);
+        } catch (NoSuchMethodException | IllegalAccessException ignored) {
+        } // this means this is probably a custom event!
+        return null;
+    }
+
     public void onGenericEvent(@Nonnull GenericEvent event) {}
 
     public void onGenericUpdate(@Nonnull UpdateEvent<?, ?> event) {}
@@ -665,21 +691,6 @@ public abstract class ListenerAdapter implements EventListener {
 
     public void onGenericForumTagUpdate(@Nonnull GenericForumTagUpdateEvent<?> event) {}
 
-    private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
-    private static final ConcurrentMap<Class<?>, MethodHandle> methods = new ConcurrentHashMap<>();
-    private static final Set<Class<?>> unresolved;
-
-    static {
-        unresolved = ConcurrentHashMap.newKeySet();
-        Collections.addAll(
-                unresolved,
-                Object.class, // Objects aren't events
-                Event.class, // onEvent is final and would never be found
-                UpdateEvent.class, // onGenericUpdate has already been called
-                GenericEvent.class // onGenericEvent has already been called
-                );
-    }
-
     @Override
     public final void onEvent(@Nonnull GenericEvent event) {
         onGenericEvent(event);
@@ -709,16 +720,5 @@ public abstract class ListenerAdapter implements EventListener {
                 throw new IllegalStateException(throwable);
             }
         }
-    }
-
-    private static MethodHandle findMethod(Class<?> clazz) {
-        String name = clazz.getSimpleName();
-        MethodType type = MethodType.methodType(Void.TYPE, clazz);
-        try {
-            name = "on" + name.substring(0, name.length() - "Event".length());
-            return lookup.findVirtual(ListenerAdapter.class, name, type);
-        } catch (NoSuchMethodException | IllegalAccessException ignored) {
-        } // this means this is probably a custom event!
-        return null;
     }
 }

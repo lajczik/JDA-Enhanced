@@ -139,7 +139,11 @@ public class JDAImpl implements JDA {
     protected final EventLoopGroup websocketEventLoopGroup;
     protected final EventLoopGroup httpClientEventLoopGroup;
     protected final EventLoopGroup audioEventLoopGroup;
-
+    protected final AtomicReference<Status> status = new AtomicReference<>(Status.INITIALIZING);
+    protected final ReentrantLock statusLock = new ReentrantLock();
+    protected final Condition statusCondition = statusLock.newCondition();
+    protected final AtomicBoolean requesterShutdown = new AtomicBoolean(false);
+    protected final AtomicReference<ShutdownEvent> shutdownEvent = new AtomicReference<>(null);
     public ShutdownReason shutdownReason = ShutdownReason.USER_SHUTDOWN; // indicates why shutdown happened in
     // awaitStatus / awaitReady
     protected WebSocketClient client;
@@ -150,16 +154,9 @@ public class JDAImpl implements JDA {
     protected long gatewayPing = -1;
     protected String gatewayUrl;
     protected ChunkingFilter chunkingFilter;
-
     protected String clientId = null, requiredScopes = "bot";
     protected ShardManager shardManager = null;
     protected MemberCachePolicy memberCachePolicy = MemberCachePolicy.ALL;
-
-    protected final AtomicReference<Status> status = new AtomicReference<>(Status.INITIALIZING);
-    protected final ReentrantLock statusLock = new ReentrantLock();
-    protected final Condition statusCondition = statusLock.newCondition();
-    protected final AtomicBoolean requesterShutdown = new AtomicBoolean(false);
-    protected final AtomicReference<ShutdownEvent> shutdownEvent = new AtomicReference<>(null);
 
     public JDAImpl(@Nonnull AuthorizationConfig authConfig) {
         this(authConfig, null, null, null, null, null, null);
@@ -393,23 +390,6 @@ public class JDAImpl implements JDA {
         }
     }
 
-    public void setToken(String token) {
-        this.authConfig.setToken(token);
-    }
-
-    public void setStatus(Status status) {
-        StatusChangeEvent event = MiscUtil.locked(statusLock, () -> {
-            Status oldStatus = this.status.getAndSet(status);
-            this.statusCondition.signalAll();
-
-            return new StatusChangeEvent(this, status, oldStatus);
-        });
-
-        if (event.getOldStatus() != event.getNewStatus()) {
-            handleEvent(event);
-        }
-    }
-
     public void verifyToken() {
         RestActionImpl<DataObject> login = new RestActionImpl<DataObject>(this, Route.Self.GET_SELF.compile()) {
             @Override
@@ -456,18 +436,13 @@ public class JDAImpl implements JDA {
         return authConfig.getToken();
     }
 
-    @Override
-    public boolean isBulkDeleteSplittingEnabled() {
-        return sessionConfig.isBulkDeleteSplittingEnabled();
+    public void setToken(String token) {
+        this.authConfig.setToken(token);
     }
 
     @Override
-    public void setAutoReconnect(boolean autoReconnect) {
-        sessionConfig.setAutoReconnect(autoReconnect);
-        WebSocketClient client = getClient();
-        if (client != null) {
-            client.setAutoReconnect(autoReconnect);
-        }
+    public boolean isBulkDeleteSplittingEnabled() {
+        return sessionConfig.isBulkDeleteSplittingEnabled();
     }
 
     @Override
@@ -480,10 +455,32 @@ public class JDAImpl implements JDA {
         return sessionConfig.isAutoReconnect();
     }
 
+    @Override
+    public void setAutoReconnect(boolean autoReconnect) {
+        sessionConfig.setAutoReconnect(autoReconnect);
+        WebSocketClient client = getClient();
+        if (client != null) {
+            client.setAutoReconnect(autoReconnect);
+        }
+    }
+
     @Nonnull
     @Override
     public Status getStatus() {
         return status.get();
+    }
+
+    public void setStatus(Status status) {
+        StatusChangeEvent event = MiscUtil.locked(statusLock, () -> {
+            Status oldStatus = this.status.getAndSet(status);
+            this.statusCondition.signalAll();
+
+            return new StatusChangeEvent(this, status, oldStatus);
+        });
+
+        if (event.getOldStatus() != event.getNewStatus()) {
+            handleEvent(event);
+        }
     }
 
     @Nonnull
@@ -519,6 +516,12 @@ public class JDAImpl implements JDA {
     @Override
     public long getGatewayPing() {
         return gatewayPing;
+    }
+
+    public void setGatewayPing(long ping) {
+        long oldPing = this.gatewayPing;
+        this.gatewayPing = ping;
+        handleEvent(new GatewayPingEvent(this, oldPing));
     }
 
     @Nonnull
@@ -966,6 +969,13 @@ public class JDAImpl implements JDA {
         return selfUser;
     }
 
+    public void setSelfUser(SelfUser selfUser) {
+        try (UnlockHook hook = userCache.writeLock()) {
+            userCache.getMap().put(selfUser.getIdLong(), selfUser);
+        }
+        this.selfUser = selfUser;
+    }
+
     @Override
     public synchronized void shutdownNow() {
         requester.stop(true, this::shutdownRequester); // stop all requests
@@ -1052,6 +1062,10 @@ public class JDAImpl implements JDA {
         return responseTotal;
     }
 
+    public void setResponseTotal(int responseTotal) {
+        this.responseTotal = responseTotal;
+    }
+
     @Override
     public int getMaxReconnectDelay() {
         return sessionConfig.getMaxReconnectDelay();
@@ -1075,14 +1089,14 @@ public class JDAImpl implements JDA {
         return eventManager.getSubject();
     }
 
-    @Nonnull
-    public SessionConfig getSessionConfig() {
-        return sessionConfig;
-    }
-
     @Override
     public void setEventManager(IEventManager eventManager) {
         this.eventManager.setSubject(eventManager);
+    }
+
+    @Nonnull
+    public SessionConfig getSessionConfig() {
+        return sessionConfig;
     }
 
     @Override
@@ -1327,13 +1341,13 @@ public class JDAImpl implements JDA {
         return builder;
     }
 
-    public void setShardManager(ShardManager shardManager) {
-        this.shardManager = shardManager;
-    }
-
     @Override
     public ShardManager getShardManager() {
         return shardManager;
+    }
+
+    public void setShardManager(ShardManager shardManager) {
+        this.shardManager = shardManager;
     }
 
     public EntityBuilder getEntityBuilder() {
@@ -1342,12 +1356,6 @@ public class JDAImpl implements JDA {
 
     public IAudioSendFactory getAudioSendFactory() {
         return audioModuleConfig.getAudioSendFactory();
-    }
-
-    public void setGatewayPing(long ping) {
-        long oldPing = this.gatewayPing;
-        this.gatewayPing = ping;
-        handleEvent(new GatewayPingEvent(this, oldPing));
     }
 
     public Requester getRequester() {
@@ -1372,17 +1380,6 @@ public class JDAImpl implements JDA {
 
     public AbstractCacheView<AudioManager> getAudioManagersView() {
         return audioManagers;
-    }
-
-    public void setSelfUser(SelfUser selfUser) {
-        try (UnlockHook hook = userCache.writeLock()) {
-            userCache.getMap().put(selfUser.getIdLong(), selfUser);
-        }
-        this.selfUser = selfUser;
-    }
-
-    public void setResponseTotal(int responseTotal) {
-        this.responseTotal = responseTotal;
     }
 
     public String getIdentifierString() {

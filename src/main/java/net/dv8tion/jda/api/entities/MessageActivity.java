@@ -70,6 +70,57 @@ public class MessageActivity {
     }
 
     /**
+     * An enum representing {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} types.
+     */
+    public enum ActivityType {
+        /**
+         * The {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} type used for inviting people to join a game.
+         */
+        JOIN(1),
+        /**
+         * The {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} type used for inviting people to spectate a game.
+         */
+        SPECTATE(2),
+        /**
+         * The {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} type used for inviting people to listen (Spotify) together.
+         */
+        LISTENING(3),
+        /**
+         * The {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} type used for requesting to join a game.
+         */
+        JOIN_REQUEST(5),
+        /**
+         * Represents any unknown or unsupported {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} types.
+         */
+        UNKNOWN(-1);
+
+        private final int id;
+
+        ActivityType(int id) {
+            this.id = id;
+        }
+
+        @Nonnull
+        public static ActivityType fromId(int id) {
+            for (ActivityType activityType : values()) {
+                if (activityType.id == id) {
+                    return activityType;
+                }
+            }
+            return UNKNOWN;
+        }
+
+        /**
+         * The id of this {@link net.dv8tion.jda.api.entities.MessageActivity.ActivityType ActivityType}.
+         *
+         * @return the id of the type
+         */
+        public int getId() {
+            return id;
+        }
+    }
+
+    /**
      * Represents the {@link net.dv8tion.jda.api.entities.MessageActivity.Application Application} of a MessageActivity, if it has been set.
      */
     public static class Application implements ISnowflake {
@@ -252,57 +303,6 @@ public class MessageActivity {
         @Override
         public long getIdLong() {
             return id;
-        }
-    }
-
-    /**
-     * An enum representing {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} types.
-     */
-    public enum ActivityType {
-        /**
-         * The {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} type used for inviting people to join a game.
-         */
-        JOIN(1),
-        /**
-         * The {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} type used for inviting people to spectate a game.
-         */
-        SPECTATE(2),
-        /**
-         * The {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} type used for inviting people to listen (Spotify) together.
-         */
-        LISTENING(3),
-        /**
-         * The {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} type used for requesting to join a game.
-         */
-        JOIN_REQUEST(5),
-        /**
-         * Represents any unknown or unsupported {@link net.dv8tion.jda.api.entities.MessageActivity MessageActivity} types.
-         */
-        UNKNOWN(-1);
-
-        private final int id;
-
-        ActivityType(int id) {
-            this.id = id;
-        }
-
-        /**
-         * The id of this {@link net.dv8tion.jda.api.entities.MessageActivity.ActivityType ActivityType}.
-         *
-         * @return the id of the type
-         */
-        public int getId() {
-            return id;
-        }
-
-        @Nonnull
-        public static ActivityType fromId(int id) {
-            for (ActivityType activityType : values()) {
-                if (activityType.id == id) {
-                    return activityType;
-                }
-            }
-            return UNKNOWN;
         }
     }
 }

@@ -132,9 +132,19 @@ public class WebhookImpl extends AbstractWebhookClient<Message> implements Webho
         return sourceChannel;
     }
 
+    public WebhookImpl setSourceChannel(ChannelReference reference) {
+        this.sourceChannel = reference;
+        return this;
+    }
+
     @Override
     public GuildReference getSourceGuild() {
         return sourceGuild;
+    }
+
+    public WebhookImpl setSourceGuild(GuildReference reference) {
+        this.sourceGuild = reference;
+        return this;
     }
 
     @Nonnull
@@ -152,6 +162,8 @@ public class WebhookImpl extends AbstractWebhookClient<Message> implements Webho
         return new AuditableRestActionImpl<>(getJDA(), route);
     }
 
+    // Webhook execution
+
     @Nonnull
     @Override
     public AuditableRestAction<Void> delete(@Nonnull String token) {
@@ -165,8 +177,6 @@ public class WebhookImpl extends AbstractWebhookClient<Message> implements Webho
     public WebhookManager getManager() {
         return new WebhookManagerImpl(this);
     }
-
-    // Webhook execution
 
     @Override
     public WebhookMessageCreateActionImpl<Message> sendRequest() {
@@ -191,6 +201,8 @@ public class WebhookImpl extends AbstractWebhookClient<Message> implements Webho
         return WebhookClient.createClient(api, getId(), token).deleteMessageById(messageId);
     }
 
+    /* -- Impl Setters -- */
+
     @Nonnull
     @Override
     public WebhookMessageRetrieveAction retrieveMessageById(@Nonnull String messageId) {
@@ -203,8 +215,6 @@ public class WebhookImpl extends AbstractWebhookClient<Message> implements Webho
             throw new UnsupportedOperationException("Cannot execute webhook without a token!");
         }
     }
-
-    /* -- Impl Setters -- */
 
     public WebhookImpl setOwner(Member member, User user) {
         this.owner = member;
@@ -219,16 +229,6 @@ public class WebhookImpl extends AbstractWebhookClient<Message> implements Webho
 
     public WebhookImpl setUser(User user) {
         this.user = user;
-        return this;
-    }
-
-    public WebhookImpl setSourceGuild(GuildReference reference) {
-        this.sourceGuild = reference;
-        return this;
-    }
-
-    public WebhookImpl setSourceChannel(ChannelReference reference) {
-        this.sourceChannel = reference;
         return this;
     }
 

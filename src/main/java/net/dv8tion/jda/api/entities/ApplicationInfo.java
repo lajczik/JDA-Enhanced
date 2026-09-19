@@ -464,46 +464,6 @@ public interface ApplicationInfo extends ISnowflake {
     Map<IntegrationType, IntegrationTypeConfiguration> getIntegrationTypesConfig();
 
     /**
-     * Configuration of a single {@link IntegrationType}.
-     *
-     * @see ApplicationInfo#getIntegrationTypesConfig()
-     */
-    interface IntegrationTypeConfiguration {
-        /**
-         * The OAuth2 install parameters for the default in-app authorization link.
-         * <br>When a user invites your application in the Discord app, these will be the parameters of the invite url.
-         *
-         * @return The OAuth2 install parameters for the default in-app authorization link
-         */
-        @Nullable
-        InstallParameters getInstallParameters();
-    }
-
-    /**
-     * OAuth2 install parameter for the default in-app authorization link.
-     *
-     * @see IntegrationTypeConfiguration#getInstallParameters()
-     */
-    interface InstallParameters {
-        /**
-         * Gets the required scopes granted to the bot when invited.
-         *
-         * @return The required scopes granted to the bot when invited
-         */
-        @Nonnull
-        List<String> getScopes();
-
-        /**
-         * Gets the permissions your bot asks for when invited.
-         * <br><b>Note:</b> Users can choose to disable permissions before and after inviting your bot.
-         *
-         * @return The permissions your bot asks for when invited
-         */
-        @Nonnull
-        Set<Permission> getPermissions();
-    }
-
-    /**
      * Flag constants corresponding to the <a href="https://discord.com/developers/docs/resources/application#application-object-application-flags" target="_blank">Discord Enum</a>
      *
      * @see #getFlags()
@@ -551,5 +511,45 @@ public interface ApplicationInfo extends ISnowflake {
             }
             return set;
         }
+    }
+
+    /**
+     * Configuration of a single {@link IntegrationType}.
+     *
+     * @see ApplicationInfo#getIntegrationTypesConfig()
+     */
+    interface IntegrationTypeConfiguration {
+        /**
+         * The OAuth2 install parameters for the default in-app authorization link.
+         * <br>When a user invites your application in the Discord app, these will be the parameters of the invite url.
+         *
+         * @return The OAuth2 install parameters for the default in-app authorization link
+         */
+        @Nullable
+        InstallParameters getInstallParameters();
+    }
+
+    /**
+     * OAuth2 install parameter for the default in-app authorization link.
+     *
+     * @see IntegrationTypeConfiguration#getInstallParameters()
+     */
+    interface InstallParameters {
+        /**
+         * Gets the required scopes granted to the bot when invited.
+         *
+         * @return The required scopes granted to the bot when invited
+         */
+        @Nonnull
+        List<String> getScopes();
+
+        /**
+         * Gets the permissions your bot asks for when invited.
+         * <br><b>Note:</b> Users can choose to disable permissions before and after inviting your bot.
+         *
+         * @return The permissions your bot asks for when invited
+         */
+        @Nonnull
+        Set<Permission> getPermissions();
     }
 }

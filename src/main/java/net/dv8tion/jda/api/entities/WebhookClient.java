@@ -56,6 +56,51 @@ import javax.annotation.Nullable;
  */
 public interface WebhookClient<T> extends ISnowflake {
     /**
+     * Creates an instance of {@link IncomingWebhookClient} capable of executing webhook requests.
+     * <p>Messages created by this client may not have a fully accessible channel or guild available.
+     * The messages might report a channel of type {@link net.dv8tion.jda.api.entities.channel.ChannelType#UNKNOWN UNKNOWN},
+     * in which case the channel is assumed to be inaccessible and limited to only webhook requests.
+     *
+     * @param api The JDA instance, used to handle rate-limits
+     * @param url The webhook url, must include a webhook token
+     * @return The {@link IncomingWebhookClient} instance
+     * @throws IllegalArgumentException If null is provided or the provided url is not a valid webhook url
+     * @see InteractionHook#from(JDA, String)
+     */
+    @Nonnull
+    static IncomingWebhookClient createClient(@Nonnull JDA api, @Nonnull String url) {
+        Checks.notNull(url, "URL");
+        Matcher matcher = Webhook.WEBHOOK_URL.matcher(url);
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("Provided invalid webhook URL");
+        }
+        String id = matcher.group(1);
+        String token = matcher.group(2);
+        return createClient(api, id, token);
+    }
+
+    /**
+     * Creates an instance of {@link IncomingWebhookClient} capable of executing webhook requests.
+     * <p>Messages created by this client may not have a fully accessible channel or guild available.
+     * The messages might report a channel of type {@link net.dv8tion.jda.api.entities.channel.ChannelType#UNKNOWN UNKNOWN},
+     * in which case the channel is assumed to be inaccessible and limited to only webhook requests.
+     *
+     * @param api The JDA instance, used to handle rate-limits
+     * @param webhookId The id of the webhook, for interactions this is the application id
+     * @param webhookToken The token of the webhook, for interactions this is the interaction token
+     * @return The {@link IncomingWebhookClient} instance
+     * @throws IllegalArgumentException If null is provided or the provided webhook id is not a valid snowflake or the token is blank
+     * @see InteractionHook#from(JDA, String)
+     */
+    @Nonnull
+    static IncomingWebhookClient createClient(
+            @Nonnull JDA api, @Nonnull String webhookId, @Nonnull String webhookToken) {
+        Checks.notNull(api, "JDA");
+        Checks.notBlank(webhookToken, "Token");
+        return new IncomingWebhookClientImpl(MiscUtil.parseSnowflake(webhookId), webhookToken, api);
+    }
+
+    /**
      * The token of this webhook.
      *
      * @return The token, or null if this webhook does not have a token available
@@ -238,7 +283,7 @@ public interface WebhookClient<T> extends ISnowflake {
      * </ul>
      *
      * <p><b>Example: Attachment Images</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Make a file upload instance which refers to a local file called "myFile.png"
      * // The second parameter "image.png" is the filename we tell discord to use for the attachment
      * FileUpload file = FileUpload.fromData(new File("myFile.png"), "image.png");
@@ -253,7 +298,7 @@ public interface WebhookClient<T> extends ISnowflake {
      * webhook.sendMessageEmbeds(Collections.singleton(embed)) // send the embeds
      *        .addFiles(file) // add the file as attachment
      *        .queue();
-     * }
+     *}
      *
      * @param  embeds
      *         {@link MessageEmbed MessageEmbeds} to use (up to {@value Message#MAX_EMBED_COUNT})
@@ -288,7 +333,7 @@ public interface WebhookClient<T> extends ISnowflake {
      * </ul>
      *
      * <p><b>Example: Attachment Images</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Make a file upload instance which refers to a local file called "myFile.png"
      * // The second parameter "image.png" is the filename we tell discord to use for the attachment
      * FileUpload file = FileUpload.fromData(new File("myFile.png"), "image.png");
@@ -303,7 +348,7 @@ public interface WebhookClient<T> extends ISnowflake {
      * webhook.sendMessageEmbeds(embed) // send the embed
      *        .addFiles(file) // add the file as attachment
      *        .queue();
-     * }
+     *}
      *
      * @param  embed
      *         {@link MessageEmbed} to use
@@ -466,7 +511,7 @@ public interface WebhookClient<T> extends ISnowflake {
      * You can safely use a try-with-resources to handle this, since {@link FileUpload#close()} becomes ineffective once the request is handed off.
      *
      * <p><b>Example: Attachment Images</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Make a file upload instance which refers to a local file called "myFile.png"
      * // The second parameter "image.png" is the filename we tell discord to use for the attachment
      * FileUpload file = FileUpload.fromData(new File("myFile.png"), "image.png");
@@ -481,7 +526,7 @@ public interface WebhookClient<T> extends ISnowflake {
      * webhook.sendFiles(Collections.singleton(file)) // send the file upload
      *        .addEmbeds(embed) // add the embed you want to reference the file with
      *        .queue();
-     * }
+     *}
      *
      * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
      * <ul>
@@ -526,7 +571,7 @@ public interface WebhookClient<T> extends ISnowflake {
      * You can safely use a try-with-resources to handle this, since {@link FileUpload#close()} becomes ineffective once the request is handed off.
      *
      * <p><b>Example: Attachment Images</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Make a file upload instance which refers to a local file called "myFile.png"
      * // The second parameter "image.png" is the filename we tell discord to use for the attachment
      * FileUpload file = FileUpload.fromData(new File("myFile.png"), "image.png");
@@ -541,7 +586,7 @@ public interface WebhookClient<T> extends ISnowflake {
      * webhook.sendFiles(file) // send the file upload
      *        .addEmbeds(embed) // add the embed you want to reference the file with
      *        .queue();
-     * }
+     *}
      *
      * <p>Possible {@link net.dv8tion.jda.api.requests.ErrorResponse ErrorResponses} include:
      * <ul>
@@ -1327,62 +1372,4 @@ public interface WebhookClient<T> extends ISnowflake {
     @Nonnull
     @CheckReturnValue
     WebhookMessageRetrieveAction retrieveMessageById(@Nonnull String messageId);
-
-    /**
-     * Creates an instance of {@link IncomingWebhookClient} capable of executing webhook requests.
-     * <p>Messages created by this client may not have a fully accessible channel or guild available.
-     * The messages might report a channel of type {@link net.dv8tion.jda.api.entities.channel.ChannelType#UNKNOWN UNKNOWN},
-     * in which case the channel is assumed to be inaccessible and limited to only webhook requests.
-     *
-     * @param  api
-     *         The JDA instance, used to handle rate-limits
-     * @param  url
-     *         The webhook url, must include a webhook token
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the provided url is not a valid webhook url
-     *
-     * @return The {@link IncomingWebhookClient} instance
-     *
-     * @see    InteractionHook#from(JDA, String)
-     */
-    @Nonnull
-    static IncomingWebhookClient createClient(@Nonnull JDA api, @Nonnull String url) {
-        Checks.notNull(url, "URL");
-        Matcher matcher = Webhook.WEBHOOK_URL.matcher(url);
-        if (!matcher.matches()) {
-            throw new IllegalArgumentException("Provided invalid webhook URL");
-        }
-        String id = matcher.group(1);
-        String token = matcher.group(2);
-        return createClient(api, id, token);
-    }
-
-    /**
-     * Creates an instance of {@link IncomingWebhookClient} capable of executing webhook requests.
-     * <p>Messages created by this client may not have a fully accessible channel or guild available.
-     * The messages might report a channel of type {@link net.dv8tion.jda.api.entities.channel.ChannelType#UNKNOWN UNKNOWN},
-     * in which case the channel is assumed to be inaccessible and limited to only webhook requests.
-     *
-     * @param  api
-     *         The JDA instance, used to handle rate-limits
-     * @param  webhookId
-     *         The id of the webhook, for interactions this is the application id
-     * @param  webhookToken
-     *         The token of the webhook, for interactions this is the interaction token
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the provided webhook id is not a valid snowflake or the token is blank
-     *
-     * @return The {@link IncomingWebhookClient} instance
-     *
-     * @see    InteractionHook#from(JDA, String)
-     */
-    @Nonnull
-    static IncomingWebhookClient createClient(
-            @Nonnull JDA api, @Nonnull String webhookId, @Nonnull String webhookToken) {
-        Checks.notNull(api, "JDA");
-        Checks.notBlank(webhookToken, "Token");
-        return new IncomingWebhookClientImpl(MiscUtil.parseSnowflake(webhookId), webhookToken, api);
-    }
 }

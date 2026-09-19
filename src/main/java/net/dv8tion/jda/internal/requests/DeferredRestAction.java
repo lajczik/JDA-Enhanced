@@ -69,17 +69,17 @@ public class DeferredRestAction<T, R extends RestAction<T>> implements Auditable
         return this;
     }
 
+    @Nullable
+    @Override
+    public BooleanSupplier getCheck() {
+        return transitiveChecks;
+    }
+
     @Nonnull
     @Override
     public DeferredRestAction<T, R> setCheck(BooleanSupplier checks) {
         this.transitiveChecks = checks;
         return this;
-    }
-
-    @Nullable
-    @Override
-    public BooleanSupplier getCheck() {
-        return transitiveChecks;
     }
 
     @Nonnull

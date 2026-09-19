@@ -21,7 +21,10 @@ import net.dv8tion.jda.api.utils.data.DataArray;
 import net.dv8tion.jda.internal.utils.Checks;
 import org.jetbrains.annotations.UnmodifiableView;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;

@@ -36,15 +36,6 @@ public enum WebhookType {
     }
 
     /**
-     * The raw api key for this type
-     *
-     * @return The api key, or -1 for {@link #UNKNOWN}
-     */
-    public int getKey() {
-        return key;
-    }
-
-    /**
      * Resolves the provided raw api key to the corresponding webhook type.
      *
      * @param  key
@@ -60,5 +51,14 @@ public enum WebhookType {
             }
         }
         return UNKNOWN;
+    }
+
+    /**
+     * The raw api key for this type
+     *
+     * @return The api key, or -1 for {@link #UNKNOWN}
+     */
+    public int getKey() {
+        return key;
     }
 }

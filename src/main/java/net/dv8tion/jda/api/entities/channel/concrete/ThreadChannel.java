@@ -1106,15 +1106,6 @@ public interface ThreadChannel extends GuildMessageChannel, IMemberContainer, IS
         }
 
         /**
-         * The number of minutes before an idle thread will be automatically hidden.
-         *
-         * @return The number of minutes
-         */
-        public int getMinutes() {
-            return minutes;
-        }
-
-        /**
          * Provides the corresponding enum constant for the provided number of minutes.
          *
          * @param  minutes
@@ -1133,6 +1124,15 @@ public interface ThreadChannel extends GuildMessageChannel, IMemberContainer, IS
                 }
             }
             throw new IllegalArgumentException("Provided key was not recognized. Minutes: " + minutes);
+        }
+
+        /**
+         * The number of minutes before an idle thread will be automatically hidden.
+         *
+         * @return The number of minutes
+         */
+        public int getMinutes() {
+            return minutes;
         }
     }
 }

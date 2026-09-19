@@ -72,6 +72,12 @@ public class VoiceChannelImpl extends AbstractStandardGuildChannelImpl<VoiceChan
         return bitrate;
     }
 
+    @Override
+    public VoiceChannelImpl setBitrate(int bitrate) {
+        this.bitrate = bitrate;
+        return this;
+    }
+
     @Nullable
     @Override
     public String getRegionRaw() {
@@ -84,8 +90,20 @@ public class VoiceChannelImpl extends AbstractStandardGuildChannelImpl<VoiceChan
     }
 
     @Override
+    public VoiceChannelImpl setUserLimit(int userLimit) {
+        this.userLimit = userLimit;
+        return this;
+    }
+
+    @Override
     public boolean isNSFW() {
         return nsfw;
+    }
+
+    @Override
+    public VoiceChannelImpl setNSFW(boolean nsfw) {
+        this.nsfw = nsfw;
+        return this;
     }
 
     @Override
@@ -94,8 +112,20 @@ public class VoiceChannelImpl extends AbstractStandardGuildChannelImpl<VoiceChan
     }
 
     @Override
+    public VoiceChannelImpl setSlowmode(int slowmode) {
+        this.slowmode = slowmode;
+        return this;
+    }
+
+    @Override
     public long getLatestMessageIdLong() {
         return latestMessageId;
+    }
+
+    @Override
+    public VoiceChannelImpl setLatestMessageIdLong(long latestMessageId) {
+        this.latestMessageId = latestMessageId;
+        return this;
     }
 
     @Nonnull
@@ -116,6 +146,12 @@ public class VoiceChannelImpl extends AbstractStandardGuildChannelImpl<VoiceChan
         return status;
     }
 
+    @Override
+    public VoiceChannelImpl setStatus(String status) {
+        this.status = status;
+        return this;
+    }
+
     @Nonnull
     @Override
     public AuditableRestAction<Void> modifyStatus(@Nonnull String status) {
@@ -133,44 +169,8 @@ public class VoiceChannelImpl extends AbstractStandardGuildChannelImpl<VoiceChan
     }
 
     @Override
-    public VoiceChannelImpl setBitrate(int bitrate) {
-        this.bitrate = bitrate;
-        return this;
-    }
-
-    @Override
     public VoiceChannelImpl setRegion(String region) {
         this.region = region;
-        return this;
-    }
-
-    @Override
-    public VoiceChannelImpl setUserLimit(int userLimit) {
-        this.userLimit = userLimit;
-        return this;
-    }
-
-    @Override
-    public VoiceChannelImpl setNSFW(boolean nsfw) {
-        this.nsfw = nsfw;
-        return this;
-    }
-
-    @Override
-    public VoiceChannelImpl setSlowmode(int slowmode) {
-        this.slowmode = slowmode;
-        return this;
-    }
-
-    @Override
-    public VoiceChannelImpl setLatestMessageIdLong(long latestMessageId) {
-        this.latestMessageId = latestMessageId;
-        return this;
-    }
-
-    @Override
-    public VoiceChannelImpl setStatus(String status) {
-        this.status = status;
         return this;
     }
 }

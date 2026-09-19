@@ -42,12 +42,12 @@ import javax.annotation.Nonnull;
  *
  * <p><b>Example</b><br>
  *
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * TriggerConfig config = TriggerConfig.keywordFilter("discord.gg/*").addAllowList("gateway.discord.gg/*");
  * AutoModRuleData data = AutoModRuleData.onMessage("Invite Block", config);
  * data.addExemptRoles(guild.getRolesByName("Moderator", true));
  * data.putResponse(AutoModResponse.blockMessage());
- * }
+ *}
  *
  * <ol>
  *   <li>The {@link TriggerConfig} defines under what conditions the rule should be triggered and execute a response.
@@ -61,13 +61,12 @@ import javax.annotation.Nonnull;
  */
 public class AutoModRuleData implements SerializableData {
     protected final AutoModEventType eventType;
-    protected String name;
-    protected boolean enabled = true;
-    protected TriggerConfig triggerMetadata;
-
     protected final EnumMap<AutoModResponse.Type, AutoModResponse> actions = new EnumMap<>(AutoModResponse.Type.class);
     protected final Collection<String> exemptChannels = new ArrayList<>();
     protected final Collection<String> exemptRoles = new ArrayList<>();
+    protected String name;
+    protected boolean enabled = true;
+    protected TriggerConfig triggerMetadata;
 
     protected AutoModRuleData(AutoModEventType eventType, String name, TriggerConfig triggerMetadata) {
         this.eventType = eventType;

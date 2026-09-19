@@ -34,7 +34,7 @@ import javax.annotation.Nonnull;
  * Manager providing functionality to update one or more fields for an {@link AutoModRule}.
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * manager.setName("Discord Invites")
  *        .setEnables(false)
  *        .queue();
@@ -42,7 +42,7 @@ import javax.annotation.Nonnull;
  *        .setName("Invites")
  *        .setEnabled(true)
  *        .queue();
- * }
+ *}
  *
  * @see Guild#modifyAutoModRuleById(long)
  * @see Guild#modifyAutoModRuleById(String)

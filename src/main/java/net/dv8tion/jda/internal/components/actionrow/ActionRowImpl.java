@@ -105,6 +105,29 @@ public class ActionRowImpl extends AbstractComponentImpl
         return rows;
     }
 
+    private static void checkIsValid(Collection<? extends ActionRowChildComponent> components) {
+        Map<Component.Type, List<ActionRowChildComponent>> groups =
+                components.stream().collect(Collectors.groupingBy(Component::getType));
+        // TODO: You can't mix components right now but maybe in the future, we need to check back
+        // on this when that happens
+        if (groups.size() > 1) {
+            throw new IllegalArgumentException(
+                    "Cannot create action row containing different component types! Provided: " + groups.keySet());
+        }
+
+        for (Map.Entry<Component.Type, List<ActionRowChildComponent>> entry : groups.entrySet()) {
+            Component.Type type = entry.getKey();
+            List<ActionRowChildComponent> list = entry.getValue();
+            int maxAllowed = ActionRow.getMaxAllowed(type);
+            Checks.check(
+                    list.size() <= maxAllowed,
+                    "Cannot create an action row with more than %d %s! Provided: %d",
+                    maxAllowed,
+                    type.name(),
+                    list.size());
+        }
+    }
+
     @Override
     public int getUniqueId() {
         return uniqueId;
@@ -157,29 +180,6 @@ public class ActionRowImpl extends AbstractComponentImpl
             json.put("id", uniqueId);
         }
         return json;
-    }
-
-    private static void checkIsValid(Collection<? extends ActionRowChildComponent> components) {
-        Map<Component.Type, List<ActionRowChildComponent>> groups =
-                components.stream().collect(Collectors.groupingBy(Component::getType));
-        // TODO: You can't mix components right now but maybe in the future, we need to check back
-        // on this when that happens
-        if (groups.size() > 1) {
-            throw new IllegalArgumentException(
-                    "Cannot create action row containing different component types! Provided: " + groups.keySet());
-        }
-
-        for (Map.Entry<Component.Type, List<ActionRowChildComponent>> entry : groups.entrySet()) {
-            Component.Type type = entry.getKey();
-            List<ActionRowChildComponent> list = entry.getValue();
-            int maxAllowed = ActionRow.getMaxAllowed(type);
-            Checks.check(
-                    list.size() <= maxAllowed,
-                    "Cannot create an action row with more than %d %s! Provided: %d",
-                    maxAllowed,
-                    type.name(),
-                    list.size());
-        }
     }
 
     @Override

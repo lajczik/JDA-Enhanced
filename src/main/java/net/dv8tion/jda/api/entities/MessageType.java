@@ -261,6 +261,23 @@ public enum MessageType {
     }
 
     /**
+     * Used to retrieve a MessageType based on the Discord id key.
+     * <br>If the {@code id} provided is not a known id, {@link #UNKNOWN} is returned
+     *
+     * @param id The Discord key id of the requested MessageType.
+     * @return A MessageType with the same Discord id key as the one provided, or {@link #UNKNOWN}.
+     */
+    @Nonnull
+    public static MessageType fromId(int id) {
+        for (MessageType type : values()) {
+            if (type.id == id) {
+                return type;
+            }
+        }
+        return UNKNOWN;
+    }
+
+    /**
      * The Discord id key used to reference the MessageType.
      *
      * @return the Discord id key.
@@ -304,24 +321,5 @@ public enum MessageType {
      */
     public boolean canDelete() {
         return deletable;
-    }
-
-    /**
-     * Used to retrieve a MessageType based on the Discord id key.
-     * <br>If the {@code id} provided is not a known id, {@link #UNKNOWN} is returned
-     *
-     * @param  id
-     *         The Discord key id of the requested MessageType.
-     *
-     * @return A MessageType with the same Discord id key as the one provided, or {@link #UNKNOWN}.
-     */
-    @Nonnull
-    public static MessageType fromId(int id) {
-        for (MessageType type : values()) {
-            if (type.id == id) {
-                return type;
-            }
-        }
-        return UNKNOWN;
     }
 }

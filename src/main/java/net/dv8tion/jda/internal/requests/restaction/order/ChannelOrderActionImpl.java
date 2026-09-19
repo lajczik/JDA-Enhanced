@@ -99,6 +99,13 @@ public class ChannelOrderActionImpl extends OrderActionImpl<GuildChannel, Channe
         this.orderList.addAll(channels);
     }
 
+    protected static Collection<GuildChannel> getChannelsOfType(Guild guild, int bucket) {
+        return guild.getChannels().stream()
+                .filter(it -> it.getType().getSortBucket() == bucket)
+                .sorted()
+                .toList();
+    }
+
     @Nonnull
     @Override
     public Guild getGuild() {
@@ -156,12 +163,5 @@ public class ChannelOrderActionImpl extends OrderActionImpl<GuildChannel, Channe
     protected void validateInput(GuildChannel entity) {
         Checks.check(entity.getGuild().equals(guild), "Provided channel is not from this Guild!");
         Checks.check(orderList.contains(entity), "Provided channel is not in the list of orderable channels!");
-    }
-
-    protected static Collection<GuildChannel> getChannelsOfType(Guild guild, int bucket) {
-        return guild.getChannels().stream()
-                .filter(it -> it.getType().getSortBucket() == bucket)
-                .sorted()
-                .toList();
     }
 }

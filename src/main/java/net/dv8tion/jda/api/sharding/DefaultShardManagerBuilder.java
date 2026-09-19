@@ -276,13 +276,6 @@ public class DefaultShardManagerBuilder {
         return create(token, intents).applyDefault();
     }
 
-    private DefaultShardManagerBuilder applyDefault() {
-        return this.setMemberCachePolicy(MemberCachePolicy.DEFAULT)
-                .setChunkingFilter(ChunkingFilter.NONE)
-                .disableCache(CacheFlag.getPrivileged())
-                .setLargeThreshold(250);
-    }
-
     /**
      * Creates a DefaultShardManagerBuilder with low memory profile settings.
      * <br>
@@ -404,13 +397,6 @@ public class DefaultShardManagerBuilder {
     public static DefaultShardManagerBuilder createLight(
             @Nullable String token, @Nonnull Collection<GatewayIntent> intents) {
         return create(token, intents).applyLight();
-    }
-
-    private DefaultShardManagerBuilder applyLight() {
-        return this.setMemberCachePolicy(MemberCachePolicy.NONE)
-                .setChunkingFilter(ChunkingFilter.NONE)
-                .disableCache(EnumSet.allOf(CacheFlag.class))
-                .setLargeThreshold(50);
     }
 
     /**
@@ -569,6 +555,20 @@ public class DefaultShardManagerBuilder {
     public static DefaultShardManagerBuilder create(
             @Nullable String token, @Nonnull Collection<GatewayIntent> intents) {
         return new DefaultShardManagerBuilder(token, GatewayIntent.getRaw(intents)).applyIntents();
+    }
+
+    private DefaultShardManagerBuilder applyDefault() {
+        return this.setMemberCachePolicy(MemberCachePolicy.DEFAULT)
+                .setChunkingFilter(ChunkingFilter.NONE)
+                .disableCache(CacheFlag.getPrivileged())
+                .setLargeThreshold(250);
+    }
+
+    private DefaultShardManagerBuilder applyLight() {
+        return this.setMemberCachePolicy(MemberCachePolicy.NONE)
+                .setChunkingFilter(ChunkingFilter.NONE)
+                .disableCache(EnumSet.allOf(CacheFlag.class))
+                .setLargeThreshold(50);
     }
 
     private DefaultShardManagerBuilder applyIntents() {
@@ -834,7 +834,7 @@ public class DefaultShardManagerBuilder {
      *
      *     builder.setMemberCachePolicy(policy);
      * }
-     * }
+     *}
      *
      * @param policy
      *               The {@link MemberCachePolicy} or null to use default

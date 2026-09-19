@@ -202,15 +202,6 @@ public interface Entitlement extends ISnowflake {
         }
 
         /**
-         * The Discord defined id key for this EntitlementType.
-         *
-         * @return the id key.
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * Gets the EntitlementType related to the provided key.
          * <br>If an unknown key is provided, this returns {@link #UNKNOWN}
          *
@@ -227,6 +218,15 @@ public interface Entitlement extends ISnowflake {
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The Discord defined id key for this EntitlementType.
+         *
+         * @return the id key.
+         */
+        public int getKey() {
+            return key;
         }
     }
 }

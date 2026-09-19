@@ -67,9 +67,9 @@ public interface ICategorizableChannelManager<
      *
      * <p>This behaves as if calling {@link #sync(IPermissionContainer)} with this GuildChannel's {@link ICategorizableChannel#getParentCategory()} Parent}.
      *
-     * @throws  IllegalStateException
+     * @throws IllegalStateException
      *          If this GuildChannel has no parent
-     * @throws  net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
      *          If the currently logged in account does not have {@link Permission#MANAGE_PERMISSIONS Permission.MANAGE_PERMISSIONS}
      *          in this channel or {@link IPermissionHolder#canSync(IPermissionContainer, IPermissionContainer)} is false for the self member.
      *
@@ -100,9 +100,9 @@ public interface ICategorizableChannelManager<
      * @param   syncSource
      *          The GuildChannel from where all PermissionOverrides should be copied from
      *
-     * @throws  IllegalArgumentException
+     * @throws IllegalArgumentException
      *          If the given snySource is {@code null}, this GuildChannel or from a different Guild.
-     * @throws  net.dv8tion.jda.api.exceptions.InsufficientPermissionException
+     * @throws net.dv8tion.jda.api.exceptions.InsufficientPermissionException
      *          If the currently logged in account does not have {@link Permission#MANAGE_PERMISSIONS Permission.MANAGE_PERMISSIONS}
      *          in this channel or {@link IPermissionHolder#canSync(IPermissionContainer, IPermissionContainer)} is false for the self member.
      *

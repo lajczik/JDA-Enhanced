@@ -60,6 +60,12 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
 
     @Nonnull
     @Override
+    public String getContent() {
+        return content.toString();
+    }
+
+    @Nonnull
+    @Override
     public R setContent(@Nullable String content) {
         if (content != null) {
             content = content.trim();
@@ -74,21 +80,8 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
 
     @Nonnull
     @Override
-    public String getContent() {
-        return content.toString();
-    }
-
-    @Nonnull
-    @Override
     public R mentionRepliedUser(boolean mention) {
         mentions.mentionRepliedUser(mention);
-        return (R) this;
-    }
-
-    @Nonnull
-    @Override
-    public R setAllowedMentions(@Nullable Collection<Message.MentionType> allowedMentions) {
-        mentions.setAllowedMentions(allowedMentions);
         return (R) this;
     }
 
@@ -131,9 +124,22 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
         return mentions.getAllowedMentions();
     }
 
+    @Nonnull
+    @Override
+    public R setAllowedMentions(@Nullable Collection<Message.MentionType> allowedMentions) {
+        mentions.setAllowedMentions(allowedMentions);
+        return (R) this;
+    }
+
     @Override
     public boolean isMentionRepliedUser() {
         return mentions.isMentionRepliedUser();
+    }
+
+    @Nonnull
+    @Override
+    public List<MessageEmbed> getEmbeds() {
+        return Collections.unmodifiableList(embeds);
     }
 
     @Nonnull
@@ -146,27 +152,6 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
                 Message.MAX_EMBED_COUNT);
         this.embeds.clear();
         this.embeds.addAll(embeds);
-        return (R) this;
-    }
-
-    @Nonnull
-    @Override
-    public List<MessageEmbed> getEmbeds() {
-        return Collections.unmodifiableList(embeds);
-    }
-
-    @Nonnull
-    @Override
-    public R setComponents(@Nonnull Collection<? extends MessageTopLevelComponent> components) {
-        Checks.noneNull(components, "MessageTopLevelComponents");
-        Checks.checkComponents(
-                "Provided component is invalid for messages!", components, Component::isMessageCompatible);
-
-        List<MessageTopLevelComponentUnion> componentsAsUnions =
-                ComponentsUtil.membersToUnion(components, MessageTopLevelComponentUnion.class);
-
-        this.components.clear();
-        this.components.addAll(componentsAsUnions);
         return (R) this;
     }
 
@@ -188,9 +173,29 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
         return Collections.unmodifiableList(components);
     }
 
+    @Nonnull
+    @Override
+    public R setComponents(@Nonnull Collection<? extends MessageTopLevelComponent> components) {
+        Checks.noneNull(components, "MessageTopLevelComponents");
+        Checks.checkComponents(
+                "Provided component is invalid for messages!", components, Component::isMessageCompatible);
+
+        List<MessageTopLevelComponentUnion> componentsAsUnions =
+                ComponentsUtil.membersToUnion(components, MessageTopLevelComponentUnion.class);
+
+        this.components.clear();
+        this.components.addAll(componentsAsUnions);
+        return (R) this;
+    }
+
     @Override
     public boolean isUsingComponentsV2() {
         return (messageFlags & Message.MessageFlag.IS_COMPONENTS_V2.getValue()) != 0;
+    }
+
+    @Override
+    public boolean isSuppressEmbeds() {
+        return (this.messageFlags & Message.MessageFlag.EMBEDS_SUPPRESSED.getValue()) != 0;
     }
 
     @Nonnull
@@ -203,11 +208,6 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
             this.messageFlags &= ~flag;
         }
         return (R) this;
-    }
-
-    @Override
-    public boolean isSuppressEmbeds() {
-        return (this.messageFlags & Message.MessageFlag.EMBEDS_SUPPRESSED.getValue()) != 0;
     }
 
     /**

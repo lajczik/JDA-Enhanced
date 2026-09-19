@@ -116,57 +116,6 @@ public enum Permission {
     }
 
     /**
-     * The readable name as used in the Discord client.
-     *
-     * @return The readable name of this {@link net.dv8tion.jda.api.Permission Permission}.
-     */
-    @Nonnull
-    public String getName() {
-        return this.name;
-    }
-
-    /**
-     * The binary offset of the permission.
-     * <br>For more information about Discord's offset system refer to
-     * <a href="https://discord.com/developers/docs/topics/permissions">Discord Permissions</a>.
-     *
-     * @return The offset that represents this {@link net.dv8tion.jda.api.Permission Permission}.
-     */
-    public int getOffset() {
-        return offset;
-    }
-
-    /**
-     * The value of this permission when viewed as a raw value.
-     * <br>This is equivalent to: <code>1 {@literal <<} {@link #getOffset()}</code>
-     *
-     * @return The raw value of this specific permission.
-     */
-    public long getRawValue() {
-        return raw;
-    }
-
-    /**
-     * Returns whether or not this Permission is present at the Guild level
-     * (configurable via {@link net.dv8tion.jda.api.entities.Role Roles})
-     *
-     * @return True if this permission is present at the Guild level.
-     */
-    public boolean isGuild() {
-        return isGuild;
-    }
-
-    /**
-     * Returns whether or not this Permission is present Channel level
-     * (configurable via {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionsOverrides})
-     *
-     * @return True if this permission is present at the Channel level.
-     */
-    public boolean isChannel() {
-        return isChannel;
-    }
-
-    /**
      * Gets the first {@link net.dv8tion.jda.api.Permission Permission} relating to the provided offset.
      * <br>If there is no {@link net.dv8tion.jda.api.Permission Permssions} that matches the provided
      * offset, {@link net.dv8tion.jda.api.Permission#UNKNOWN Permission.UNKNOWN} is returned.
@@ -248,5 +197,56 @@ public enum Permission {
         Checks.notNull(permissions, "Permission Collection");
 
         return getRaw(permissions.toArray(EMPTY_PERMISSIONS));
+    }
+
+    /**
+     * The readable name as used in the Discord client.
+     *
+     * @return The readable name of this {@link net.dv8tion.jda.api.Permission Permission}.
+     */
+    @Nonnull
+    public String getName() {
+        return this.name;
+    }
+
+    /**
+     * The binary offset of the permission.
+     * <br>For more information about Discord's offset system refer to
+     * <a href="https://discord.com/developers/docs/topics/permissions">Discord Permissions</a>.
+     *
+     * @return The offset that represents this {@link net.dv8tion.jda.api.Permission Permission}.
+     */
+    public int getOffset() {
+        return offset;
+    }
+
+    /**
+     * The value of this permission when viewed as a raw value.
+     * <br>This is equivalent to: <code>1 {@literal <<} {@link #getOffset()}</code>
+     *
+     * @return The raw value of this specific permission.
+     */
+    public long getRawValue() {
+        return raw;
+    }
+
+    /**
+     * Returns whether or not this Permission is present at the Guild level
+     * (configurable via {@link net.dv8tion.jda.api.entities.Role Roles})
+     *
+     * @return True if this permission is present at the Guild level.
+     */
+    public boolean isGuild() {
+        return isGuild;
+    }
+
+    /**
+     * Returns whether or not this Permission is present Channel level
+     * (configurable via {@link net.dv8tion.jda.api.entities.PermissionOverride PermissionsOverrides})
+     *
+     * @return True if this permission is present at the Channel level.
+     */
+    public boolean isChannel() {
+        return isChannel;
     }
 }

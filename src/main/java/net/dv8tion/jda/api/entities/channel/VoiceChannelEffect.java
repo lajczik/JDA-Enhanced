@@ -166,13 +166,13 @@ public class VoiceChannelEffect {
      * Represents the animation of a voice channel effect.
      */
     public static class Animation implements ISnowflake {
+        private final long id;
+        private final Animation.Type type;
+
         public Animation(long id, Animation.Type type) {
             this.id = id;
             this.type = type;
         }
-
-        private final long id;
-        private final Animation.Type type;
 
         @Override
         public long getIdLong() {
@@ -206,15 +206,6 @@ public class VoiceChannelEffect {
             }
 
             /**
-             * The raw value of this animation type.
-             *
-             * @return The raw value
-             */
-            public int getValue() {
-                return value;
-            }
-
-            /**
              * Retrieves the animation type from the raw value.
              *
              * @param  value
@@ -231,6 +222,15 @@ public class VoiceChannelEffect {
                 }
 
                 return UNKNOWN;
+            }
+
+            /**
+             * The raw value of this animation type.
+             *
+             * @return The raw value
+             */
+            public int getValue() {
+                return value;
             }
         }
     }

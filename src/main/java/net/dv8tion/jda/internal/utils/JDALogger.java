@@ -56,8 +56,9 @@ public class JDALogger {
      */
     public static final boolean SLF4J_ENABLED;
 
-    private static boolean disableFallback = Boolean.getBoolean(DISABLE_FALLBACK_PROPERTY_NAME);
     private static final MethodHandle fallbackLoggerConstructor;
+    private static final Map<String, Logger> LOGS = new HashMap<>();
+    private static boolean disableFallback = Boolean.getBoolean(DISABLE_FALLBACK_PROPERTY_NAME);
 
     static {
         boolean hasLoggerImpl = false;
@@ -86,8 +87,6 @@ public class JDALogger {
 
         fallbackLoggerConstructor = constructor;
     }
-
-    private static final Map<String, Logger> LOGS = new HashMap<>();
 
     private JDALogger() {}
 

@@ -81,6 +81,12 @@ public class DetachedThreadChannelImpl extends AbstractGuildChannelImpl<Detached
         return ChannelFlag.fromRaw(flags);
     }
 
+    @Override
+    public DetachedThreadChannelImpl setFlags(int flags) {
+        this.flags = flags;
+        return this;
+    }
+
     @Nonnull
     @Override
     public ChannelType getType() {
@@ -93,8 +99,20 @@ public class DetachedThreadChannelImpl extends AbstractGuildChannelImpl<Detached
     }
 
     @Override
+    public DetachedThreadChannelImpl setLatestMessageIdLong(long latestMessageId) {
+        this.latestMessageId = latestMessageId;
+        return this;
+    }
+
+    @Override
     public int getMessageCount() {
         return messageCount;
+    }
+
+    @Override
+    public DetachedThreadChannelImpl setMessageCount(int messageCount) {
+        this.messageCount = messageCount;
+        return this;
     }
 
     @Override
@@ -103,13 +121,31 @@ public class DetachedThreadChannelImpl extends AbstractGuildChannelImpl<Detached
     }
 
     @Override
+    public DetachedThreadChannelImpl setTotalMessageCount(int messageCount) {
+        this.totalMessageCount = Math.max(messageCount, this.messageCount); // If this is 0 we use the older count
+        return this;
+    }
+
+    @Override
     public int getMemberCount() {
         return memberCount;
     }
 
     @Override
+    public DetachedThreadChannelImpl setMemberCount(int memberCount) {
+        this.memberCount = memberCount;
+        return this;
+    }
+
+    @Override
     public boolean isLocked() {
         return locked;
+    }
+
+    @Override
+    public DetachedThreadChannelImpl setLocked(boolean locked) {
+        this.locked = locked;
+        return this;
     }
 
     @Override
@@ -188,12 +224,24 @@ public class DetachedThreadChannelImpl extends AbstractGuildChannelImpl<Detached
     }
 
     @Override
+    public DetachedThreadChannelImpl setArchived(boolean archived) {
+        this.archived = archived;
+        return this;
+    }
+
+    @Override
     public boolean isInvitable() {
         if (type != ChannelType.GUILD_PRIVATE_THREAD) {
             throw new UnsupportedOperationException("Only private threads support the concept of invitable.");
         }
 
         return invitable;
+    }
+
+    @Override
+    public DetachedThreadChannelImpl setInvitable(boolean invitable) {
+        this.invitable = invitable;
+        return this;
     }
 
     @Nonnull
@@ -208,6 +256,12 @@ public class DetachedThreadChannelImpl extends AbstractGuildChannelImpl<Detached
         return autoArchiveDuration;
     }
 
+    @Override
+    public DetachedThreadChannelImpl setAutoArchiveDuration(AutoArchiveDuration autoArchiveDuration) {
+        this.autoArchiveDuration = autoArchiveDuration;
+        return this;
+    }
+
     @Nonnull
     @Override
     public OffsetDateTime getTimeCreated() {
@@ -217,6 +271,12 @@ public class DetachedThreadChannelImpl extends AbstractGuildChannelImpl<Detached
     @Override
     public int getSlowmode() {
         return slowmode;
+    }
+
+    @Override
+    public DetachedThreadChannelImpl setSlowmode(int slowmode) {
+        this.slowmode = slowmode;
+        return this;
     }
 
     @Nonnull
@@ -260,33 +320,11 @@ public class DetachedThreadChannelImpl extends AbstractGuildChannelImpl<Detached
         return interactionPermissions;
     }
 
+    @Nonnull
     @Override
-    public DetachedThreadChannelImpl setLatestMessageIdLong(long latestMessageId) {
-        this.latestMessageId = latestMessageId;
-        return this;
-    }
-
-    @Override
-    public DetachedThreadChannelImpl setAutoArchiveDuration(AutoArchiveDuration autoArchiveDuration) {
-        this.autoArchiveDuration = autoArchiveDuration;
-        return this;
-    }
-
-    @Override
-    public DetachedThreadChannelImpl setLocked(boolean locked) {
-        this.locked = locked;
-        return this;
-    }
-
-    @Override
-    public DetachedThreadChannelImpl setArchived(boolean archived) {
-        this.archived = archived;
-        return this;
-    }
-
-    @Override
-    public DetachedThreadChannelImpl setInvitable(boolean invitable) {
-        this.invitable = invitable;
+    public DetachedThreadChannelImpl setInteractionPermissions(
+            @Nonnull ChannelInteractionPermissions interactionPermissions) {
+        this.interactionPermissions = interactionPermissions;
         return this;
     }
 
@@ -305,44 +343,6 @@ public class DetachedThreadChannelImpl extends AbstractGuildChannelImpl<Detached
     @Override
     public DetachedThreadChannelImpl setOwnerId(long ownerId) {
         this.ownerId = ownerId;
-        return this;
-    }
-
-    @Override
-    public DetachedThreadChannelImpl setMessageCount(int messageCount) {
-        this.messageCount = messageCount;
-        return this;
-    }
-
-    @Override
-    public DetachedThreadChannelImpl setTotalMessageCount(int messageCount) {
-        this.totalMessageCount = Math.max(messageCount, this.messageCount); // If this is 0 we use the older count
-        return this;
-    }
-
-    @Override
-    public DetachedThreadChannelImpl setMemberCount(int memberCount) {
-        this.memberCount = memberCount;
-        return this;
-    }
-
-    @Override
-    public DetachedThreadChannelImpl setSlowmode(int slowmode) {
-        this.slowmode = slowmode;
-        return this;
-    }
-
-    @Override
-    public DetachedThreadChannelImpl setFlags(int flags) {
-        this.flags = flags;
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public DetachedThreadChannelImpl setInteractionPermissions(
-            @Nonnull ChannelInteractionPermissions interactionPermissions) {
-        this.interactionPermissions = interactionPermissions;
         return this;
     }
 }

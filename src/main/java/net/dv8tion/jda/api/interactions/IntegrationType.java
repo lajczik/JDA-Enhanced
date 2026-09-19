@@ -59,16 +59,6 @@ public enum IntegrationType {
     }
 
     /**
-     * The raw value of this integration type.
-     *
-     * @return The raw value
-     */
-    @Nonnull
-    public String getType() {
-        return key;
-    }
-
-    /**
      * Gets the integration type corresponding to the key,
      * returns {@link #UNKNOWN} if no entry matches.
      *
@@ -85,5 +75,15 @@ public enum IntegrationType {
             }
         }
         return UNKNOWN;
+    }
+
+    /**
+     * The raw value of this integration type.
+     *
+     * @return The raw value
+     */
+    @Nonnull
+    public String getType() {
+        return key;
     }
 }

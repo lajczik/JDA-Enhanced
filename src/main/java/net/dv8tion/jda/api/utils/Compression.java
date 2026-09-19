@@ -41,6 +41,15 @@ public enum Compression {
         this.key = key;
     }
 
+    private static boolean isZstdSupported() {
+        try {
+            Class.forName("com.github.luben.zstd.ZstdDecompressCtx");
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     /**
      * The key used for the gateway query to enable this compression
      *
@@ -65,15 +74,6 @@ public enum Compression {
                 return isZstdSupported();
             default:
                 return false;
-        }
-    }
-
-    private static boolean isZstdSupported() {
-        try {
-            Class.forName("com.github.luben.zstd.ZstdDecompressCtx");
-            return true;
-        } catch (Throwable ignored) {
-            return false;
         }
     }
 }

@@ -58,18 +58,6 @@ public enum OnlineStatus {
     }
 
     /**
-     * The valid API key for this OnlineStatus
-     *
-     * @return String representation of the valid API key for this OnlineStatus
-     *
-     * @see    <a href="https://discord.com/developers/docs/topics/gateway#presence-update">PRESENCE_UPDATE</a>
-     */
-    @Nonnull
-    public String getKey() {
-        return key;
-    }
-
-    /**
      * Will get the {@link net.dv8tion.jda.api.OnlineStatus OnlineStatus} from the provided key.
      * <br>If the provided key does not have a matching OnlineStatus, this will return {@link net.dv8tion.jda.api.OnlineStatus#UNKNOWN UNKONWN}
      *
@@ -86,5 +74,16 @@ public enum OnlineStatus {
             }
         }
         return UNKNOWN;
+    }
+
+    /**
+     * The valid API key for this OnlineStatus
+     *
+     * @return String representation of the valid API key for this OnlineStatus
+     * @see <a href="https://discord.com/developers/docs/topics/gateway#presence-update">PRESENCE_UPDATE</a>
+     */
+    @Nonnull
+    public String getKey() {
+        return key;
     }
 }

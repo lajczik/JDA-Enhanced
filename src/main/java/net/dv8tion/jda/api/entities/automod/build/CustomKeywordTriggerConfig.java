@@ -40,6 +40,11 @@ public class CustomKeywordTriggerConfig extends AbstractKeywordTriggerConfig<Cus
         super(AutoModTriggerType.KEYWORD);
     }
 
+    protected static void checkPattern(String pattern) {
+        Checks.notBlank(pattern, "Pattern");
+        Checks.notLonger(pattern, AutoModRule.MAX_PATTERN_LENGTH, "Pattern");
+    }
+
     /**
      * Add more keywords match against.
      * <br>Keywords are matched case-insensitively, and may also contain whitespace.
@@ -262,11 +267,6 @@ public class CustomKeywordTriggerConfig extends AbstractKeywordTriggerConfig<Cus
         this.patterns.clear();
         this.patterns.addAll(patterns);
         return this;
-    }
-
-    protected static void checkPattern(String pattern) {
-        Checks.notBlank(pattern, "Pattern");
-        Checks.notLonger(pattern, AutoModRule.MAX_PATTERN_LENGTH, "Pattern");
     }
 
     @Override

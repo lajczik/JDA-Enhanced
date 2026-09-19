@@ -54,15 +54,6 @@ public enum AutoModEventType {
     }
 
     /**
-     * The raw value used by Discord to represent this type.
-     *
-     * @return The raw value
-     */
-    public int getKey() {
-        return key;
-    }
-
-    /**
      * The {@link AutoModEventType} represented by the provided key.
      *
      * @param  key
@@ -78,5 +69,14 @@ public enum AutoModEventType {
             }
         }
         return UNKNOWN;
+    }
+
+    /**
+     * The raw value used by Discord to represent this type.
+     *
+     * @return The raw value
+     */
+    public int getKey() {
+        return key;
     }
 }

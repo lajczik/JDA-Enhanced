@@ -165,15 +165,6 @@ public interface ResolvedMedia {
         }
 
         /**
-         * Returns the value of the flag as represented in the bitfield. It is always a power of 2. (single bit)
-         *
-         * @return Non-zero bit value of the field
-         */
-        public int getValue() {
-            return value;
-        }
-
-        /**
          * Given a bitfield, this function extracts all enum values according to their bit values and returns
          * a set containing all matching media flags.
          *
@@ -208,6 +199,15 @@ public interface ResolvedMedia {
                 rawFlags |= flag.value;
             }
             return rawFlags;
+        }
+
+        /**
+         * Returns the value of the flag as represented in the bitfield. It is always a power of 2. (single bit)
+         *
+         * @return Non-zero bit value of the field
+         */
+        public int getValue() {
+            return value;
         }
     }
 }

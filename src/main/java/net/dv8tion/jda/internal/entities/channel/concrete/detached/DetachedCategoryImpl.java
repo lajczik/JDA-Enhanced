@@ -128,17 +128,17 @@ public class DetachedCategoryImpl extends AbstractGuildChannelImpl<DetachedCateg
         return interactionPermissions;
     }
 
-    @Override
-    public DetachedCategoryImpl setPosition(int position) {
-        this.position = position;
-        return this;
-    }
-
     @Nonnull
     @Override
     public DetachedCategoryImpl setInteractionPermissions(
             @Nonnull ChannelInteractionPermissions interactionPermissions) {
         this.interactionPermissions = interactionPermissions;
+        return this;
+    }
+
+    @Override
+    public DetachedCategoryImpl setPosition(int position) {
+        this.position = position;
         return this;
     }
 }

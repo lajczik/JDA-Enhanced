@@ -34,11 +34,15 @@ import javax.annotation.Nullable;
 class AllowedMentionsData implements SerializableData {
     private static EnumSet<Message.MentionType> defaultParse = EnumSet.allOf(Message.MentionType.class);
     private static boolean defaultMentionRepliedUser = true;
-
-    private EnumSet<Message.MentionType> mentionParse = getDefaultMentions();
     private final Set<String> mentionUsers = new HashSet<>();
     private final Set<String> mentionRoles = new HashSet<>();
+    private EnumSet<Message.MentionType> mentionParse = getDefaultMentions();
     private boolean mentionRepliedUser = defaultMentionRepliedUser;
+
+    @Nonnull
+    public static EnumSet<Message.MentionType> getDefaultMentions() {
+        return defaultParse.clone();
+    }
 
     public static void setDefaultMentions(@Nullable Collection<Message.MentionType> allowedMentions) {
         defaultParse = allowedMentions == null
@@ -46,17 +50,12 @@ class AllowedMentionsData implements SerializableData {
                 : Helpers.copyEnumSet(Message.MentionType.class, allowedMentions);
     }
 
-    @Nonnull
-    public static EnumSet<Message.MentionType> getDefaultMentions() {
-        return defaultParse.clone();
+    public static boolean isDefaultMentionRepliedUser() {
+        return defaultMentionRepliedUser;
     }
 
     public static void setDefaultMentionRepliedUser(boolean mention) {
         defaultMentionRepliedUser = mention;
-    }
-
-    public static boolean isDefaultMentionRepliedUser() {
-        return defaultMentionRepliedUser;
     }
 
     public void clear() {
@@ -78,12 +77,6 @@ class AllowedMentionsData implements SerializableData {
 
     public void mentionRepliedUser(boolean mention) {
         mentionRepliedUser = mention;
-    }
-
-    public void setAllowedMentions(@Nullable Collection<Message.MentionType> allowedMentions) {
-        this.mentionParse = allowedMentions == null
-                ? EnumSet.allOf(Message.MentionType.class)
-                : Helpers.copyEnumSet(Message.MentionType.class, allowedMentions);
     }
 
     public void mention(@Nonnull Collection<? extends IMentionable> mentions) {
@@ -120,6 +113,12 @@ class AllowedMentionsData implements SerializableData {
     @Nonnull
     public EnumSet<Message.MentionType> getAllowedMentions() {
         return mentionParse.clone();
+    }
+
+    public void setAllowedMentions(@Nullable Collection<Message.MentionType> allowedMentions) {
+        this.mentionParse = allowedMentions == null
+                ? EnumSet.allOf(Message.MentionType.class)
+                : Helpers.copyEnumSet(Message.MentionType.class, allowedMentions);
     }
 
     public boolean isMentionRepliedUser() {

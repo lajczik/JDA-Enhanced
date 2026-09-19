@@ -47,24 +47,6 @@ public enum SKUFlag {
     }
 
     /**
-     * The raw value used by Discord for this flag.
-     *
-     * @return The raw value
-     */
-    public int getRaw() {
-        return raw;
-    }
-
-    /**
-     * The bit offset used to identify this flag.
-     *
-     * @return The bit offset
-     */
-    public int getOffset() {
-        return offset;
-    }
-
-    /**
      * Converts a bitmask representation of SKU flags into its {@link EnumSet}.
      *
      * @param  flags
@@ -85,5 +67,23 @@ public enum SKUFlag {
             }
         }
         return flagSet;
+    }
+
+    /**
+     * The raw value used by Discord for this flag.
+     *
+     * @return The raw value
+     */
+    public int getRaw() {
+        return raw;
+    }
+
+    /**
+     * The bit offset used to identify this flag.
+     *
+     * @return The bit offset
+     */
+    public int getOffset() {
+        return offset;
     }
 }

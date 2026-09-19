@@ -40,25 +40,15 @@ public class ForumTagImpl extends ForumTagSnowflakeImpl implements ForumTag {
         return position;
     }
 
+    public ForumTagImpl setPosition(int position) {
+        this.position = position;
+        return this;
+    }
+
     @Nonnull
     @Override
     public String getName() {
         return name;
-    }
-
-    @Override
-    public boolean isModerated() {
-        return moderated;
-    }
-
-    @Override
-    public EmojiUnion getEmoji() {
-        return (EmojiUnion) emoji;
-    }
-
-    public ForumTagImpl setModerated(boolean moderated) {
-        this.moderated = moderated;
-        return this;
     }
 
     public ForumTagImpl setName(String name) {
@@ -66,9 +56,19 @@ public class ForumTagImpl extends ForumTagSnowflakeImpl implements ForumTag {
         return this;
     }
 
-    public ForumTagImpl setPosition(int position) {
-        this.position = position;
+    @Override
+    public boolean isModerated() {
+        return moderated;
+    }
+
+    public ForumTagImpl setModerated(boolean moderated) {
+        this.moderated = moderated;
         return this;
+    }
+
+    @Override
+    public EmojiUnion getEmoji() {
+        return (EmojiUnion) emoji;
     }
 
     public ForumTagImpl setEmoji(DataObject json) {

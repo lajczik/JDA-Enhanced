@@ -267,19 +267,19 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * <p><b>Examples</b>
      *
      * <p>Set list to 2 commands:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * guild.updateCommands()
      *   .addCommands(Commands.slash("ping", "Gives the current ping"))
      *   .addCommands(Commands.slash("ban", "Ban the target user")
      *     .addOption(OptionType.USER, "user", "The user to ban", true))
      *     .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.BAN_MEMBERS))
      *   .queue();
-     * }
+     *}
      *
      * <p>Delete all commands:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * guild.updateCommands().queue();
-     * }
+     *}
      *
      * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
@@ -662,7 +662,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * Re-apply the {@link MemberCachePolicy} of this session to all {@link Member Members} of this Guild.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Check if the members of this guild have at least 50% bots (bot collection/farm)
      * public void checkBots(Guild guild) {
      *     // Keep in mind: This requires the GUILD_MEMBERS intent which is disabled in createDefault and createLight by default
@@ -680,7 +680,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      *          })
      *          .thenRun(guild::pruneMemberCache); // Then prune the cache
      * }
-     * }
+     *}
      *
      * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
@@ -3108,7 +3108,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * <br>This iterates from the most recent action to the first logged one. (Limit 90 days into history by discord api)
      *
      * <p><b>Examples</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public void logBan(GuildBanEvent event) {
      *     Guild guild = event.getGuild();
      *     List<TextChannel> modLog = guild.getTextChannelsByName("mod-log", true);
@@ -3125,7 +3125,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      *             );
      *          });
      * }
-     * }
+     *}
      *
      * @throws InsufficientPermissionException
      *         If the currently logged in account
@@ -3182,11 +3182,11 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * <p>If the self member has {@link Permission#VOICE_MUTE_OTHERS} this will immediately promote them to speaker.
      *
      * <p>Example:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * stageChannel.createStageInstance("Talent Show").queue()
      * guild.requestToSpeak(); // Set request to speak flag
      * guild.getAudioManager().openAudioConnection(stageChannel); // join the channel
-     * }
+     *}
      *
      * @throws DetachedEntityException
      *         If this entity is {@link #isDetached() detached}
@@ -4662,17 +4662,17 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      *
      * <p><b>Examples</b><br>
      * Banning a user without deleting any messages:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * guild.ban(user, 0, TimeUnit.SECONDS)
      *      .reason("Banned for rude behavior")
      *      .queue();
-     * }
+     *}
      * Banning a user and deleting messages from the past hour:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * guild.ban(user, 1, TimeUnit.HOURS)
      *      .reason("Banned for spamming")
      *      .queue();
-     * }
+     *}
      *
      * <p>Possible {@link ErrorResponse ErrorResponses} caused by
      * the returned {@link RestAction RestAction} include the following:
@@ -5185,7 +5185,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * <br>If a role is both in {@code rolesToAdd} and {@code rolesToRemove} it will be removed.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public static void promote(Member member) {
      *     Guild guild = member.getGuild();
      *     List<Role> pleb = guild.getRolesByName("Pleb", true); // remove all roles named "pleb"
@@ -5193,7 +5193,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      *     // update roles in single request
      *     guild.modifyMemberRoles(member, knight, pleb).queue();
      * }
-     * }
+     *}
      *
      * <p><b>Warning</b><br>
      * <b>This may <u>not</u> be used together with any other role add/remove/modify methods for the same Member
@@ -5202,12 +5202,12 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * by a {@link GenericGuildMemberEvent} targeting the same Member.</b>
      *
      * <p>This is logically equivalent to:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * Set<Role> roles = new HashSet<>(member.getRoles());
      * roles.addAll(rolesToAdd);
      * roles.removeAll(rolesToRemove);
      * RestAction<Void> action = guild.modifyMemberRoles(member, roles);
-     * }
+     *}
      *
      * <p>You can use {@link #addRoleToMember(UserSnowflake, Role)} and {@link #removeRoleFromMember(UserSnowflake, Role)} to make updates
      * independent of the cache.
@@ -5274,13 +5274,13 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * </ul>
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public static void removeRoles(Member member) {
      *     Guild guild = member.getGuild();
      *     // pass no role, this means we set the roles of the member to an empty array.
      *     guild.modifyMemberRoles(member).queue();
      * }
-     * }
+     *}
      *
      * @param  member
      *         A {@link Member Member} of which to override the Roles of
@@ -5335,7 +5335,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * </ul>
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public static void makeModerator(Member member) {
      *     Guild guild = member.getGuild();
      *     List<Role> roles = new ArrayList<>(member.getRoles()); // modifiable copy
@@ -5344,7 +5344,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      *     // update the member with new roles
      *     guild.modifyMemberRoles(member, roles).queue();
      * }
-     * }
+     *}
      *
      * @param  member
      *         A {@link Member Member} of which to override the Roles of
@@ -6166,11 +6166,11 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * {@link Permission#CREATE_SCHEDULED_EVENTS} is required on the guild level in order to create this type of event.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * guild.createScheduledEvent("Cactus Beauty Contest", "Mike's Backyard", OffsetDateTime.now().plusHours(1), OffsetDateTime.now().plusHours(3))
      *     .setDescription("Come and have your cacti judged! _Must be spikey to enter_")
      *     .queue();
-     * }
+     *}
      *
      * @param  name
      *         the name for this scheduled event, 1-100 characters
@@ -6235,11 +6235,11 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * </ol>
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * guild.createScheduledEvent("Cactus Beauty Contest", guild.getGuildChannelById(channelId), OffsetDateTime.now().plusHours(1))
      *     .setDescription("Come and have your cacti judged! _Must be spikey to enter_")
      *     .queue();
-     * }
+     *}
      *
      * @param  name
      *         the name for this scheduled event, 1-100 characters
@@ -6284,7 +6284,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      * </ul>
      *
      * <h4>Example - Finding {@code cat.png} attachments sent by users:</h4>
-     * {@snippet lang=java:
+     * {@snippet lang = java:
      * guild.searchMessages()
      *      .attachmentFilenames("cat.png")
      *      .includeAuthorTypes(MessageSearchAction.AuthorType.USER)
@@ -6299,7 +6299,7 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      *          var messages = results.getMessages();
      *          // Handle messages
      *      });
-     * }
+     *}
      *
      * @throws InsufficientPermissionException
      *         If the {@linkplain #getSelfMember() current member} does not have the {@link Permission#MESSAGE_HISTORY MESSAGE_HISTORY} permission
@@ -6557,15 +6557,6 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
         }
 
         /**
-         * The amount of seconds represented by this {@link Timeout}.
-         *
-         * @return An positive non-negative int representing the timeout amount in seconds.
-         */
-        public int getSeconds() {
-            return seconds;
-        }
-
-        /**
          * Retrieves the {@link Guild.Timeout Timeout} based on the amount of seconds requested.
          * <br>If the {@code seconds} amount provided is not valid for Discord, an IllegalArgumentException will be thrown.
          *
@@ -6585,6 +6576,15 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
                 }
             }
             throw new IllegalArgumentException("Provided key was not recognized. Seconds: " + seconds);
+        }
+
+        /**
+         * The amount of seconds represented by this {@link Timeout}.
+         *
+         * @return An positive non-negative int representing the timeout amount in seconds.
+         */
+        public int getSeconds() {
+            return seconds;
         }
     }
 
@@ -6613,15 +6613,6 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
         }
 
         /**
-         * The Discord id key for this Verification Level.
-         *
-         * @return Integer id key for this VerificationLevel.
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * Used to retrieve a {@link Guild.VerificationLevel VerificationLevel} based
          * on the Discord id key.
          *
@@ -6638,6 +6629,15 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The Discord id key for this Verification Level.
+         *
+         * @return Integer id key for this VerificationLevel.
+         */
+        public int getKey() {
+            return key;
         }
     }
 
@@ -6660,15 +6660,6 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
         }
 
         /**
-         * The Discord id key used to represent this NotificationLevel.
-         *
-         * @return Integer id for this NotificationLevel.
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * Used to retrieve a {@link Guild.NotificationLevel NotificationLevel} based
          * on the Discord id key.
          *
@@ -6685,6 +6676,15 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The Discord id key used to represent this NotificationLevel.
+         *
+         * @return Integer id for this NotificationLevel.
+         */
+        public int getKey() {
+            return key;
         }
     }
 
@@ -6707,15 +6707,6 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
         }
 
         /**
-         * The Discord id key used to represent this MFALevel.
-         *
-         * @return Integer id for this MFALevel.
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * Used to retrieve a {@link Guild.MFALevel MFALevel} based
          * on the Discord id key.
          *
@@ -6732,6 +6723,15 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The Discord id key used to represent this MFALevel.
+         *
+         * @return Integer id for this MFALevel.
+         */
+        public int getKey() {
+            return key;
         }
     }
 
@@ -6754,6 +6754,16 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
             this.description = description;
         }
 
+        @Nonnull
+        public static ExplicitContentLevel fromKey(int key) {
+            for (ExplicitContentLevel level : values()) {
+                if (level.key == key) {
+                    return level;
+                }
+            }
+            return UNKNOWN;
+        }
+
         /**
          * The key for this level
          *
@@ -6771,16 +6781,6 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
         @Nonnull
         public String getDescription() {
             return description;
-        }
-
-        @Nonnull
-        public static ExplicitContentLevel fromKey(int key) {
-            for (ExplicitContentLevel level : values()) {
-                if (level.key == key) {
-                    return level;
-                }
-            }
-            return UNKNOWN;
         }
     }
 
@@ -6816,15 +6816,6 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
         }
 
         /**
-         * The Discord id key used to represent this NSFW level.
-         *
-         * @return Integer id for this NSFW level.
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * Used to retrieve a {@link Guild.NSFWLevel NSFWLevel} based
          * on the Discord id key.
          *
@@ -6841,6 +6832,15 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The Discord id key used to represent this NSFW level.
+         *
+         * @return Integer id for this NSFW level.
+         */
+        public int getKey() {
+            return key;
         }
     }
 
@@ -6882,6 +6882,22 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
             this.key = key;
             this.maxBitrate = maxBitrate;
             this.maxEmojis = maxEmojis;
+        }
+
+        /**
+         * Resolves the provided API key to the boost tier.
+         *
+         * @param key The API key
+         * @return The BoostTier or {@link #UNKNOWN}
+         */
+        @Nonnull
+        public static BoostTier fromKey(int key) {
+            for (BoostTier tier : values()) {
+                if (tier.key == key) {
+                    return tier;
+                }
+            }
+            return UNKNOWN;
         }
 
         /**
@@ -6929,24 +6945,6 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
                 return 100 << 20;
             }
             return Message.MAX_FILE_SIZE;
-        }
-
-        /**
-         * Resolves the provided API key to the boost tier.
-         *
-         * @param  key
-         *         The API key
-         *
-         * @return The BoostTier or {@link #UNKNOWN}
-         */
-        @Nonnull
-        public static BoostTier fromKey(int key) {
-            for (BoostTier tier : values()) {
-                if (tier.key == key) {
-                    return tier;
-                }
-            }
-            return UNKNOWN;
         }
     }
 

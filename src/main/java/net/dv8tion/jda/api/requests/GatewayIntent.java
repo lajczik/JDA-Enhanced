@@ -239,25 +239,6 @@ public enum GatewayIntent {
     }
 
     /**
-     * The raw bitmask value for this intent
-     *
-     * @return The raw bitmask value
-     */
-    public int getRawValue() {
-        return rawValue;
-    }
-
-    /**
-     * The offset of the intent flag within a bitmask
-     * <br>This means {@code getRawValue() == 1 << getOffset()}
-     *
-     * @return The offset
-     */
-    public int getOffset() {
-        return offset;
-    }
-
-    /**
      * Converts a bitmask into an {@link EnumSet} of enum values.
      *
      * @param  raw
@@ -451,5 +432,24 @@ public enum GatewayIntent {
         EnumSet<GatewayIntent> intents = fromEvents(events);
         intents.addAll(fromCacheFlags(flags));
         return intents;
+    }
+
+    /**
+     * The raw bitmask value for this intent
+     *
+     * @return The raw bitmask value
+     */
+    public int getRawValue() {
+        return rawValue;
+    }
+
+    /**
+     * The offset of the intent flag within a bitmask
+     * <br>This means {@code getRawValue() == 1 << getOffset()}
+     *
+     * @return The offset
+     */
+    public int getOffset() {
+        return offset;
     }
 }

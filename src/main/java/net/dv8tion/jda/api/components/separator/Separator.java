@@ -144,17 +144,6 @@ public interface Separator extends Component, MessageTopLevelComponent, Containe
         }
 
         /**
-         * Raw int representing this spacing
-         *
-         * <p>This returns -1 if it's of type {@link #UNKNOWN}.
-         *
-         * @return Raw int representing this Spacing
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * Maps the provided spacing type id to the respective enum instance.
          *
          * @param  type
@@ -170,6 +159,17 @@ public interface Separator extends Component, MessageTopLevelComponent, Containe
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * Raw int representing this spacing
+         *
+         * <p>This returns -1 if it's of type {@link #UNKNOWN}.
+         *
+         * @return Raw int representing this Spacing
+         */
+        public int getKey() {
+            return key;
         }
     }
 }

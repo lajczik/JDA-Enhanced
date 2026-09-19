@@ -163,22 +163,6 @@ public interface Sticker extends StickerSnowflake {
         }
 
         /**
-         * The file extension used for the sticker asset.
-         *
-         * @throws java.lang.IllegalStateException
-         *         If the {@link StickerFormat StickerFormat} is {@link StickerFormat#UNKNOWN UNKNOWN}
-         *
-         * @return The file extension for this format
-         */
-        @Nonnull
-        public String getExtension() {
-            if (this == UNKNOWN) {
-                throw new IllegalStateException("Cannot get file extension for StickerFormat.UNKNOWN");
-            }
-            return extension;
-        }
-
-        /**
          * Resolves the specified format identifier to the StickerFormat enum constant.
          *
          * @param  id
@@ -194,6 +178,20 @@ public interface Sticker extends StickerSnowflake {
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The file extension used for the sticker asset.
+         *
+         * @return The file extension for this format
+         * @throws java.lang.IllegalStateException If the {@link StickerFormat StickerFormat} is {@link StickerFormat#UNKNOWN UNKNOWN}
+         */
+        @Nonnull
+        public String getExtension() {
+            if (this == UNKNOWN) {
+                throw new IllegalStateException("Cannot get file extension for StickerFormat.UNKNOWN");
+            }
+            return extension;
         }
     }
 

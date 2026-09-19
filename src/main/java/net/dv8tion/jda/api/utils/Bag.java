@@ -32,6 +32,17 @@ import javax.annotation.Nullable;
  */
 public interface Bag<E> extends Collection<E> {
     /**
+     * Creates an empty, immutable {@link Bag}.
+     *
+     * @param <E> The element type
+     * @return An empty bag
+     */
+    @Nonnull
+    static <E> Bag<E> emptyBag() {
+        return new HashBag<>();
+    }
+
+    /**
      * Returns the number of occurrences (cardinality) of the given object in this bag.
      *
      * @param  object
@@ -72,17 +83,4 @@ public interface Bag<E> extends Collection<E> {
      */
     @Nonnull
     Set<E> uniqueSet();
-
-    /**
-     * Creates an empty, immutable {@link Bag}.
-     *
-     * @param  <E>
-     *         The element type
-     *
-     * @return An empty bag
-     */
-    @Nonnull
-    static <E> Bag<E> emptyBag() {
-        return new HashBag<>();
-    }
 }

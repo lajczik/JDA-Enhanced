@@ -50,15 +50,6 @@ public enum ButtonStyle {
     }
 
     /**
-     * The raw style integer key
-     *
-     * @return The raw style key
-     */
-    public int getKey() {
-        return key;
-    }
-
-    /**
      * Returns the style associated with the provided key
      *
      * @param  key
@@ -74,5 +65,14 @@ public enum ButtonStyle {
             }
         }
         return UNKNOWN;
+    }
+
+    /**
+     * The raw style integer key
+     *
+     * @return The raw style key
+     */
+    public int getKey() {
+        return key;
     }
 }

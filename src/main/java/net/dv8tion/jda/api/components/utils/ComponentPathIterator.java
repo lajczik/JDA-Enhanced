@@ -68,6 +68,18 @@ public class ComponentPathIterator implements Iterator<ComponentPathIterator.Com
         return StreamSupport.stream(spliterator, false);
     }
 
+    private static Iterator<ComponentWithPath> singleAttributeIterator(
+            String parentPath, String attributePath, Component component) {
+        return Collections.singleton(makeComponentWithPath(parentPath, attributePath, component))
+                .iterator();
+    }
+
+    private static ComponentWithPath makeComponentWithPath(
+            String parentPath, String attributePath, Component component) {
+        String path = String.format("%s.%s<%s>", parentPath, attributePath, component.getType());
+        return new ComponentWithPath(component, path);
+    }
+
     @Override
     public boolean hasNext() {
         ensureNestedIteratorHasNext();
@@ -152,17 +164,5 @@ public class ComponentPathIterator implements Iterator<ComponentPathIterator.Com
 
             return makeComponentWithPath(this.parentPath, listIndexPath, component);
         }
-    }
-
-    private static Iterator<ComponentWithPath> singleAttributeIterator(
-            String parentPath, String attributePath, Component component) {
-        return Collections.singleton(makeComponentWithPath(parentPath, attributePath, component))
-                .iterator();
-    }
-
-    private static ComponentWithPath makeComponentWithPath(
-            String parentPath, String attributePath, Component component) {
-        String path = String.format("%s.%s<%s>", parentPath, attributePath, component.getType());
-        return new ComponentWithPath(component, path);
     }
 }

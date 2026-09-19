@@ -16,11 +16,7 @@
 
 package net.dv8tion.jda.internal.entities;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.longs.*;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.Permission;
@@ -125,6 +121,223 @@ public class EntityBuilder extends AbstractEntityBuilder {
         super(api);
     }
 
+    public static Activity createActivity(String name, String url, Activity.ActivityType type) {
+        return new ActivityImpl(name, url, type);
+    }
+
+    // Unlike Emoji.fromData this does not check for null or empty
+    public static EmojiUnion createEmoji(DataObject emoji) {
+        return createEmoji(emoji, "name", "id");
+    }
+
+    // Unlike Emoji.fromData this does not check for null or empty
+    public static EmojiUnion createEmoji(DataObject emoji, String nameKey, String idKey) {
+        long id = emoji.getUnsignedLong(idKey, 0L);
+        if (id == 0L) {
+            return new UnicodeEmojiImpl(emoji.getString(nameKey));
+        } else { // name can be empty in some cases where discord fails to properly load the
+            // emoji
+            return new CustomEmojiImpl(emoji.getString(nameKey, ""), id, emoji.getBoolean("animated"));
+        }
+    }
+
+    public static SKU createSKU(DataObject object) {
+        return new SKUImpl(
+                object.getLong("id"),
+                SKUType.fromId(object.getInt("type")),
+                object.getString("name"),
+                object.getString("slug"),
+                SKUFlag.getFlags(object.getInt("flags")));
+    }
+
+    public static Activity createActivity(DataObject gameJson) {
+        String name = String.valueOf(gameJson.get("name"));
+        String url = gameJson.isNull("url") ? null : String.valueOf(gameJson.get("url"));
+        Activity.ActivityType type;
+        try {
+            type = gameJson.isNull("type")
+                    ? Activity.ActivityType.PLAYING
+                    : Activity.ActivityType.fromKey(
+                            Integer.parseInt(gameJson.get("type").toString()));
+        } catch (NumberFormatException e) {
+            type = Activity.ActivityType.PLAYING;
+        }
+
+        Activity.Timestamps timestamps = null;
+        if (!gameJson.isNull("timestamps")) {
+            DataObject obj = gameJson.getObject("timestamps");
+            long start, end;
+            start = obj.getLong("start", 0L);
+            end = obj.getLong("end", 0L);
+            timestamps = new Activity.Timestamps(start, end);
+        }
+
+        EmojiUnion emoji = null;
+        if (!gameJson.isNull("emoji")) {
+            emoji = createEmoji(gameJson.getObject("emoji"));
+        }
+
+        if (type == Activity.ActivityType.CUSTOM_STATUS) {
+            if (gameJson.hasKey("state")) {
+                name = gameJson.getString("state", "");
+                gameJson = gameJson.remove("state");
+            }
+        }
+
+        String state = gameJson.isNull("state") ? null : String.valueOf(gameJson.get("state"));
+
+        if (Collections.disjoint(gameJson.keys(), richGameFields)) {
+            return new ActivityImpl(name, state, url, type, timestamps, emoji);
+        }
+
+        // data for spotify
+        long id = gameJson.getLong("application_id", 0L);
+        String sessionId = gameJson.getString("session_id", null);
+        String syncId = gameJson.getString("sync_id", null);
+        int flags = gameJson.getInt("flags", 0);
+        String details = gameJson.isNull("details") ? null : String.valueOf(gameJson.get("details"));
+
+        RichPresence.Party party = null;
+        if (!gameJson.isNull("party")) {
+            DataObject obj = gameJson.getObject("party");
+            String partyId = obj.isNull("id") ? null : obj.getString("id");
+            DataArray sizeArr = obj.isNull("size") ? null : obj.getArray("size");
+            long size = 0, max = 0;
+            if (sizeArr != null && !sizeArr.isEmpty()) {
+                size = sizeArr.getLong(0);
+                max = sizeArr.length() < 2 ? 0 : sizeArr.getLong(1);
+            }
+            party = new RichPresence.Party(partyId, size, max);
+        }
+
+        String smallImageKey = null, smallImageText = null;
+        String largeImageKey = null, largeImageText = null;
+        if (!gameJson.isNull("assets")) {
+            DataObject assets = gameJson.getObject("assets");
+            if (!assets.isNull("small_image")) {
+                smallImageKey = String.valueOf(assets.get("small_image"));
+                smallImageText = assets.isNull("small_text") ? null : String.valueOf(assets.get("small_text"));
+            }
+            if (!assets.isNull("large_image")) {
+                largeImageKey = String.valueOf(assets.get("large_image"));
+                largeImageText = assets.isNull("large_text") ? null : String.valueOf(assets.get("large_text"));
+            }
+        }
+
+        return new RichPresenceImpl(
+                type,
+                name,
+                url,
+                id,
+                emoji,
+                party,
+                details,
+                state,
+                timestamps,
+                syncId,
+                sessionId,
+                flags,
+                largeImageKey,
+                largeImageText,
+                smallImageKey,
+                smallImageText);
+    }
+
+    public static MessageActivity createMessageActivity(DataObject jsonObject) {
+        DataObject activityData = jsonObject.getObject("activity");
+        MessageActivity.ActivityType activityType = MessageActivity.ActivityType.fromId(activityData.getInt("type"));
+        String partyId = activityData.getString("party_id", null);
+        MessageActivity.Application application = null;
+
+        if (!jsonObject.isNull("application")) {
+            DataObject applicationData = jsonObject.getObject("application");
+
+            String name = applicationData.getString("name");
+            String description = applicationData.getString("description", "");
+            String iconId = applicationData.getString("icon", null);
+            String coverId = applicationData.getString("cover_image", null);
+            long applicationId = applicationData.getLong("id");
+
+            application = new MessageActivity.Application(name, description, iconId, coverId, applicationId);
+        }
+        if (activityType == MessageActivity.ActivityType.UNKNOWN) {
+            LOG.debug("Received an unknown ActivityType, Activity: {}", activityData);
+        }
+
+        return new MessageActivity(activityType, partyId, application);
+    }
+
+    public static MessagePollImpl createMessagePoll(DataObject data) {
+        MessagePoll.LayoutType layout = MessagePoll.LayoutType.fromKey(data.getInt("layout_type"));
+        OffsetDateTime expiresAt = data.isNull("expiry") ? null : data.getOffsetDateTime("expiry");
+        boolean isMultiAnswer = data.getBoolean("allow_multiselect");
+
+        DataArray answersData = data.getArray("answers");
+        DataObject questionData = data.getObject("question");
+
+        DataObject resultsData = data.optObject("results")
+                .orElseGet(
+                        () -> DataObject.empty().put("answer_counts", DataArray.empty()) // FIXME: Discord bug
+                        );
+        boolean isFinalized = resultsData.getBoolean("is_finalized");
+
+        DataArray resultVotes = resultsData.getArray("answer_counts");
+        Long2ObjectMap<DataObject> voteMapping = new Long2ObjectOpenHashMap<>();
+        resultVotes.stream(DataArray::getObject).forEach(votes -> voteMapping.put(votes.getLong("id"), votes));
+
+        MessagePoll.Question question = new MessagePoll.Question(
+                questionData.getString("text"),
+                questionData.optObject("emoji").map(Emoji::fromData).orElse(null));
+
+        List<MessagePoll.Answer> answers = answersData.stream(DataArray::getObject)
+                .map(answer -> {
+                    long answerId = answer.getLong("answer_id");
+                    DataObject media = answer.getObject("poll_media");
+                    DataObject votes = voteMapping.get(answerId);
+                    return new MessagePoll.Answer(
+                            answerId,
+                            media.getString("text"),
+                            media.optObject("emoji").map(Emoji::fromData).orElse(null),
+                            votes != null ? votes.getInt("count") : 0,
+                            votes != null && votes.getBoolean("me_voted"));
+                })
+                .toList();
+
+        return new MessagePollImpl(layout, question, answers, expiresAt, isMultiAnswer, isFinalized);
+    }
+
+    public static MessageEmbed createMessageEmbed(
+            String url,
+            String title,
+            String description,
+            EmbedType type,
+            OffsetDateTime timestamp,
+            int color,
+            Thumbnail thumbnail,
+            Provider siteProvider,
+            AuthorInfo author,
+            VideoInfo videoInfo,
+            Footer footer,
+            ImageInfo image,
+            List<Field> fields,
+            int flags) {
+        return new MessageEmbed(
+                url,
+                title,
+                description,
+                type,
+                timestamp,
+                color,
+                thumbnail,
+                siteProvider,
+                author,
+                videoInfo,
+                footer,
+                image,
+                fields,
+                flags);
+    }
+
     public SelfUser createSelfUser(DataObject self) {
         SelfUserImpl selfUser = (SelfUserImpl) (getJDA().hasSelfUser() ? getJDA().getSelfUser() : null);
         if (selfUser == null) {
@@ -155,26 +368,6 @@ public class EntityBuilder extends AbstractEntityBuilder {
         return selfUser;
     }
 
-    public static Activity createActivity(String name, String url, Activity.ActivityType type) {
-        return new ActivityImpl(name, url, type);
-    }
-
-    // Unlike Emoji.fromData this does not check for null or empty
-    public static EmojiUnion createEmoji(DataObject emoji) {
-        return createEmoji(emoji, "name", "id");
-    }
-
-    // Unlike Emoji.fromData this does not check for null or empty
-    public static EmojiUnion createEmoji(DataObject emoji, String nameKey, String idKey) {
-        long id = emoji.getUnsignedLong(idKey, 0L);
-        if (id == 0L) {
-            return new UnicodeEmojiImpl(emoji.getString(nameKey));
-        } else { // name can be empty in some cases where discord fails to properly load the
-            // emoji
-            return new CustomEmojiImpl(emoji.getString(nameKey, ""), id, emoji.getBoolean("animated"));
-        }
-    }
-
     public SoundboardSound createSoundboardSound(DataObject json) {
         String name = json.getString("name");
         long id = json.getLong("sound_id");
@@ -190,15 +383,6 @@ public class EntityBuilder extends AbstractEntityBuilder {
         User user = json.optObject("user").map(this::createUser).orElse(null);
 
         return new SoundboardSoundImpl(api, id, name, volume, emoji, guild, available, user);
-    }
-
-    public static SKU createSKU(DataObject object) {
-        return new SKUImpl(
-                object.getLong("id"),
-                SKUType.fromId(object.getInt("type")),
-                object.getString("name"),
-                object.getString("slug"),
-                SKUFlag.getFlags(object.getInt("flags")));
     }
 
     private void createGuildEmojiPass(GuildImpl guildObj, DataArray array) {
@@ -684,99 +868,6 @@ public class EntityBuilder extends AbstractEntityBuilder {
 
     public MemberImpl createMember(GuildImpl guild, DataObject memberJson) {
         return createMember(guild, memberJson, null, null);
-    }
-
-    public static Activity createActivity(DataObject gameJson) {
-        String name = String.valueOf(gameJson.get("name"));
-        String url = gameJson.isNull("url") ? null : String.valueOf(gameJson.get("url"));
-        Activity.ActivityType type;
-        try {
-            type = gameJson.isNull("type")
-                    ? Activity.ActivityType.PLAYING
-                    : Activity.ActivityType.fromKey(
-                            Integer.parseInt(gameJson.get("type").toString()));
-        } catch (NumberFormatException e) {
-            type = Activity.ActivityType.PLAYING;
-        }
-
-        Activity.Timestamps timestamps = null;
-        if (!gameJson.isNull("timestamps")) {
-            DataObject obj = gameJson.getObject("timestamps");
-            long start, end;
-            start = obj.getLong("start", 0L);
-            end = obj.getLong("end", 0L);
-            timestamps = new Activity.Timestamps(start, end);
-        }
-
-        EmojiUnion emoji = null;
-        if (!gameJson.isNull("emoji")) {
-            emoji = createEmoji(gameJson.getObject("emoji"));
-        }
-
-        if (type == Activity.ActivityType.CUSTOM_STATUS) {
-            if (gameJson.hasKey("state")) {
-                name = gameJson.getString("state", "");
-                gameJson = gameJson.remove("state");
-            }
-        }
-
-        String state = gameJson.isNull("state") ? null : String.valueOf(gameJson.get("state"));
-
-        if (Collections.disjoint(gameJson.keys(), richGameFields)) {
-            return new ActivityImpl(name, state, url, type, timestamps, emoji);
-        }
-
-        // data for spotify
-        long id = gameJson.getLong("application_id", 0L);
-        String sessionId = gameJson.getString("session_id", null);
-        String syncId = gameJson.getString("sync_id", null);
-        int flags = gameJson.getInt("flags", 0);
-        String details = gameJson.isNull("details") ? null : String.valueOf(gameJson.get("details"));
-
-        RichPresence.Party party = null;
-        if (!gameJson.isNull("party")) {
-            DataObject obj = gameJson.getObject("party");
-            String partyId = obj.isNull("id") ? null : obj.getString("id");
-            DataArray sizeArr = obj.isNull("size") ? null : obj.getArray("size");
-            long size = 0, max = 0;
-            if (sizeArr != null && !sizeArr.isEmpty()) {
-                size = sizeArr.getLong(0);
-                max = sizeArr.length() < 2 ? 0 : sizeArr.getLong(1);
-            }
-            party = new RichPresence.Party(partyId, size, max);
-        }
-
-        String smallImageKey = null, smallImageText = null;
-        String largeImageKey = null, largeImageText = null;
-        if (!gameJson.isNull("assets")) {
-            DataObject assets = gameJson.getObject("assets");
-            if (!assets.isNull("small_image")) {
-                smallImageKey = String.valueOf(assets.get("small_image"));
-                smallImageText = assets.isNull("small_text") ? null : String.valueOf(assets.get("small_text"));
-            }
-            if (!assets.isNull("large_image")) {
-                largeImageKey = String.valueOf(assets.get("large_image"));
-                largeImageText = assets.isNull("large_text") ? null : String.valueOf(assets.get("large_text"));
-            }
-        }
-
-        return new RichPresenceImpl(
-                type,
-                name,
-                url,
-                id,
-                emoji,
-                party,
-                details,
-                state,
-                timestamps,
-                syncId,
-                sessionId,
-                flags,
-                largeImageKey,
-                largeImageText,
-                smallImageKey,
-                smallImageText);
     }
 
     public GuildVoiceState createGuildVoiceState(MemberImpl member, DataObject voiceStateJson) {
@@ -1915,69 +2006,6 @@ public class EntityBuilder extends AbstractEntityBuilder {
                 position);
     }
 
-    public static MessageActivity createMessageActivity(DataObject jsonObject) {
-        DataObject activityData = jsonObject.getObject("activity");
-        MessageActivity.ActivityType activityType = MessageActivity.ActivityType.fromId(activityData.getInt("type"));
-        String partyId = activityData.getString("party_id", null);
-        MessageActivity.Application application = null;
-
-        if (!jsonObject.isNull("application")) {
-            DataObject applicationData = jsonObject.getObject("application");
-
-            String name = applicationData.getString("name");
-            String description = applicationData.getString("description", "");
-            String iconId = applicationData.getString("icon", null);
-            String coverId = applicationData.getString("cover_image", null);
-            long applicationId = applicationData.getLong("id");
-
-            application = new MessageActivity.Application(name, description, iconId, coverId, applicationId);
-        }
-        if (activityType == MessageActivity.ActivityType.UNKNOWN) {
-            LOG.debug("Received an unknown ActivityType, Activity: {}", activityData);
-        }
-
-        return new MessageActivity(activityType, partyId, application);
-    }
-
-    public static MessagePollImpl createMessagePoll(DataObject data) {
-        MessagePoll.LayoutType layout = MessagePoll.LayoutType.fromKey(data.getInt("layout_type"));
-        OffsetDateTime expiresAt = data.isNull("expiry") ? null : data.getOffsetDateTime("expiry");
-        boolean isMultiAnswer = data.getBoolean("allow_multiselect");
-
-        DataArray answersData = data.getArray("answers");
-        DataObject questionData = data.getObject("question");
-
-        DataObject resultsData = data.optObject("results")
-                .orElseGet(
-                        () -> DataObject.empty().put("answer_counts", DataArray.empty()) // FIXME: Discord bug
-                        );
-        boolean isFinalized = resultsData.getBoolean("is_finalized");
-
-        DataArray resultVotes = resultsData.getArray("answer_counts");
-        Long2ObjectMap<DataObject> voteMapping = new Long2ObjectOpenHashMap<>();
-        resultVotes.stream(DataArray::getObject).forEach(votes -> voteMapping.put(votes.getLong("id"), votes));
-
-        MessagePoll.Question question = new MessagePoll.Question(
-                questionData.getString("text"),
-                questionData.optObject("emoji").map(Emoji::fromData).orElse(null));
-
-        List<MessagePoll.Answer> answers = answersData.stream(DataArray::getObject)
-                .map(answer -> {
-                    long answerId = answer.getLong("answer_id");
-                    DataObject media = answer.getObject("poll_media");
-                    DataObject votes = voteMapping.get(answerId);
-                    return new MessagePoll.Answer(
-                            answerId,
-                            media.getString("text"),
-                            media.optObject("emoji").map(Emoji::fromData).orElse(null),
-                            votes != null ? votes.getInt("count") : 0,
-                            votes != null && votes.getBoolean("me_voted"));
-                })
-                .toList();
-
-        return new MessagePollImpl(layout, question, answers, expiresAt, isMultiAnswer, isFinalized);
-    }
-
     public MessageReaction createMessageReaction(MessageChannel chan, long channelId, long messageId, DataObject obj) {
         DataObject emoji = obj.getObject("emoji");
         int[] count = new int[] {
@@ -2137,38 +2165,6 @@ public class EntityBuilder extends AbstractEntityBuilder {
                 provider,
                 author,
                 video,
-                footer,
-                image,
-                fields,
-                flags);
-    }
-
-    public static MessageEmbed createMessageEmbed(
-            String url,
-            String title,
-            String description,
-            EmbedType type,
-            OffsetDateTime timestamp,
-            int color,
-            Thumbnail thumbnail,
-            Provider siteProvider,
-            AuthorInfo author,
-            VideoInfo videoInfo,
-            Footer footer,
-            ImageInfo image,
-            List<Field> fields,
-            int flags) {
-        return new MessageEmbed(
-                url,
-                title,
-                description,
-                type,
-                timestamp,
-                color,
-                thumbnail,
-                siteProvider,
-                author,
-                videoInfo,
                 footer,
                 image,
                 fields,

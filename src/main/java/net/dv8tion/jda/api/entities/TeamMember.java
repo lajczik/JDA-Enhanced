@@ -89,15 +89,6 @@ public interface TeamMember {
         }
 
         /**
-         * The key for this state that is used in the API.
-         *
-         * @return The key for this state
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * Resolves the provided key to the correct MembershipState.
          *
          * @param  key
@@ -113,6 +104,15 @@ public interface TeamMember {
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The key for this state that is used in the API.
+         *
+         * @return The key for this state
+         */
+        public int getKey() {
+            return key;
         }
     }
 
@@ -156,16 +156,6 @@ public interface TeamMember {
         }
 
         /**
-         * The key for this role that is used in the API.
-         *
-         * @return The key for this role
-         */
-        @Nonnull
-        public String getKey() {
-            return key;
-        }
-
-        /**
          * Resolves the provided key to the correct RoleType.
          *
          * <p><b>Note:</b> {@link #OWNER} will never be returned, check the team owner ID instead.
@@ -188,6 +178,16 @@ public interface TeamMember {
                 }
             }
             return UNKNOWN;
+        }
+
+        /**
+         * The key for this role that is used in the API.
+         *
+         * @return The key for this role
+         */
+        @Nonnull
+        public String getKey() {
+            return key;
         }
     }
 }

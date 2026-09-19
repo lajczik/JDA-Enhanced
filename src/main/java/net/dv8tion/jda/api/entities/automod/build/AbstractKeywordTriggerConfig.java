@@ -41,6 +41,11 @@ public abstract class AbstractKeywordTriggerConfig<B extends AbstractKeywordTrig
         super(triggerType);
     }
 
+    protected static void checkKeyword(String keyword) {
+        Checks.notEmpty(keyword, "Keyword");
+        Checks.notLonger(keyword, AutoModRule.MAX_KEYWORD_LENGTH, "Keyword");
+    }
+
     /**
      * Add keywords to the allow list.
      * <p>Keywords added to the allow list will not be considered as a match and won't trigger the rule execution.
@@ -137,11 +142,6 @@ public abstract class AbstractKeywordTriggerConfig<B extends AbstractKeywordTrig
     }
 
     protected abstract int maxAllowListAmount();
-
-    protected static void checkKeyword(String keyword) {
-        Checks.notEmpty(keyword, "Keyword");
-        Checks.notLonger(keyword, AutoModRule.MAX_KEYWORD_LENGTH, "Keyword");
-    }
 
     @Nonnull
     @Override

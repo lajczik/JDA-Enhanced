@@ -76,6 +76,31 @@ public enum JsonEngineType {
     }
 
     /**
+     * Resolves a {@link JsonEngineType} from a configuration key or name.
+     *
+     * @param name The engine name or key (case-insensitive)
+     * @return The corresponding {@link JsonEngineType}, or null if unknown
+     */
+    @Nullable
+    public static JsonEngineType fromKey(@Nullable String name) {
+        if (name == null) {
+            return null;
+        }
+        for (JsonEngineType type : values()) {
+            if (type.key.equalsIgnoreCase(name) || type.name().equalsIgnoreCase(name)) {
+                return type;
+            }
+        }
+        if (name.equalsIgnoreCase("jackson3.x")) {
+            return JACKSON3;
+        }
+        if (name.equalsIgnoreCase("jackson2.x")) {
+            return JACKSON2;
+        }
+        return null;
+    }
+
+    /**
      * The configuration key for this engine (e.g. used in system property {@code net.dv8tion.jda.json.engine}).
      *
      * @return The configuration key
@@ -153,32 +178,5 @@ public enum JsonEngineType {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to instantiate JSON engine for " + this, e);
         }
-    }
-
-    /**
-     * Resolves a {@link JsonEngineType} from a configuration key or name.
-     *
-     * @param  name
-     *         The engine name or key (case-insensitive)
-     *
-     * @return The corresponding {@link JsonEngineType}, or null if unknown
-     */
-    @Nullable
-    public static JsonEngineType fromKey(@Nullable String name) {
-        if (name == null) {
-            return null;
-        }
-        for (JsonEngineType type : values()) {
-            if (type.key.equalsIgnoreCase(name) || type.name().equalsIgnoreCase(name)) {
-                return type;
-            }
-        }
-        if (name.equalsIgnoreCase("jackson3.x")) {
-            return JACKSON3;
-        }
-        if (name.equalsIgnoreCase("jackson2.x")) {
-            return JACKSON2;
-        }
-        return null;
     }
 }

@@ -418,15 +418,6 @@ public interface ScheduledEvent extends ISnowflake, Comparable<ScheduledEvent> {
         }
 
         /**
-         * The Discord id key for this Status.
-         *
-         * @return The id key for this Status
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
          * Used to retrieve a Status based on a Discord id key.
          *
          * @param  key
@@ -443,6 +434,15 @@ public interface ScheduledEvent extends ISnowflake, Comparable<ScheduledEvent> {
             }
 
             return UNKNOWN;
+        }
+
+        /**
+         * The Discord id key for this Status.
+         *
+         * @return The id key for this Status
+         */
+        public int getKey() {
+            return key;
         }
     }
 
@@ -474,24 +474,6 @@ public interface ScheduledEvent extends ISnowflake, Comparable<ScheduledEvent> {
         }
 
         /**
-         * The Discord id key used to represent the scheduled event type.
-         *
-         * @return The id key used by discord for this scheduled event type.
-         */
-        public int getKey() {
-            return key;
-        }
-
-        /**
-         * Whether the event is scheduled to be held in a {@link GuildChannel}.
-         *
-         * @return True, if the event is scheduled to be held in a {@link GuildChannel}
-         */
-        public boolean isChannel() {
-            return this == STAGE_INSTANCE || this == VOICE;
-        }
-
-        /**
          * Used to retrieve a Type based on a Discord id key.
          *
          * @param  key
@@ -508,6 +490,24 @@ public interface ScheduledEvent extends ISnowflake, Comparable<ScheduledEvent> {
             }
 
             return UNKNOWN;
+        }
+
+        /**
+         * The Discord id key used to represent the scheduled event type.
+         *
+         * @return The id key used by discord for this scheduled event type.
+         */
+        public int getKey() {
+            return key;
+        }
+
+        /**
+         * Whether the event is scheduled to be held in a {@link GuildChannel}.
+         *
+         * @return True, if the event is scheduled to be held in a {@link GuildChannel}
+         */
+        public boolean isChannel() {
+            return this == STAGE_INSTANCE || this == VOICE;
         }
     }
 }

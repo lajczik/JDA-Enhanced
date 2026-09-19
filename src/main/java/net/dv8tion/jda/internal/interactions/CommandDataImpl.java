@@ -41,12 +41,11 @@ import javax.annotation.Nullable;
 
 public class CommandDataImpl implements SlashCommandData {
     protected final List<SerializableData> options = new ArrayList<>(MAX_OPTIONS);
-
-    protected String name, description = "";
-    private LocalizationMapper localizationMapper;
     private final LocalizationMap nameLocalizations = new LocalizationMap(this::checkName);
     private final LocalizationMap descriptionLocalizations = new LocalizationMap(this::checkDescription);
-
+    private final Command.Type type;
+    protected String name, description = "";
+    private LocalizationMapper localizationMapper;
     private boolean allowSubcommands = true;
     private boolean allowOption = true;
     private boolean allowRequired = true;
@@ -55,8 +54,6 @@ public class CommandDataImpl implements SlashCommandData {
     private EnumSet<IntegrationType> integrationTypes = EnumSet.of(IntegrationType.GUILD_INSTALL);
     private boolean nsfw = false;
     private DefaultMemberPermissions defaultMemberPermissions = DefaultMemberPermissions.ENABLED;
-
-    private final Command.Type type;
 
     public CommandDataImpl(@Nonnull String name, @Nonnull String description) {
         this.type = Command.Type.SLASH;
@@ -146,8 +143,24 @@ public class CommandDataImpl implements SlashCommandData {
 
     @Nonnull
     @Override
+    public CommandDataImpl setDefaultPermissions(@Nonnull DefaultMemberPermissions permissions) {
+        Checks.notNull(permissions, "Permissions");
+        this.defaultMemberPermissions = permissions;
+        return this;
+    }
+
+    @Nonnull
+    @Override
     public Set<InteractionContextType> getContexts() {
         return Collections.unmodifiableSet(contexts);
+    }
+
+    @Nonnull
+    @Override
+    public CommandDataImpl setContexts(@Nonnull Collection<InteractionContextType> contexts) {
+        Checks.notEmpty(contexts, "Contexts");
+        this.contexts = Helpers.copyEnumSet(InteractionContextType.class, contexts);
+        return this;
     }
 
     @Nonnull
@@ -156,9 +169,24 @@ public class CommandDataImpl implements SlashCommandData {
         return integrationTypes;
     }
 
+    @Nonnull
+    @Override
+    public CommandDataImpl setIntegrationTypes(@Nonnull Collection<IntegrationType> integrationTypes) {
+        Checks.notEmpty(contexts, "Contexts");
+        this.integrationTypes = Helpers.copyEnumSet(IntegrationType.class, integrationTypes);
+        return this;
+    }
+
     @Override
     public boolean isNSFW() {
         return nsfw;
+    }
+
+    @Nonnull
+    @Override
+    public CommandDataImpl setNSFW(boolean nsfw) {
+        this.nsfw = nsfw;
+        return this;
     }
 
     @Nonnull
@@ -186,37 +214,6 @@ public class CommandDataImpl implements SlashCommandData {
                 .filter(SubcommandGroupData.class::isInstance)
                 .map(SubcommandGroupData.class::cast)
                 .toList();
-    }
-
-    @Nonnull
-    @Override
-    public CommandDataImpl setDefaultPermissions(@Nonnull DefaultMemberPermissions permissions) {
-        Checks.notNull(permissions, "Permissions");
-        this.defaultMemberPermissions = permissions;
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public CommandDataImpl setContexts(@Nonnull Collection<InteractionContextType> contexts) {
-        Checks.notEmpty(contexts, "Contexts");
-        this.contexts = Helpers.copyEnumSet(InteractionContextType.class, contexts);
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public CommandDataImpl setIntegrationTypes(@Nonnull Collection<IntegrationType> integrationTypes) {
-        Checks.notEmpty(contexts, "Contexts");
-        this.integrationTypes = Helpers.copyEnumSet(IntegrationType.class, integrationTypes);
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public CommandDataImpl setNSFW(boolean nsfw) {
-        this.nsfw = nsfw;
-        return this;
     }
 
     @Nonnull
@@ -320,32 +317,9 @@ public class CommandDataImpl implements SlashCommandData {
 
     @Nonnull
     @Override
-    public CommandDataImpl setName(@Nonnull String name) {
-        checkName(name);
-        this.name = name;
-        return this;
-    }
-
-    @Nonnull
-    @Override
     public CommandDataImpl setNameLocalization(@Nonnull DiscordLocale locale, @Nonnull String name) {
         // Checks are done in LocalizationMap
         nameLocalizations.setTranslation(locale, name);
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public CommandDataImpl setNameLocalizations(@Nonnull Map<DiscordLocale, String> map) {
-        nameLocalizations.setTranslations(map);
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public CommandDataImpl setDescription(@Nonnull String description) {
-        checkDescription(description);
-        this.description = description;
         return this;
     }
 
@@ -359,15 +333,16 @@ public class CommandDataImpl implements SlashCommandData {
 
     @Nonnull
     @Override
-    public CommandDataImpl setDescriptionLocalizations(@Nonnull Map<DiscordLocale, String> map) {
-        descriptionLocalizations.setTranslations(map);
-        return this;
+    public String getName() {
+        return name;
     }
 
     @Nonnull
     @Override
-    public String getName() {
-        return name;
+    public CommandDataImpl setName(@Nonnull String name) {
+        checkName(name);
+        this.name = name;
+        return this;
     }
 
     @Nonnull
@@ -378,14 +353,36 @@ public class CommandDataImpl implements SlashCommandData {
 
     @Nonnull
     @Override
+    public CommandDataImpl setNameLocalizations(@Nonnull Map<DiscordLocale, String> map) {
+        nameLocalizations.setTranslations(map);
+        return this;
+    }
+
+    @Nonnull
+    @Override
     public String getDescription() {
         return description;
     }
 
     @Nonnull
     @Override
+    public CommandDataImpl setDescription(@Nonnull String description) {
+        checkDescription(description);
+        this.description = description;
+        return this;
+    }
+
+    @Nonnull
+    @Override
     public LocalizationMap getDescriptionLocalizations() {
         return descriptionLocalizations;
+    }
+
+    @Nonnull
+    @Override
+    public CommandDataImpl setDescriptionLocalizations(@Nonnull Map<DiscordLocale, String> map) {
+        descriptionLocalizations.setTranslations(map);
+        return this;
     }
 
     @Override

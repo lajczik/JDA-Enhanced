@@ -43,12 +43,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class ComponentsUtilTest {
     private static final UnknownComponentImpl UNKNOWN_COMPONENT = new UnknownComponentImpl(DataObject.empty());
 
-    @MethodSource("testUnknownComponentCannotBeInsertedArguments")
-    @ParameterizedTest
-    void testUnknownComponentCannotBeInserted(ThrowableAssert.ThrowingCallable callable) {
-        Assertions.assertThatIllegalArgumentException().isThrownBy(callable);
-    }
-
     static Stream<Arguments> testUnknownComponentCannotBeInsertedArguments() {
         // Try everywhere ComponentsUtil is used
         return Stream.of(
@@ -64,6 +58,12 @@ public class ComponentsUtilTest {
 
     private static ThrowableAssert.ThrowingCallable run(ThrowableAssert.ThrowingCallable runnable) {
         return runnable;
+    }
+
+    @MethodSource("testUnknownComponentCannotBeInsertedArguments")
+    @ParameterizedTest
+    void testUnknownComponentCannotBeInserted(ThrowableAssert.ThrowingCallable callable) {
+        Assertions.assertThatIllegalArgumentException().isThrownBy(callable);
     }
 
     @Test

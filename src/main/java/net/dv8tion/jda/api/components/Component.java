@@ -147,6 +147,22 @@ public interface Component {
         }
 
         /**
+         * Maps the provided type id to the respective enum instance.
+         *
+         * @param type The raw type id
+         * @return The Type or {@link #UNKNOWN}
+         */
+        @Nonnull
+        public static Type fromKey(int type) {
+            for (Type t : values()) {
+                if (t.key == type) {
+                    return t;
+                }
+            }
+            return UNKNOWN;
+        }
+
+        /**
          * Raw int representing this ComponentType
          *
          * <p>This returns -1 if it's of type {@link #UNKNOWN}.
@@ -182,24 +198,6 @@ public interface Component {
          */
         public boolean isEntitySelectMenu() {
             return this == MENTIONABLE_SELECT || this == CHANNEL_SELECT || this == USER_SELECT || this == ROLE_SELECT;
-        }
-
-        /**
-         * Maps the provided type id to the respective enum instance.
-         *
-         * @param  type
-         *         The raw type id
-         *
-         * @return The Type or {@link #UNKNOWN}
-         */
-        @Nonnull
-        public static Type fromKey(int type) {
-            for (Type t : values()) {
-                if (t.key == type) {
-                    return t;
-                }
-            }
-            return UNKNOWN;
         }
     }
 }

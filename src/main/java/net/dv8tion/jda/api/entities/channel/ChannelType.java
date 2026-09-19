@@ -98,6 +98,49 @@ public enum ChannelType {
     }
 
     /**
+     * All the channel types for a {@link net.dv8tion.jda.api.entities.Guild Guild}.
+     *
+     * @return {@link EnumSet} of {@link ChannelType}
+     */
+    @Nonnull
+    public static EnumSet<ChannelType> guildTypes() {
+        return EnumSet.complementOf(EnumSet.of(PRIVATE, GROUP, UNKNOWN));
+    }
+
+    /**
+     * Static accessor for retrieving a channel type based on its Discord id key.
+     *
+     * @param id The id key of the requested channel type.
+     * @return The ChannelType that is referred to by the provided key. If the id key is unknown, {@link #UNKNOWN} is returned.
+     */
+    @Nonnull
+    public static ChannelType fromId(int id) {
+        for (ChannelType type : values()) {
+            if (type.id == id) {
+                return type;
+            }
+        }
+        return UNKNOWN;
+    }
+
+    /**
+     * An {@link java.util.EnumSet} populated with all channel types using the provided sorting bucket.
+     *
+     * @param bucket The sorting bucket
+     * @return Possibly-empty {@link java.util.EnumSet} for the bucket
+     */
+    @Nonnull
+    public static EnumSet<ChannelType> fromSortBucket(int bucket) {
+        EnumSet<ChannelType> types = EnumSet.noneOf(ChannelType.class);
+        for (ChannelType type : values()) {
+            if (type.getSortBucket() == bucket) {
+                types.add(type);
+            }
+        }
+        return types;
+    }
+
+    /**
      * The interface this channel type corresponds to.
      *
      * @return This channel type's interface
@@ -183,52 +226,5 @@ public enum ChannelType {
             default:
                 return false;
         }
-    }
-
-    /**
-     * All the channel types for a {@link net.dv8tion.jda.api.entities.Guild Guild}.
-     *
-     * @return {@link EnumSet} of {@link ChannelType}
-     */
-    @Nonnull
-    public static EnumSet<ChannelType> guildTypes() {
-        return EnumSet.complementOf(EnumSet.of(PRIVATE, GROUP, UNKNOWN));
-    }
-
-    /**
-     * Static accessor for retrieving a channel type based on its Discord id key.
-     *
-     * @param  id
-     *         The id key of the requested channel type.
-     *
-     * @return The ChannelType that is referred to by the provided key. If the id key is unknown, {@link #UNKNOWN} is returned.
-     */
-    @Nonnull
-    public static ChannelType fromId(int id) {
-        for (ChannelType type : values()) {
-            if (type.id == id) {
-                return type;
-            }
-        }
-        return UNKNOWN;
-    }
-
-    /**
-     * An {@link java.util.EnumSet} populated with all channel types using the provided sorting bucket.
-     *
-     * @param  bucket
-     *         The sorting bucket
-     *
-     * @return Possibly-empty {@link java.util.EnumSet} for the bucket
-     */
-    @Nonnull
-    public static EnumSet<ChannelType> fromSortBucket(int bucket) {
-        EnumSet<ChannelType> types = EnumSet.noneOf(ChannelType.class);
-        for (ChannelType type : values()) {
-            if (type.getSortBucket() == bucket) {
-                types.add(type);
-            }
-        }
-        return types;
     }
 }

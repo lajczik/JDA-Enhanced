@@ -74,6 +74,12 @@ public class ForumTagData implements BaseForumTag {
         return data;
     }
 
+    @Nonnull
+    @Override
+    public String getName() {
+        return name;
+    }
+
     /**
      * Set the new tag name to use.
      *
@@ -93,6 +99,11 @@ public class ForumTagData implements BaseForumTag {
         return this;
     }
 
+    @Override
+    public boolean isModerated() {
+        return moderated;
+    }
+
     /**
      * Set whether the tag can only be applied by forum moderators.
      *
@@ -109,6 +120,12 @@ public class ForumTagData implements BaseForumTag {
         return this;
     }
 
+    @Nullable
+    @Override
+    public EmojiUnion getEmoji() {
+        return (EmojiUnion) emoji;
+    }
+
     /**
      * Set the emoji to use for this tag.
      * <br>This emoji is displayed as an icon attached to the tag.
@@ -122,23 +139,6 @@ public class ForumTagData implements BaseForumTag {
     public ForumTagData setEmoji(@Nullable Emoji emoji) {
         this.emoji = emoji;
         return this;
-    }
-
-    @Nonnull
-    @Override
-    public String getName() {
-        return name;
-    }
-
-    @Override
-    public boolean isModerated() {
-        return moderated;
-    }
-
-    @Nullable
-    @Override
-    public EmojiUnion getEmoji() {
-        return (EmojiUnion) emoji;
     }
 
     @Nonnull

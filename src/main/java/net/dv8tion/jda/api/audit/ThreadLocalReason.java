@@ -30,7 +30,7 @@ import javax.annotation.Nullable;
  * from the executing thread.
  *
  * <p><b>Example without closable</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * String previousReason = ThreadLocalReason.getCurrent();
  * ThreadLocalReason.setCurrent("Hello World");
  * try {
@@ -43,10 +43,10 @@ import javax.annotation.Nullable;
  * }
  * // This will not use the reason "Hello World" but the previous, or none if none was set previously
  * guild.kick(user).queue();
- * }
+ *}
  *
  * <p><b>Example with closable</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * try (var _ = ThreadLocalReason.closable("Hello World")) {
  *     guild.ban(user, 0, TimeUnit.DAYS).queue(_ -> {
  *         guild.unban(user).queue(); // also uses the reason "Hello World"
@@ -54,7 +54,7 @@ import javax.annotation.Nullable;
  * } // automatically changes reason back
  * //This will not use the reason "Hello World" but the previous, or none if none was set previously
  * guild.kick(user).queue();
- * }
+ *}
  *
  * @see net.dv8tion.jda.api.requests.restaction.AuditableRestAction#reason(String) AuditableRestAction.reason(String)
  * @see ThreadLocal
@@ -64,23 +64,6 @@ public final class ThreadLocalReason {
 
     private ThreadLocalReason() {
         throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Sets the current reason that should be used for {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}.
-     *
-     * @param reason
-     *        The reason to use, or {@code null} to reset
-     */
-    public static void setCurrent(@Nullable String reason) {
-        if (reason != null) {
-            if (currentReason == null) {
-                currentReason = new ThreadLocal<>();
-            }
-            currentReason.set(reason);
-        } else if (currentReason != null) {
-            currentReason.remove();
-        }
     }
 
     /**
@@ -103,6 +86,23 @@ public final class ThreadLocalReason {
     }
 
     /**
+     * Sets the current reason that should be used for {@link net.dv8tion.jda.api.requests.restaction.AuditableRestAction AuditableRestAction}.
+     *
+     * @param reason
+     *        The reason to use, or {@code null} to reset
+     */
+    public static void setCurrent(@Nullable String reason) {
+        if (reason != null) {
+            if (currentReason == null) {
+                currentReason = new ThreadLocal<>();
+            }
+            currentReason.set(reason);
+        } else if (currentReason != null) {
+            currentReason.remove();
+        }
+    }
+
+    /**
      * Creates a new {@link ThreadLocalReason.Closable} instance.
      * <br>Allows to use try-with-resources blocks for setting reasons
      *
@@ -120,14 +120,14 @@ public final class ThreadLocalReason {
      * Allows to use try-with-resources blocks for setting reasons
      *
      * <p>Example:
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * try (var _ = ThreadLocalReason.closable("Massban")) { // calls setCurrent("Massban")
      *     var mentionedMembers = event.getMessage().getMentions().getMembers();
      *     var guild = event.getGuild();
      *     // Ban all mentioned members and delete messages that are less than 7 days old
      *     guild.ban(mentionedMembers, Duration.ofDays(7)).queue();
      * } // calls resetCurrent()
-     * }
+     *}
      */
     public static class Closable implements AutoCloseable {
         private final String previous;

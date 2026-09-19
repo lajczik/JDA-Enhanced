@@ -36,7 +36,7 @@ import javax.annotation.Nonnull;
  * <br>Maximum - 100
  *
  * <p><b>Example</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * // Iterates messages in an async stream and stops once the limit has been reached.
  * public static void onEachMessageAsync(MessageChannel channel, Consumer<Message> consumer, int limit) {
  *     if (limit < 1) {
@@ -51,7 +51,7 @@ import javax.annotation.Nonnull;
  *         return counter.decrementAndGet() == 0;
  *     });
  * }
- * }
+ *}
  *
  * @see    MessageChannel#getIterableHistory()
  */

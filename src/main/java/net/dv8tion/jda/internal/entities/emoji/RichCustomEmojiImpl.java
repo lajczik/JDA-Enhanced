@@ -102,14 +102,29 @@ public class RichCustomEmojiImpl implements RichCustomEmoji, EmojiUnion {
         return name;
     }
 
+    public RichCustomEmojiImpl setName(String name) {
+        this.name = name;
+        return this;
+    }
+
     @Override
     public boolean isManaged() {
         return managed;
     }
 
+    public RichCustomEmojiImpl setManaged(boolean val) {
+        this.managed = val;
+        return this;
+    }
+
     @Override
     public boolean isAvailable() {
         return available;
+    }
+
+    public RichCustomEmojiImpl setAvailable(boolean available) {
+        this.available = available;
+        return this;
     }
 
     @Override
@@ -126,6 +141,11 @@ public class RichCustomEmojiImpl implements RichCustomEmoji, EmojiUnion {
     @Override
     public User getOwner() {
         return owner;
+    }
+
+    public RichCustomEmojiImpl setOwner(User user) {
+        this.owner = user;
+        return this;
     }
 
     @Nonnull
@@ -158,9 +178,16 @@ public class RichCustomEmojiImpl implements RichCustomEmoji, EmojiUnion {
         return new CustomEmojiManagerImpl(this);
     }
 
+    // -- Setters --
+
     @Override
     public boolean isAnimated() {
         return animated;
+    }
+
+    public RichCustomEmojiImpl setAnimated(boolean animated) {
+        this.animated = animated;
+        return this;
     }
 
     @Nonnull
@@ -200,33 +227,6 @@ public class RichCustomEmojiImpl implements RichCustomEmoji, EmojiUnion {
                     Permission.MANAGE_GUILD_EXPRESSIONS,
                     "Managing a custom emoji requires either MANAGE_GUILD_EXPRESSIONS or CREATE_GUILD_EXPRESSIONS permissions");
         }
-    }
-
-    // -- Setters --
-
-    public RichCustomEmojiImpl setName(String name) {
-        this.name = name;
-        return this;
-    }
-
-    public RichCustomEmojiImpl setAnimated(boolean animated) {
-        this.animated = animated;
-        return this;
-    }
-
-    public RichCustomEmojiImpl setManaged(boolean val) {
-        this.managed = val;
-        return this;
-    }
-
-    public RichCustomEmojiImpl setAvailable(boolean available) {
-        this.available = available;
-        return this;
-    }
-
-    public RichCustomEmojiImpl setOwner(User user) {
-        this.owner = user;
-        return this;
     }
 
     // -- Set Getter --

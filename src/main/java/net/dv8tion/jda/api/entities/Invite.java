@@ -339,6 +339,91 @@ public interface Invite {
     boolean isGuest();
 
     /**
+     * Enum representing the type of an invite.
+     *
+     * @see #getType()
+     */
+    enum InviteType {
+        GUILD,
+        GROUP,
+        UNKNOWN
+    }
+
+    /**
+     * A TargetType indicates additional action to be taken by the client on accepting the invite,
+     * typically connecting external services or launching external applications depending on the specific TargetType.
+     *
+     * <p>Some actions might not be available or show up on certain devices.
+     *
+     * @see InviteTarget#getType()
+     */
+    enum TargetType {
+        /**
+         * The invite does not have a target type, {@link Invite#getTarget()} will return {@code null}.
+         */
+        NONE(0),
+
+        /**
+         * The invite points to a user's stream in a voice channel.
+         * The user to whose stream the invite goes can be get with {@link InviteTarget#getUser() InviteTarget.getUser} and is not {@code null}.
+         *
+         * @see InviteTarget#getUser()
+         */
+        STREAM(1),
+
+        /**
+         * The invite points to an application in a voice channel.
+         * The application to which the invite goes can be get with {@link InviteTarget#getApplication() InviteTarget.getApplication} and is not {@code null}.
+         *
+         * @see InviteTarget#getApplication()
+         */
+        EMBEDDED_APPLICATION(2),
+
+        /**
+         * The invite points to a role subscription listing in a guild.
+         * <br>These cannot be created by bots.
+         */
+        ROLE_SUBSCRIPTIONS_PURCHASE(3),
+
+        /**
+         * Unknown Discord invite target type. Should never happen and would only possibly happen if Discord implemented a new
+         * target type and JDA had yet to implement support for it.
+         */
+        UNKNOWN(-1);
+
+        private final int id;
+
+        TargetType(int id) {
+            this.id = id;
+        }
+
+        /**
+         * Static accessor for retrieving a target type based on its Discord id key.
+         *
+         * @param id The id key of the requested target type.
+         * @return The TargetType that is referred to by the provided key. If the id key is unknown, {@link #UNKNOWN} is returned.
+         */
+        @Nonnull
+        public static TargetType fromId(int id) {
+            for (TargetType type : values()) {
+                if (type.id == id) {
+                    return type;
+                }
+            }
+            return UNKNOWN;
+        }
+
+        /**
+         * The Discord id key used to represent the target type.
+         *
+         * @return The id key used by discord for this channel type.
+         */
+        public int getId() {
+            return id;
+        }
+    }
+
+    /**
      * POJO for the channel information provided by an invite.
      *
      * @see #getChannel()
@@ -956,92 +1041,5 @@ public interface Invite {
          * @return {@code -1} if this application does not have a max participant count
          */
         int getMaxParticipants();
-    }
-
-    /**
-     * Enum representing the type of an invite.
-     *
-     * @see #getType()
-     */
-    enum InviteType {
-        GUILD,
-        GROUP,
-        UNKNOWN
-    }
-
-    /**
-     * A TargetType indicates additional action to be taken by the client on accepting the invite,
-     * typically connecting external services or launching external applications depending on the specific TargetType.
-     *
-     * <p>Some actions might not be available or show up on certain devices.
-     *
-     * @see InviteTarget#getType()
-     */
-    enum TargetType {
-        /**
-         * The invite does not have a target type, {@link Invite#getTarget()} will return {@code null}.
-         */
-        NONE(0),
-
-        /**
-         * The invite points to a user's stream in a voice channel.
-         * The user to whose stream the invite goes can be get with {@link InviteTarget#getUser() InviteTarget.getUser} and is not {@code null}.
-         *
-         * @see InviteTarget#getUser()
-         */
-        STREAM(1),
-
-        /**
-         * The invite points to an application in a voice channel.
-         * The application to which the invite goes can be get with {@link InviteTarget#getApplication() InviteTarget.getApplication} and is not {@code null}.
-         *
-         * @see InviteTarget#getApplication()
-         */
-        EMBEDDED_APPLICATION(2),
-
-        /**
-         * The invite points to a role subscription listing in a guild.
-         * <br>These cannot be created by bots.
-         */
-        ROLE_SUBSCRIPTIONS_PURCHASE(3),
-
-        /**
-         * Unknown Discord invite target type. Should never happen and would only possibly happen if Discord implemented a new
-         * target type and JDA had yet to implement support for it.
-         */
-        UNKNOWN(-1);
-
-        private final int id;
-
-        TargetType(int id) {
-            this.id = id;
-        }
-
-        /**
-         * The Discord id key used to represent the target type.
-         *
-         * @return The id key used by discord for this channel type.
-         */
-        public int getId() {
-            return id;
-        }
-
-        /**
-         * Static accessor for retrieving a target type based on its Discord id key.
-         *
-         * @param  id
-         *         The id key of the requested target type.
-         *
-         * @return The TargetType that is referred to by the provided key. If the id key is unknown, {@link #UNKNOWN} is returned.
-         */
-        @Nonnull
-        public static TargetType fromId(int id) {
-            for (TargetType type : values()) {
-                if (type.id == id) {
-                    return type;
-                }
-            }
-            return UNKNOWN;
-        }
     }
 }

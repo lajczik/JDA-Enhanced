@@ -66,6 +66,12 @@ public class DetachedVoiceChannelImpl extends AbstractStandardGuildChannelImpl<D
         return bitrate;
     }
 
+    @Override
+    public DetachedVoiceChannelImpl setBitrate(int bitrate) {
+        this.bitrate = bitrate;
+        return this;
+    }
+
     @Nullable
     @Override
     public String getRegionRaw() {
@@ -78,8 +84,20 @@ public class DetachedVoiceChannelImpl extends AbstractStandardGuildChannelImpl<D
     }
 
     @Override
+    public DetachedVoiceChannelImpl setUserLimit(int userLimit) {
+        this.userLimit = userLimit;
+        return this;
+    }
+
+    @Override
     public boolean isNSFW() {
         return nsfw;
+    }
+
+    @Override
+    public DetachedVoiceChannelImpl setNSFW(boolean nsfw) {
+        this.nsfw = nsfw;
+        return this;
     }
 
     @Override
@@ -88,8 +106,20 @@ public class DetachedVoiceChannelImpl extends AbstractStandardGuildChannelImpl<D
     }
 
     @Override
+    public DetachedVoiceChannelImpl setSlowmode(int slowmode) {
+        this.slowmode = slowmode;
+        return this;
+    }
+
+    @Override
     public long getLatestMessageIdLong() {
         return latestMessageId;
+    }
+
+    @Override
+    public DetachedVoiceChannelImpl setLatestMessageIdLong(long latestMessageId) {
+        this.latestMessageId = latestMessageId;
+        return this;
     }
 
     @Nonnull
@@ -110,6 +140,12 @@ public class DetachedVoiceChannelImpl extends AbstractStandardGuildChannelImpl<D
         return status;
     }
 
+    @Override
+    public DetachedVoiceChannelImpl setStatus(String status) {
+        this.status = status;
+        return this;
+    }
+
     @Nonnull
     @Override
     public AuditableRestAction<Void> modifyStatus(@Nonnull String status) {
@@ -122,53 +158,17 @@ public class DetachedVoiceChannelImpl extends AbstractStandardGuildChannelImpl<D
         return interactionPermissions;
     }
 
+    @Nonnull
     @Override
-    public DetachedVoiceChannelImpl setBitrate(int bitrate) {
-        this.bitrate = bitrate;
+    public DetachedVoiceChannelImpl setInteractionPermissions(
+            @Nonnull ChannelInteractionPermissions interactionPermissions) {
+        this.interactionPermissions = interactionPermissions;
         return this;
     }
 
     @Override
     public DetachedVoiceChannelImpl setRegion(String region) {
         this.region = region;
-        return this;
-    }
-
-    @Override
-    public DetachedVoiceChannelImpl setUserLimit(int userLimit) {
-        this.userLimit = userLimit;
-        return this;
-    }
-
-    @Override
-    public DetachedVoiceChannelImpl setNSFW(boolean nsfw) {
-        this.nsfw = nsfw;
-        return this;
-    }
-
-    @Override
-    public DetachedVoiceChannelImpl setSlowmode(int slowmode) {
-        this.slowmode = slowmode;
-        return this;
-    }
-
-    @Override
-    public DetachedVoiceChannelImpl setLatestMessageIdLong(long latestMessageId) {
-        this.latestMessageId = latestMessageId;
-        return this;
-    }
-
-    @Override
-    public DetachedVoiceChannelImpl setStatus(String status) {
-        this.status = status;
-        return this;
-    }
-
-    @Nonnull
-    @Override
-    public DetachedVoiceChannelImpl setInteractionPermissions(
-            @Nonnull ChannelInteractionPermissions interactionPermissions) {
-        this.interactionPermissions = interactionPermissions;
         return this;
     }
 }

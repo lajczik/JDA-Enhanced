@@ -30,7 +30,10 @@ import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.EntityString;
 import net.dv8tion.jda.internal.utils.Helpers;
 
-import java.util.*;
+import java.util.EnumSet;
+import java.util.FormattableFlags;
+import java.util.Formatter;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -60,10 +63,20 @@ public class UserImpl extends UserSnowflakeImpl implements User {
         return name;
     }
 
+    public UserImpl setName(String name) {
+        this.name = name;
+        return this;
+    }
+
     @Nullable
     @Override
     public String getGlobalName() {
         return globalName;
+    }
+
+    public UserImpl setGlobalName(String globalName) {
+        this.globalName = globalName;
+        return this;
     }
 
     @Nonnull
@@ -72,10 +85,20 @@ public class UserImpl extends UserSnowflakeImpl implements User {
         return discriminator == 0 ? "0000" : Helpers.format("%04d", discriminator);
     }
 
+    public UserImpl setDiscriminator(short discriminator) {
+        this.discriminator = discriminator;
+        return this;
+    }
+
     @Nullable
     @Override
     public String getAvatarId() {
         return avatarId;
+    }
+
+    public UserImpl setAvatarId(String avatarId) {
+        this.avatarId = avatarId;
+        return this;
     }
 
     @Nonnull
@@ -96,6 +119,11 @@ public class UserImpl extends UserSnowflakeImpl implements User {
 
     public Profile getProfile() {
         return profile;
+    }
+
+    public UserImpl setProfile(Profile profile) {
+        this.profile = profile;
+        return this;
     }
 
     @Nonnull
@@ -138,6 +166,13 @@ public class UserImpl extends UserSnowflakeImpl implements User {
         return channel != null ? channel : new PrivateChannelImpl(getJDA(), privateChannelId, this);
     }
 
+    public UserImpl setPrivateChannel(PrivateChannel privateChannel) {
+        if (privateChannel != null) {
+            this.privateChannelId = privateChannel.getIdLong();
+        }
+        return this;
+    }
+
     @Nonnull
     @Override
     public List<Guild> getMutualGuilds() {
@@ -149,9 +184,21 @@ public class UserImpl extends UserSnowflakeImpl implements User {
         return bot;
     }
 
+    // -- Setters --
+
+    public UserImpl setBot(boolean bot) {
+        this.bot = bot;
+        return this;
+    }
+
     @Override
     public boolean isSystem() {
         return system;
+    }
+
+    public UserImpl setSystem(boolean system) {
+        this.system = system;
+        return this;
     }
 
     @Nonnull
@@ -166,6 +213,11 @@ public class UserImpl extends UserSnowflakeImpl implements User {
         return UserFlag.getFlags(flags);
     }
 
+    public UserImpl setFlags(int flags) {
+        this.flags = flags;
+        return this;
+    }
+
     @Override
     public int getFlagsRaw() {
         return flags;
@@ -177,63 +229,14 @@ public class UserImpl extends UserSnowflakeImpl implements User {
         return primaryGuild;
     }
 
-    @Override
-    public String toString() {
-        return new EntityString(this).setName(name).toString();
-    }
-
-    // -- Setters --
-
-    public UserImpl setName(String name) {
-        this.name = name;
-        return this;
-    }
-
-    public UserImpl setGlobalName(String globalName) {
-        this.globalName = globalName;
-        return this;
-    }
-
-    public UserImpl setDiscriminator(short discriminator) {
-        this.discriminator = discriminator;
-        return this;
-    }
-
-    public UserImpl setAvatarId(String avatarId) {
-        this.avatarId = avatarId;
-        return this;
-    }
-
-    public UserImpl setProfile(Profile profile) {
-        this.profile = profile;
-        return this;
-    }
-
-    public UserImpl setPrivateChannel(PrivateChannel privateChannel) {
-        if (privateChannel != null) {
-            this.privateChannelId = privateChannel.getIdLong();
-        }
-        return this;
-    }
-
-    public UserImpl setBot(boolean bot) {
-        this.bot = bot;
-        return this;
-    }
-
-    public UserImpl setSystem(boolean system) {
-        this.system = system;
-        return this;
-    }
-
-    public UserImpl setFlags(int flags) {
-        this.flags = flags;
-        return this;
-    }
-
     public UserImpl setPrimaryGuild(PrimaryGuild primaryGuild) {
         this.primaryGuild = primaryGuild;
         return this;
+    }
+
+    @Override
+    public String toString() {
+        return new EntityString(this).setName(name).toString();
     }
 
     public short getDiscriminatorInt() {

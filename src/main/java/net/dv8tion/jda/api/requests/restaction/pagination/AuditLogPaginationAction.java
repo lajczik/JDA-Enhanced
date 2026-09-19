@@ -39,7 +39,7 @@ import javax.annotation.Nullable;
  * <br>Maximum - 100
  *
  * <p><b>Example</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * public class Listener extends ListenerAdapter {
  *     @Override
  *     public void onRoleCreate(RoleCreateEvent event) {
@@ -58,7 +58,7 @@ import javax.annotation.Nullable;
  *         });
  *     }
  * }
- * }
+ *}
  *
  * @see    Guild#retrieveAuditLogs()
  */

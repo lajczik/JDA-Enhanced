@@ -62,6 +62,22 @@ public class JsonTest {
         0, 1, 109, 0, 0, 0, 3, 107, 101, 121, 109, 0, 0, 0, 3, 116, 101, 110, 106, 106
     };
 
+    private static <K, V> Map.Entry<K, V> entry(K key, V value) {
+        return new AbstractMap.SimpleEntry<>(key, value);
+    }
+
+    private static String kv(String key, Object value) {
+        return String.format(Locale.ROOT, "\"%s\": %s", key, value);
+    }
+
+    private static String kv(String key, String value) {
+        return String.format(Locale.ROOT, "\"%s\": \"%s\"", key, value);
+    }
+
+    private static String jsonOf(String... keyValueMapping) {
+        return Stream.<String>of(keyValueMapping).collect(Collectors.joining(",\n", "{", "}"));
+    }
+
     @Nested
     class DataObjectTest {
         @Test
@@ -298,21 +314,5 @@ public class JsonTest {
             assertThat(DataArray.fromETF(complexEtfArray).toPrettyString())
                     .isEqualToIgnoringWhitespace(array.toPrettyString());
         }
-    }
-
-    private static <K, V> Map.Entry<K, V> entry(K key, V value) {
-        return new AbstractMap.SimpleEntry<>(key, value);
-    }
-
-    private static String kv(String key, Object value) {
-        return String.format(Locale.ROOT, "\"%s\": %s", key, value);
-    }
-
-    private static String kv(String key, String value) {
-        return String.format(Locale.ROOT, "\"%s\": \"%s\"", key, value);
-    }
-
-    private static String jsonOf(String... keyValueMapping) {
-        return Stream.<String>of(keyValueMapping).collect(Collectors.joining(",\n", "{", "}"));
     }
 }

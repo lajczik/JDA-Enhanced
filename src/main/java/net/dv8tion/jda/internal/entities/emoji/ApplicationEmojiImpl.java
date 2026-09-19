@@ -69,6 +69,11 @@ public class ApplicationEmojiImpl implements ApplicationEmoji, EmojiUnion {
         return name;
     }
 
+    public ApplicationEmojiImpl setName(String name) {
+        this.name = name;
+        return this;
+    }
+
     @Override
     public long getIdLong() {
         return id;
@@ -97,24 +102,19 @@ public class ApplicationEmojiImpl implements ApplicationEmoji, EmojiUnion {
         return animated;
     }
 
+    // -- Setters --
+
+    public ApplicationEmojiImpl setAnimated(boolean animated) {
+        this.animated = animated;
+        return this;
+    }
+
     @Nonnull
     @Override
     public RestAction<Void> delete() {
         Route.CompiledRoute route = Route.Applications.DELETE_APPLICATION_EMOJI.compile(
                 getJDA().getSelfUser().getApplicationId(), getId());
         return new RestActionImpl<>(getJDA(), route);
-    }
-
-    // -- Setters --
-
-    public ApplicationEmojiImpl setName(String name) {
-        this.name = name;
-        return this;
-    }
-
-    public ApplicationEmojiImpl setAnimated(boolean animated) {
-        this.animated = animated;
-        return this;
     }
 
     // -- Object overrides --

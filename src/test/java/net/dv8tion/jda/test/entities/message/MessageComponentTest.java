@@ -57,25 +57,6 @@ public class MessageComponentTest {
     private static final Container EXAMPLE_CONTAINER = Container.of(EXAMPLE_TEXT_DISPLAY);
     private static final ActionRow EXAMPLE_ROW = ActionRow.of(Button.primary("id", "label"));
 
-    @MethodSource("buildInvalidMessageArguments")
-    @ParameterizedTest
-    void buildInvalidMessage(Function<AbstractMessageBuilder<?, ?>, AbstractMessageBuilder<?, ?>> builderFunction) {
-        // The builder function may return null when a test case is impossible using the provided
-        // builder type
-        // (e.g., voice messages are only on MessageCreateBuilder)
-        AbstractMessageBuilder<?, ?> createBuilder = builderFunction.apply(new MessageCreateBuilder());
-        if (createBuilder != null) {
-            assertThat(createBuilder.isValid()).isFalse();
-            assertThatIllegalStateException().isThrownBy(createBuilder::build);
-        }
-
-        AbstractMessageBuilder<?, ?> editBuilder = builderFunction.apply(new MessageEditBuilder());
-        if (editBuilder != null) {
-            assertThat(editBuilder.isValid()).isFalse();
-            assertThatIllegalStateException().isThrownBy(editBuilder::build);
-        }
-    }
-
     static Stream<Arguments> buildInvalidMessageArguments() {
         return Stream.of(
                 // Attempt to use V2 components in V1 mode
@@ -110,25 +91,6 @@ public class MessageComponentTest {
                 // Attempt to use >MAX_CONTENT_LENGTH_COMPONENT_V2
                 Arguments.of(
                         message(b -> b.useComponentsV2().setComponents(EXAMPLE_TEXT_DISPLAY, TextDisplay.of("1")))));
-    }
-
-    @MethodSource("buildValidMessageArguments")
-    @ParameterizedTest
-    void buildValidMessage(Function<AbstractMessageBuilder<?, ?>, AbstractMessageBuilder<?, ?>> builderFunction) {
-        // The builder function may return null when a test case is impossible using the provided
-        // builder type
-        // (e.g., voice messages are only on MessageCreateBuilder)
-        AbstractMessageBuilder<?, ?> createBuilder = builderFunction.apply(new MessageCreateBuilder());
-        if (createBuilder != null) {
-            assertThat(createBuilder.isValid()).isTrue();
-            assertThatNoException().isThrownBy(createBuilder::build);
-        }
-
-        AbstractMessageBuilder<?, ?> editBuilder = builderFunction.apply(new MessageEditBuilder());
-        if (editBuilder != null) {
-            assertThat(editBuilder.isValid()).isTrue();
-            assertThatNoException().isThrownBy(editBuilder::build);
-        }
     }
 
     static Stream<Arguments> buildValidMessageArguments() {
@@ -237,5 +199,43 @@ public class MessageComponentTest {
             }
             return null;
         };
+    }
+
+    @MethodSource("buildInvalidMessageArguments")
+    @ParameterizedTest
+    void buildInvalidMessage(Function<AbstractMessageBuilder<?, ?>, AbstractMessageBuilder<?, ?>> builderFunction) {
+        // The builder function may return null when a test case is impossible using the provided
+        // builder type
+        // (e.g., voice messages are only on MessageCreateBuilder)
+        AbstractMessageBuilder<?, ?> createBuilder = builderFunction.apply(new MessageCreateBuilder());
+        if (createBuilder != null) {
+            assertThat(createBuilder.isValid()).isFalse();
+            assertThatIllegalStateException().isThrownBy(createBuilder::build);
+        }
+
+        AbstractMessageBuilder<?, ?> editBuilder = builderFunction.apply(new MessageEditBuilder());
+        if (editBuilder != null) {
+            assertThat(editBuilder.isValid()).isFalse();
+            assertThatIllegalStateException().isThrownBy(editBuilder::build);
+        }
+    }
+
+    @MethodSource("buildValidMessageArguments")
+    @ParameterizedTest
+    void buildValidMessage(Function<AbstractMessageBuilder<?, ?>, AbstractMessageBuilder<?, ?>> builderFunction) {
+        // The builder function may return null when a test case is impossible using the provided
+        // builder type
+        // (e.g., voice messages are only on MessageCreateBuilder)
+        AbstractMessageBuilder<?, ?> createBuilder = builderFunction.apply(new MessageCreateBuilder());
+        if (createBuilder != null) {
+            assertThat(createBuilder.isValid()).isTrue();
+            assertThatNoException().isThrownBy(createBuilder::build);
+        }
+
+        AbstractMessageBuilder<?, ?> editBuilder = builderFunction.apply(new MessageEditBuilder());
+        if (editBuilder != null) {
+            assertThat(editBuilder.isValid()).isTrue();
+            assertThatNoException().isThrownBy(editBuilder::build);
+        }
     }
 }

@@ -60,13 +60,13 @@ public interface IPostContainerManager<T extends IPostContainer, M extends IPost
      * You can use {@link ForumTagData} to create new tags or update existing ones.
      *
      * <p><b>Example</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * List<BaseForumTag> tags = new ArrayList<>(channel.getAvailableTags());
      * tags.add(new ForumTagData("question").setModerated(true)); // add a new tag
      * tags.set(0, ForumTagData.from(tags.get(0)).setName("bug report")); // update an existing tag
      * // Update the tag list
      * channel.getManager().setAvailableTags(tags).queue();
-     * }
+     *}
      *
      * @param  tags
      *         The new available tags in the desired order.

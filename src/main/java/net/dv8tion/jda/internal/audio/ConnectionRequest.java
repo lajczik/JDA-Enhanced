@@ -39,16 +39,8 @@ public class ConnectionRequest {
         this.nextAttemptEpoch = System.currentTimeMillis();
     }
 
-    public void setStage(ConnectionStage stage) {
-        this.stage = stage;
-    }
-
     public void setChannel(AudioChannel channel) {
         this.channelId = channel.getIdLong();
-    }
-
-    public void setNextAttemptEpoch(long epochMillis) {
-        this.nextAttemptEpoch = epochMillis;
     }
 
     public AudioChannel getChannel(JDA api) {
@@ -63,8 +55,16 @@ public class ConnectionRequest {
         return stage;
     }
 
+    public void setStage(ConnectionStage stage) {
+        this.stage = stage;
+    }
+
     public long getNextAttemptEpoch() {
         return nextAttemptEpoch;
+    }
+
+    public void setNextAttemptEpoch(long epochMillis) {
+        this.nextAttemptEpoch = epochMillis;
     }
 
     public long getGuildIdLong() {

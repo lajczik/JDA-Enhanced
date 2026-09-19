@@ -37,15 +37,6 @@ public enum SpeakingMode {
     }
 
     /**
-     * The raw bitmask for this mode
-     *
-     * @return bitmask
-     */
-    public int getRaw() {
-        return raw;
-    }
-
-    /**
      * Parses the active modes represented by the provided bitmask
      *
      * @param  mask
@@ -105,6 +96,15 @@ public enum SpeakingMode {
         for (SpeakingMode mode : modes) {
             raw |= mode.getRaw();
         }
+        return raw;
+    }
+
+    /**
+     * The raw bitmask for this mode
+     *
+     * @return bitmask
+     */
+    public int getRaw() {
         return raw;
     }
 }

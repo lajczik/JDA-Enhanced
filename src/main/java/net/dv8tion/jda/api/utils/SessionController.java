@@ -44,7 +44,7 @@ import javax.annotation.Nonnull;
  * <p><b>Examples</b><br>
  *
  * <b>Using {@link net.dv8tion.jda.api.JDABuilder JDABuilder}</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * JDABuilder builder = JDABuilder.createDefault(BOT_TOKEN);
  * builder.setSessionController(new SessionControllerAdapter() {
  *     @Override
@@ -57,10 +57,10 @@ import javax.annotation.Nonnull;
  * for (int i = 0; i < 10; i++) {
  *     builder.useSharding(i, 10).build();
  * }
- * }
+ *}
  *
  * <p><b>Using {@link net.dv8tion.jda.api.sharding.ShardManager ShardManager}</b>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * DefaultShardManagerBuilder builder = DefaultShardManagerBuilder.createDefault(BOT_TOKEN);
  * builder.setSessionController(new SessionControllerAdapter() {
  *     @Override
@@ -70,7 +70,7 @@ import javax.annotation.Nonnull;
  * });
  * builder.addEventListeners(myListener);
  * builder.build();
- * }
+ *}
  */
 public interface SessionController {
     /**
@@ -156,6 +156,48 @@ public interface SessionController {
     ShardedGateway getShardedGateway(@Nonnull JDA api);
 
     /**
+     * Represents a WebSocketClient request to start a session.
+     * <br>Not implemented by library user.
+     *
+     * <p><b>Note: None of the provided session nodes can be resumed, the resume timeframe has already passed</b>
+     */
+    interface SessionConnectNode {
+        /**
+         * Whether this node is reconnecting. Can be used to setup a priority based system.
+         *
+         * @return True, if this session is reconnecting
+         */
+        boolean isReconnect();
+
+        /**
+         * The {@link net.dv8tion.jda.api.JDA JDA} instance for this request
+         *
+         * @return The JDA instance
+         */
+        @Nonnull
+        JDA getJDA();
+
+        /**
+         * The {@link net.dv8tion.jda.api.JDA.ShardInfo ShardInfo} for this request.
+         * <br>Can be used for a priority system.
+         *
+         * @return The ShardInfo
+         */
+        @Nonnull
+        JDA.ShardInfo getShardInfo();
+
+        /**
+         * When called, establishes the session.
+         * <br>This will return once the required payload to start the session has been delivered.
+         *
+         * @param isLast True, if this is the last node in a queue worker.
+         * When true this will not wait for the payload to be delivered.
+         * @throws InterruptedException If the calling thread is interrupted
+         */
+        void run(boolean isLast) throws InterruptedException;
+    }
+
+    /**
      * POJO containing the gateway endpoint and recommended shard total for a shard manager.
      */
     class ShardedGateway {
@@ -212,50 +254,5 @@ public interface SessionController {
         public int getConcurrency() {
             return concurrency;
         }
-    }
-
-    /**
-     * Represents a WebSocketClient request to start a session.
-     * <br>Not implemented by library user.
-     *
-     * <p><b>Note: None of the provided session nodes can be resumed, the resume timeframe has already passed</b>
-     */
-    interface SessionConnectNode {
-        /**
-         * Whether this node is reconnecting. Can be used to setup a priority based system.
-         *
-         * @return True, if this session is reconnecting
-         */
-        boolean isReconnect();
-
-        /**
-         * The {@link net.dv8tion.jda.api.JDA JDA} instance for this request
-         *
-         * @return The JDA instance
-         */
-        @Nonnull
-        JDA getJDA();
-
-        /**
-         * The {@link net.dv8tion.jda.api.JDA.ShardInfo ShardInfo} for this request.
-         * <br>Can be used for a priority system.
-         *
-         * @return The ShardInfo
-         */
-        @Nonnull
-        JDA.ShardInfo getShardInfo();
-
-        /**
-         * When called, establishes the session.
-         * <br>This will return once the required payload to start the session has been delivered.
-         *
-         * @param  isLast
-         *         True, if this is the last node in a queue worker.
-         *         When true this will not wait for the payload to be delivered.
-         *
-         * @throws InterruptedException
-         *         If the calling thread is interrupted
-         */
-        void run(boolean isLast) throws InterruptedException;
     }
 }

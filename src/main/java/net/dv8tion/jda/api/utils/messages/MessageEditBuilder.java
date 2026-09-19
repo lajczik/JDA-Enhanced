@@ -53,11 +53,9 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
     protected static final int ATTACHMENTS = 1 << 3;
     protected static final int MENTIONS = 1 << 4;
     protected static final int FLAGS = 1 << 5;
-
+    private final List<AttachedFile> attachments = new ArrayList<>(10);
     private boolean replace = false;
     private int configuredFields = 0;
-
-    private final List<AttachedFile> attachments = new ArrayList<>(10);
 
     public MessageEditBuilder() {}
 
@@ -164,6 +162,12 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
 
     @Nonnull
     @Override
+    public List<? extends AttachedFile> getAttachments() {
+        return Collections.unmodifiableList(attachments);
+    }
+
+    @Nonnull
+    @Override
     public MessageEditBuilder setAttachments(@Nullable Collection<? extends AttachedFile> attachments) {
         this.attachments.clear();
         configuredFields |= ATTACHMENTS;
@@ -173,10 +177,9 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
         return this;
     }
 
-    @Nonnull
     @Override
-    public List<? extends AttachedFile> getAttachments() {
-        return Collections.unmodifiableList(attachments);
+    public boolean isReplace() {
+        return replace;
     }
 
     @Nonnull
@@ -184,11 +187,6 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
     public MessageEditBuilder setReplace(boolean isReplace) {
         this.replace = isReplace;
         return this;
-    }
-
-    @Override
-    public boolean isReplace() {
-        return replace;
     }
 
     @Nonnull

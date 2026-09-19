@@ -38,6 +38,18 @@ public class SelfUserImpl extends UserImpl implements SelfUser {
         this.applicationId = id;
     }
 
+    public static SelfUserImpl copyOf(SelfUserImpl other, JDAImpl jda) {
+        SelfUserImpl selfUser = new SelfUserImpl(other.id, jda);
+        selfUser.setName(other.name)
+                .setGlobalName(other.globalName)
+                .setAvatarId(other.avatarId)
+                .setDiscriminator(other.getDiscriminatorInt())
+                .setBot(other.bot);
+        return selfUser.setVerified(other.verified)
+                .setMfaEnabled(other.mfaEnabled)
+                .setApplicationId(other.applicationId);
+    }
+
     @Override
     public boolean hasPrivateChannel() {
         return false;
@@ -64,9 +76,19 @@ public class SelfUserImpl extends UserImpl implements SelfUser {
         return verified;
     }
 
+    public SelfUserImpl setVerified(boolean verified) {
+        this.verified = verified;
+        return this;
+    }
+
     @Override
     public boolean isMfaEnabled() {
         return mfaEnabled;
+    }
+
+    public SelfUserImpl setMfaEnabled(boolean enabled) {
+        this.mfaEnabled = enabled;
+        return this;
     }
 
     @Override
@@ -80,30 +102,8 @@ public class SelfUserImpl extends UserImpl implements SelfUser {
         return new AccountManagerImpl(this);
     }
 
-    public SelfUserImpl setVerified(boolean verified) {
-        this.verified = verified;
-        return this;
-    }
-
-    public SelfUserImpl setMfaEnabled(boolean enabled) {
-        this.mfaEnabled = enabled;
-        return this;
-    }
-
     public SelfUserImpl setApplicationId(long id) {
         this.applicationId = id;
         return this;
-    }
-
-    public static SelfUserImpl copyOf(SelfUserImpl other, JDAImpl jda) {
-        SelfUserImpl selfUser = new SelfUserImpl(other.id, jda);
-        selfUser.setName(other.name)
-                .setGlobalName(other.globalName)
-                .setAvatarId(other.avatarId)
-                .setDiscriminator(other.getDiscriminatorInt())
-                .setBot(other.bot);
-        return selfUser.setVerified(other.verified)
-                .setMfaEnabled(other.mfaEnabled)
-                .setApplicationId(other.applicationId);
     }
 }

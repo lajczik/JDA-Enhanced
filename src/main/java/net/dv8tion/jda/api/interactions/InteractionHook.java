@@ -72,6 +72,25 @@ import javax.annotation.Nonnull;
  */
 public interface InteractionHook extends WebhookClient<Message> {
     /**
+     * Creates an instance of {@link InteractionHook} capable of executing webhook requests.
+     * <p>Messages created by this client may not have a fully accessible channel or guild available, and {@link #getInteraction()} throws.
+     * The messages might report a channel of type {@link net.dv8tion.jda.api.entities.channel.ChannelType#UNKNOWN UNKNOWN},
+     * in which case the channel is assumed to be inaccessible and limited to only webhook requests.
+     *
+     * @param jda The JDA instance, used to handle rate-limits
+     * @param token The interaction token for the webhook
+     * @return The {@link InteractionHook} instance
+     * @throws IllegalArgumentException If null is provided or the token is blank
+     */
+    @Nonnull
+    static InteractionHook from(@Nonnull JDA jda, @Nonnull String token) {
+        Checks.notNull(jda, "JDA");
+        Checks.notBlank(token, "Token");
+
+        return new InteractionHookImpl(jda, token);
+    }
+
+    /**
      * The interaction attached to this hook.
      *
      * @throws IllegalStateException
@@ -618,29 +637,5 @@ public interface InteractionHook extends WebhookClient<Message> {
     @CheckReturnValue
     default RestAction<Void> deleteOriginal() {
         return deleteMessageById("@original");
-    }
-
-    /**
-     * Creates an instance of {@link InteractionHook} capable of executing webhook requests.
-     * <p>Messages created by this client may not have a fully accessible channel or guild available, and {@link #getInteraction()} throws.
-     * The messages might report a channel of type {@link net.dv8tion.jda.api.entities.channel.ChannelType#UNKNOWN UNKNOWN},
-     * in which case the channel is assumed to be inaccessible and limited to only webhook requests.
-     *
-     * @param  jda
-     *         The JDA instance, used to handle rate-limits
-     * @param  token
-     *         The interaction token for the webhook
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the token is blank
-     *
-     * @return The {@link InteractionHook} instance
-     */
-    @Nonnull
-    static InteractionHook from(@Nonnull JDA jda, @Nonnull String token) {
-        Checks.notNull(jda, "JDA");
-        Checks.notBlank(token, "Token");
-
-        return new InteractionHookImpl(jda, token);
     }
 }

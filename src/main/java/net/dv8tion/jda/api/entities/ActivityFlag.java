@@ -40,24 +40,6 @@ public enum ActivityFlag {
     }
 
     /**
-     * The offset for this flag: {@code 1 << offset}
-     *
-     * @return The offset
-     */
-    public int getOffset() {
-        return offset;
-    }
-
-    /**
-     * The raw bitmask for this flag
-     *
-     * @return The raw bitmask
-     */
-    public int getRaw() {
-        return raw;
-    }
-
-    /**
      * Maps the ActivityFlags based on the provided bitmask.
      *
      * @param  raw
@@ -80,5 +62,23 @@ public enum ActivityFlag {
             }
         }
         return set;
+    }
+
+    /**
+     * The offset for this flag: {@code 1 << offset}
+     *
+     * @return The offset
+     */
+    public int getOffset() {
+        return offset;
+    }
+
+    /**
+     * The raw bitmask for this flag
+     *
+     * @return The raw bitmask
+     */
+    public int getRaw() {
+        return raw;
     }
 }

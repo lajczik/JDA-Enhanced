@@ -61,213 +61,6 @@ public class AutoModRuleImpl implements AutoModRule {
         this.guild = guild;
     }
 
-    @Override
-    public long getIdLong() {
-        return id;
-    }
-
-    @Nonnull
-    @Override
-    public Guild getGuild() {
-        Guild realGuild = guild.getJDA().getGuildById(guild.getIdLong());
-        if (realGuild != null) {
-            guild = realGuild;
-        }
-        return guild;
-    }
-
-    @Override
-    public long getCreatorIdLong() {
-        return ownerId;
-    }
-
-    @Nonnull
-    @Override
-    public String getName() {
-        return name;
-    }
-
-    @Nonnull
-    @Override
-    public AutoModEventType getEventType() {
-        return eventType;
-    }
-
-    @Nonnull
-    @Override
-    public AutoModTriggerType getTriggerType() {
-        return triggerType;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    @Nonnull
-    @Override
-    public List<Role> getExemptRoles() {
-        List<Role> roles = new ArrayList<>(exemptRoles.size());
-        for (int i = 0; i < exemptRoles.size(); i++) {
-            long roleId = exemptRoles.getLong(i);
-            Role role = guild.getRoleById(roleId);
-            if (role != null) {
-                roles.add(role);
-            }
-        }
-        return Collections.unmodifiableList(roles);
-    }
-
-    @Nonnull
-    @Override
-    public List<GuildChannel> getExemptChannels() {
-        List<GuildChannel> channels = new ArrayList<>(exemptChannels.size());
-        for (int i = 0; i < exemptChannels.size(); i++) {
-            long channelId = exemptChannels.getLong(i);
-            GuildChannel channel = guild.getGuildChannelById(channelId);
-            if (channel != null) {
-                channels.add(channel);
-            }
-        }
-        return Collections.unmodifiableList(channels);
-    }
-
-    @Nonnull
-    @Override
-    public List<AutoModResponse> getActions() {
-        return actions;
-    }
-
-    @Nonnull
-    @Override
-    public List<String> getFilteredKeywords() {
-        return filteredKeywords;
-    }
-
-    @Nonnull
-    @Override
-    public List<String> getFilteredRegex() {
-        return filteredRegex;
-    }
-
-    @Nonnull
-    @Override
-    public EnumSet<KeywordPreset> getFilteredPresets() {
-        return Helpers.copyEnumSet(KeywordPreset.class, filteredPresets);
-    }
-
-    @Nonnull
-    @Override
-    public List<String> getAllowlist() {
-        return allowlist;
-    }
-
-    @Override
-    public int getMentionLimit() {
-        return mentionLimit;
-    }
-
-    @Override
-    public boolean isMentionRaidProtectionEnabled() {
-        return isMentionRaidProtectionEnabled;
-    }
-
-    public AutoModRuleImpl setName(String name) {
-        this.name = name;
-        return this;
-    }
-
-    public AutoModRuleImpl setEnabled(boolean enabled) {
-        this.enabled = enabled;
-        return this;
-    }
-
-    public AutoModRuleImpl setOwnerId(long ownerId) {
-        this.ownerId = ownerId;
-        return this;
-    }
-
-    public AutoModRuleImpl setEventType(AutoModEventType eventType) {
-        this.eventType = eventType;
-        return this;
-    }
-
-    public AutoModRuleImpl setTriggerType(AutoModTriggerType triggerType) {
-        this.triggerType = triggerType;
-        return this;
-    }
-
-    public AutoModRuleImpl setExemptRoles(LongList exemptRoles) {
-        this.exemptRoles = exemptRoles;
-        return this;
-    }
-
-    public AutoModRuleImpl setExemptChannels(LongList exemptChannels) {
-        this.exemptChannels = exemptChannels;
-        return this;
-    }
-
-    public AutoModRuleImpl setActions(List<AutoModResponse> actions) {
-        this.actions = actions;
-        return this;
-    }
-
-    public AutoModRuleImpl setFilteredKeywords(List<String> filteredKeywords) {
-        this.filteredKeywords = filteredKeywords;
-        return this;
-    }
-
-    public AutoModRuleImpl setFilteredRegex(List<String> filteredRegex) {
-        this.filteredRegex = filteredRegex;
-        return this;
-    }
-
-    public AutoModRuleImpl setFilteredPresets(EnumSet<KeywordPreset> filteredPresets) {
-        this.filteredPresets = filteredPresets;
-        return this;
-    }
-
-    public AutoModRuleImpl setAllowlist(List<String> allowlist) {
-        this.allowlist = allowlist;
-        return this;
-    }
-
-    public AutoModRuleImpl setMentionLimit(int mentionLimit) {
-        this.mentionLimit = mentionLimit;
-        return this;
-    }
-
-    public AutoModRuleImpl setMentionRaidProtectionEnabled(boolean mentionRaidProtectionEnabled) {
-        isMentionRaidProtectionEnabled = mentionRaidProtectionEnabled;
-        return this;
-    }
-
-    @Override
-    public int hashCode() {
-        return Long.hashCode(id);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == this) {
-            return true;
-        }
-        if (!(obj instanceof AutoModRuleImpl)) {
-            return false;
-        }
-        AutoModRuleImpl oRule = (AutoModRuleImpl) obj;
-        return this.id == oRule.id;
-    }
-
-    @Override
-    public String toString() {
-        return new EntityString(this)
-                .setType(triggerType)
-                .setName(name)
-                .addMetadata("id", getId())
-                .toString();
-    }
-
     public static AutoModRuleImpl fromData(Guild guild, DataObject data) {
         long id = data.getUnsignedLong("id");
         AutoModRuleImpl rule = new AutoModRuleImpl(guild, id);
@@ -309,5 +102,212 @@ public class AutoModRuleImpl implements AutoModRule {
         });
 
         return rule;
+    }
+
+    @Override
+    public long getIdLong() {
+        return id;
+    }
+
+    @Nonnull
+    @Override
+    public Guild getGuild() {
+        Guild realGuild = guild.getJDA().getGuildById(guild.getIdLong());
+        if (realGuild != null) {
+            guild = realGuild;
+        }
+        return guild;
+    }
+
+    @Override
+    public long getCreatorIdLong() {
+        return ownerId;
+    }
+
+    @Nonnull
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    public AutoModRuleImpl setName(String name) {
+        this.name = name;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public AutoModEventType getEventType() {
+        return eventType;
+    }
+
+    public AutoModRuleImpl setEventType(AutoModEventType eventType) {
+        this.eventType = eventType;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public AutoModTriggerType getTriggerType() {
+        return triggerType;
+    }
+
+    public AutoModRuleImpl setTriggerType(AutoModTriggerType triggerType) {
+        this.triggerType = triggerType;
+        return this;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public AutoModRuleImpl setEnabled(boolean enabled) {
+        this.enabled = enabled;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public List<Role> getExemptRoles() {
+        List<Role> roles = new ArrayList<>(exemptRoles.size());
+        for (int i = 0; i < exemptRoles.size(); i++) {
+            long roleId = exemptRoles.getLong(i);
+            Role role = guild.getRoleById(roleId);
+            if (role != null) {
+                roles.add(role);
+            }
+        }
+        return Collections.unmodifiableList(roles);
+    }
+
+    public AutoModRuleImpl setExemptRoles(LongList exemptRoles) {
+        this.exemptRoles = exemptRoles;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public List<GuildChannel> getExemptChannels() {
+        List<GuildChannel> channels = new ArrayList<>(exemptChannels.size());
+        for (int i = 0; i < exemptChannels.size(); i++) {
+            long channelId = exemptChannels.getLong(i);
+            GuildChannel channel = guild.getGuildChannelById(channelId);
+            if (channel != null) {
+                channels.add(channel);
+            }
+        }
+        return Collections.unmodifiableList(channels);
+    }
+
+    public AutoModRuleImpl setExemptChannels(LongList exemptChannels) {
+        this.exemptChannels = exemptChannels;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public List<AutoModResponse> getActions() {
+        return actions;
+    }
+
+    public AutoModRuleImpl setActions(List<AutoModResponse> actions) {
+        this.actions = actions;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public List<String> getFilteredKeywords() {
+        return filteredKeywords;
+    }
+
+    public AutoModRuleImpl setFilteredKeywords(List<String> filteredKeywords) {
+        this.filteredKeywords = filteredKeywords;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public List<String> getFilteredRegex() {
+        return filteredRegex;
+    }
+
+    public AutoModRuleImpl setFilteredRegex(List<String> filteredRegex) {
+        this.filteredRegex = filteredRegex;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public EnumSet<KeywordPreset> getFilteredPresets() {
+        return Helpers.copyEnumSet(KeywordPreset.class, filteredPresets);
+    }
+
+    public AutoModRuleImpl setFilteredPresets(EnumSet<KeywordPreset> filteredPresets) {
+        this.filteredPresets = filteredPresets;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public List<String> getAllowlist() {
+        return allowlist;
+    }
+
+    public AutoModRuleImpl setAllowlist(List<String> allowlist) {
+        this.allowlist = allowlist;
+        return this;
+    }
+
+    @Override
+    public int getMentionLimit() {
+        return mentionLimit;
+    }
+
+    public AutoModRuleImpl setMentionLimit(int mentionLimit) {
+        this.mentionLimit = mentionLimit;
+        return this;
+    }
+
+    @Override
+    public boolean isMentionRaidProtectionEnabled() {
+        return isMentionRaidProtectionEnabled;
+    }
+
+    public AutoModRuleImpl setMentionRaidProtectionEnabled(boolean mentionRaidProtectionEnabled) {
+        isMentionRaidProtectionEnabled = mentionRaidProtectionEnabled;
+        return this;
+    }
+
+    public AutoModRuleImpl setOwnerId(long ownerId) {
+        this.ownerId = ownerId;
+        return this;
+    }
+
+    @Override
+    public int hashCode() {
+        return Long.hashCode(id);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (!(obj instanceof AutoModRuleImpl)) {
+            return false;
+        }
+        AutoModRuleImpl oRule = (AutoModRuleImpl) obj;
+        return this.id == oRule.id;
+    }
+
+    @Override
+    public String toString() {
+        return new EntityString(this)
+                .setType(triggerType)
+                .setName(name)
+                .addMetadata("id", getId())
+                .toString();
     }
 }

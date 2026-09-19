@@ -39,7 +39,7 @@ import javax.annotation.Nullable;
  * The id has to be provided by the user and can be used to identify the button in the {@link ButtonInteractionEvent ButtonInteractionEvent}.
  *
  * <p><b>Example Usage</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * public class HelloBot extends ListenerAdapter {
  *   public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
  *       if (event.getName().equals("hello")) {
@@ -67,7 +67,7 @@ import javax.annotation.Nullable;
  *       }
  *   }
  * }
- * }
+ *}
  *
  * To see what each button looks like here is an example cheatsheet:
  * <br>
@@ -90,234 +90,6 @@ public interface Button extends ActionComponent, ActionRowChildComponent, Sectio
      * The maximum length a button url can have
      */
     int URL_MAX_LENGTH = 512;
-
-    /**
-     * The visible text on the button,
-     * or an empty string if this is a {@link ButtonStyle#PREMIUM PREMIUM}-style button.
-     *
-     * @return The button label
-     */
-    @Nonnull
-    String getLabel();
-
-    /**
-     * The style of this button.
-     *
-     * @return {@link ButtonStyle}
-     */
-    @Nonnull
-    ButtonStyle getStyle();
-
-    /**
-     * The target URL for this button, if it is a {@link ButtonStyle#LINK LINK}-Style Button.
-     *
-     * @return The target URL or null
-     */
-    @Nullable
-    String getUrl();
-
-    /**
-     * The target SKU for this button, if it is a {@link ButtonStyle#PREMIUM PREMIUM}-style Button.
-     *
-     * @return The target SKU or {@code null}
-     */
-    @Nullable
-    SkuSnowflake getSku();
-
-    /**
-     * The emoji attached to this button.
-     * <br>This can be either {@link Emoji.Type#UNICODE unicode} or {@link Emoji.Type#CUSTOM custom}.
-     *
-     * <p>You can use {@link #withEmoji(Emoji)} to create a button with an Emoji.
-     *
-     * @return {@link Emoji} for this button
-     */
-    @Nullable
-    EmojiUnion getEmoji();
-
-    @Override
-    @Nonnull
-    @CheckReturnValue
-    default Button asDisabled() {
-        return (Button) ActionComponent.super.asDisabled();
-    }
-
-    @Override
-    @Nonnull
-    @CheckReturnValue
-    default Button asEnabled() {
-        return (Button) ActionComponent.super.asEnabled();
-    }
-
-    @Override
-    @Nonnull
-    @CheckReturnValue
-    default Button withDisabled(boolean disabled) {
-        return new ButtonImpl(
-                        getCustomId(), getUniqueId(), getLabel(), getStyle(), getUrl(), getSku(), disabled, getEmoji())
-                .checkValid();
-    }
-
-    /**
-     * Returns a copy of this button with the attached Emoji.
-     *
-     * @param  emoji
-     *         The emoji to use
-     *
-     * @throws IllegalArgumentException
-     *         If this is a {@link ButtonStyle#PREMIUM PREMIUM}-styled button
-     *
-     * @return New button with emoji
-     */
-    @Nonnull
-    @CheckReturnValue
-    default Button withEmoji(@Nullable Emoji emoji) {
-        return new ButtonImpl(
-                        getCustomId(), getUniqueId(), getLabel(), getStyle(), getUrl(), getSku(), isDisabled(), emoji)
-                .checkValid();
-    }
-
-    /**
-     * Returns a copy of this button with the provided label.
-     *
-     * @param  label
-     *         The label to use
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If this is a {@link ButtonStyle#PREMIUM PREMIUM}-styled button</li>
-     *             <li>If the provided {@code label} is null or empty.</li>
-     *             <li>If the character limit for {@code label}, defined by {@link #LABEL_MAX_LENGTH} as {@value #LABEL_MAX_LENGTH},
-     *             is exceeded.</li>
-     *         </ul>
-     *
-     * @return New button with the changed label
-     */
-    @Nonnull
-    @CheckReturnValue
-    default Button withLabel(@Nonnull String label) {
-        return new ButtonImpl(
-                        getCustomId(), getUniqueId(), label, getStyle(), getUrl(), getSku(), isDisabled(), getEmoji())
-                .checkValid();
-    }
-
-    /**
-     * Returns a copy of this button with the provided custom id.
-     *
-     * @param  customId
-     *         The custom id to use
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If this is a {@link ButtonStyle#LINK LINK}-styled or {@link ButtonStyle#PREMIUM PREMIUM}-styled button</li>
-     *             <li>If the provided {@code customId} is null or empty.</li>
-     *             <li>If the character limit for {@code customId}, defined by {@link #ID_MAX_LENGTH} as {@value #ID_MAX_LENGTH},
-     *             is exceeded.</li>
-     *         </ul>
-     *
-     * @return New button with the changed custom id
-     */
-    @Nonnull
-    @CheckReturnValue
-    default Button withCustomId(@Nonnull String customId) {
-        return new ButtonImpl(
-                        customId, getUniqueId(), getLabel(), getStyle(), getUrl(), getSku(), isDisabled(), getEmoji())
-                .checkValid();
-    }
-
-    @Nonnull
-    @Override
-    @CheckReturnValue
-    default Button withUniqueId(int uniqueId) {
-        // This is not done in checkValid()
-        // because the button gets constructed with an invalid unique ID on purpose
-        // (as Discord generates one if none was passed)
-        Checks.positive(uniqueId, "Unique ID");
-        return new ButtonImpl(
-                        getCustomId(), uniqueId, getLabel(), getStyle(), getUrl(), getSku(), isDisabled(), getEmoji())
-                .checkValid();
-    }
-
-    /**
-     * Returns a copy of this button with the provided url.
-     *
-     * @param  url
-     *         The url to use
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If this is not a {@link ButtonStyle#LINK LINK}-styled button</li>
-     *             <li>If the provided {@code url} is null or empty.</li>
-     *             <li>If the character limit for {@code url}, defined by {@link #URL_MAX_LENGTH} as {@value #URL_MAX_LENGTH},
-     *             is exceeded.</li>
-     *         </ul>
-     *
-     * @return New button with the changed url
-     */
-    @Nonnull
-    @CheckReturnValue
-    default Button withUrl(@Nonnull String url) {
-        return new ButtonImpl(
-                        getCustomId(), getUniqueId(), getLabel(), getStyle(), url, getSku(), isDisabled(), getEmoji())
-                .checkValid();
-    }
-
-    /**
-     * Returns a copy of this button with the provided SKU.
-     *
-     * @param  sku
-     *         The SKU to use
-     *
-     * @throws IllegalArgumentException
-     *         If the provided {@code sku} is null, or if the button is not a {@link ButtonStyle#PREMIUM PREMIUM} button
-     *
-     * @return New button with the changed url
-     */
-    @Nonnull
-    @CheckReturnValue
-    default Button withSku(@Nonnull SkuSnowflake sku) {
-        return new ButtonImpl(
-                        getCustomId(), getUniqueId(), getLabel(), getStyle(), getUrl(), sku, isDisabled(), getEmoji())
-                .checkValid();
-    }
-
-    /**
-     * Returns a copy of this button with the provided style.
-     *
-     * <p>You cannot use this convert link buttons.
-     *
-     * @param  style
-     *         The style to use
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If the provided {@code style} is null.</li>
-     *             <li>If the provided {@code style} tries to change whether this button is a {@link ButtonStyle#LINK LINK} or {@link ButtonStyle#PREMIUM PREMIUM} button.</li>
-     *         </ul>
-     *
-     * @return New button with the changed style
-     */
-    @Nonnull
-    @CheckReturnValue
-    default Button withStyle(@Nonnull ButtonStyle style) {
-        Checks.notNull(style, "Style");
-        Checks.check(style != ButtonStyle.UNKNOWN, "Cannot make button with unknown style!");
-        if (getStyle() == ButtonStyle.LINK && style != ButtonStyle.LINK) {
-            throw new IllegalArgumentException("You cannot change a link button to another style!");
-        }
-        if (getStyle() != ButtonStyle.LINK && style == ButtonStyle.LINK) {
-            throw new IllegalArgumentException("You cannot change a styled button to a link button!");
-        }
-        if (getStyle() == ButtonStyle.PREMIUM && style != ButtonStyle.PREMIUM) {
-            throw new IllegalArgumentException("You cannot change a premium button to another style!");
-        }
-        if (getStyle() != ButtonStyle.PREMIUM && style == ButtonStyle.PREMIUM) {
-            throw new IllegalArgumentException("You cannot change a styled button to a premium button!");
-        }
-        return new ButtonImpl(
-                        getCustomId(), getUniqueId(), getLabel(), style, getUrl(), getSku(), isDisabled(), getEmoji())
-                .checkValid();
-    }
 
     /**
      * Creates a button with {@link ButtonStyle#PRIMARY PRIMARY} Style.
@@ -722,5 +494,209 @@ public interface Button extends ActionComponent, ActionRowChildComponent, Sectio
             default:
                 return new ButtonImpl(idOrUrlOrSku, label, style, null, null, false, emoji).checkValid();
         }
+    }
+
+    /**
+     * The visible text on the button,
+     * or an empty string if this is a {@link ButtonStyle#PREMIUM PREMIUM}-style button.
+     *
+     * @return The button label
+     */
+    @Nonnull
+    String getLabel();
+
+    /**
+     * The style of this button.
+     *
+     * @return {@link ButtonStyle}
+     */
+    @Nonnull
+    ButtonStyle getStyle();
+
+    /**
+     * The target URL for this button, if it is a {@link ButtonStyle#LINK LINK}-Style Button.
+     *
+     * @return The target URL or null
+     */
+    @Nullable
+    String getUrl();
+
+    /**
+     * The target SKU for this button, if it is a {@link ButtonStyle#PREMIUM PREMIUM}-style Button.
+     *
+     * @return The target SKU or {@code null}
+     */
+    @Nullable
+    SkuSnowflake getSku();
+
+    /**
+     * The emoji attached to this button.
+     * <br>This can be either {@link Emoji.Type#UNICODE unicode} or {@link Emoji.Type#CUSTOM custom}.
+     *
+     * <p>You can use {@link #withEmoji(Emoji)} to create a button with an Emoji.
+     *
+     * @return {@link Emoji} for this button
+     */
+    @Nullable
+    EmojiUnion getEmoji();
+
+    @Override
+    @Nonnull
+    @CheckReturnValue
+    default Button asDisabled() {
+        return (Button) ActionComponent.super.asDisabled();
+    }
+
+    @Override
+    @Nonnull
+    @CheckReturnValue
+    default Button asEnabled() {
+        return (Button) ActionComponent.super.asEnabled();
+    }
+
+    @Override
+    @Nonnull
+    @CheckReturnValue
+    default Button withDisabled(boolean disabled) {
+        return new ButtonImpl(
+                        getCustomId(), getUniqueId(), getLabel(), getStyle(), getUrl(), getSku(), disabled, getEmoji())
+                .checkValid();
+    }
+
+    /**
+     * Returns a copy of this button with the attached Emoji.
+     *
+     * @param emoji The emoji to use
+     * @return New button with emoji
+     * @throws IllegalArgumentException If this is a {@link ButtonStyle#PREMIUM PREMIUM}-styled button
+     */
+    @Nonnull
+    @CheckReturnValue
+    default Button withEmoji(@Nullable Emoji emoji) {
+        return new ButtonImpl(
+                        getCustomId(), getUniqueId(), getLabel(), getStyle(), getUrl(), getSku(), isDisabled(), emoji)
+                .checkValid();
+    }
+
+    /**
+     * Returns a copy of this button with the provided label.
+     *
+     * @param label The label to use
+     * @return New button with the changed label
+     * @throws IllegalArgumentException <ul>
+     * <li>If this is a {@link ButtonStyle#PREMIUM PREMIUM}-styled button</li>
+     * <li>If the provided {@code label} is null or empty.</li>
+     * <li>If the character limit for {@code label}, defined by {@link #LABEL_MAX_LENGTH} as {@value #LABEL_MAX_LENGTH},
+     * is exceeded.</li>
+     * </ul>
+     */
+    @Nonnull
+    @CheckReturnValue
+    default Button withLabel(@Nonnull String label) {
+        return new ButtonImpl(
+                        getCustomId(), getUniqueId(), label, getStyle(), getUrl(), getSku(), isDisabled(), getEmoji())
+                .checkValid();
+    }
+
+    /**
+     * Returns a copy of this button with the provided custom id.
+     *
+     * @param customId The custom id to use
+     * @return New button with the changed custom id
+     * @throws IllegalArgumentException <ul>
+     * <li>If this is a {@link ButtonStyle#LINK LINK}-styled or {@link ButtonStyle#PREMIUM PREMIUM}-styled button</li>
+     * <li>If the provided {@code customId} is null or empty.</li>
+     * <li>If the character limit for {@code customId}, defined by {@link #ID_MAX_LENGTH} as {@value #ID_MAX_LENGTH},
+     * is exceeded.</li>
+     * </ul>
+     */
+    @Nonnull
+    @CheckReturnValue
+    default Button withCustomId(@Nonnull String customId) {
+        return new ButtonImpl(
+                        customId, getUniqueId(), getLabel(), getStyle(), getUrl(), getSku(), isDisabled(), getEmoji())
+                .checkValid();
+    }
+
+    @Nonnull
+    @Override
+    @CheckReturnValue
+    default Button withUniqueId(int uniqueId) {
+        // This is not done in checkValid()
+        // because the button gets constructed with an invalid unique ID on purpose
+        // (as Discord generates one if none was passed)
+        Checks.positive(uniqueId, "Unique ID");
+        return new ButtonImpl(
+                        getCustomId(), uniqueId, getLabel(), getStyle(), getUrl(), getSku(), isDisabled(), getEmoji())
+                .checkValid();
+    }
+
+    /**
+     * Returns a copy of this button with the provided url.
+     *
+     * @param url The url to use
+     * @return New button with the changed url
+     * @throws IllegalArgumentException <ul>
+     * <li>If this is not a {@link ButtonStyle#LINK LINK}-styled button</li>
+     * <li>If the provided {@code url} is null or empty.</li>
+     * <li>If the character limit for {@code url}, defined by {@link #URL_MAX_LENGTH} as {@value #URL_MAX_LENGTH},
+     * is exceeded.</li>
+     * </ul>
+     */
+    @Nonnull
+    @CheckReturnValue
+    default Button withUrl(@Nonnull String url) {
+        return new ButtonImpl(
+                        getCustomId(), getUniqueId(), getLabel(), getStyle(), url, getSku(), isDisabled(), getEmoji())
+                .checkValid();
+    }
+
+    /**
+     * Returns a copy of this button with the provided SKU.
+     *
+     * @param sku The SKU to use
+     * @return New button with the changed url
+     * @throws IllegalArgumentException If the provided {@code sku} is null, or if the button is not a {@link ButtonStyle#PREMIUM PREMIUM} button
+     */
+    @Nonnull
+    @CheckReturnValue
+    default Button withSku(@Nonnull SkuSnowflake sku) {
+        return new ButtonImpl(
+                        getCustomId(), getUniqueId(), getLabel(), getStyle(), getUrl(), sku, isDisabled(), getEmoji())
+                .checkValid();
+    }
+
+    /**
+     * Returns a copy of this button with the provided style.
+     *
+     * <p>You cannot use this convert link buttons.
+     *
+     * @param style The style to use
+     * @return New button with the changed style
+     * @throws IllegalArgumentException <ul>
+     * <li>If the provided {@code style} is null.</li>
+     * <li>If the provided {@code style} tries to change whether this button is a {@link ButtonStyle#LINK LINK} or {@link ButtonStyle#PREMIUM PREMIUM} button.</li>
+     * </ul>
+     */
+    @Nonnull
+    @CheckReturnValue
+    default Button withStyle(@Nonnull ButtonStyle style) {
+        Checks.notNull(style, "Style");
+        Checks.check(style != ButtonStyle.UNKNOWN, "Cannot make button with unknown style!");
+        if (getStyle() == ButtonStyle.LINK && style != ButtonStyle.LINK) {
+            throw new IllegalArgumentException("You cannot change a link button to another style!");
+        }
+        if (getStyle() != ButtonStyle.LINK && style == ButtonStyle.LINK) {
+            throw new IllegalArgumentException("You cannot change a styled button to a link button!");
+        }
+        if (getStyle() == ButtonStyle.PREMIUM && style != ButtonStyle.PREMIUM) {
+            throw new IllegalArgumentException("You cannot change a premium button to another style!");
+        }
+        if (getStyle() != ButtonStyle.PREMIUM && style == ButtonStyle.PREMIUM) {
+            throw new IllegalArgumentException("You cannot change a styled button to a premium button!");
+        }
+        return new ButtonImpl(
+                        getCustomId(), getUniqueId(), getLabel(), style, getUrl(), getSku(), isDisabled(), getEmoji())
+                .checkValid();
     }
 }

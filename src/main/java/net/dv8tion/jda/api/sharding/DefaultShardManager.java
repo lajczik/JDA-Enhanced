@@ -31,11 +31,7 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.SelfUser;
 import net.dv8tion.jda.api.exceptions.InvalidTokenException;
 import net.dv8tion.jda.api.requests.*;
-import net.dv8tion.jda.api.utils.ChunkingFilter;
-import net.dv8tion.jda.api.utils.FileProxy;
-import net.dv8tion.jda.api.utils.MiscUtil;
-import net.dv8tion.jda.api.utils.NettyConfig;
-import net.dv8tion.jda.api.utils.SessionController;
+import net.dv8tion.jda.api.utils.*;
 import net.dv8tion.jda.api.utils.cache.ShardCacheView;
 import net.dv8tion.jda.api.utils.data.DataObject;
 import net.dv8tion.jda.internal.JDAImpl;
@@ -90,23 +86,15 @@ public class DefaultShardManager implements ShardManager {
      * The queue of shards waiting for creation.
      */
     protected final Queue<Integer> queue = new ConcurrentLinkedQueue<>();
-
-    /**
-     * The {@link ShardCacheView ShardCacheView} that holds all shards.
-     */
-    protected ShardCacheViewImpl shards;
-
     /**
      * This can be used to check if the ShardManager is shutting down.
      */
     protected final AtomicBoolean shutdown = new AtomicBoolean(false);
-
     /**
      * The shutdown hook used by this ShardManager. If this is null the shutdown
      * hook is disabled.
      */
     protected final Thread shutdownHook;
-
     /**
      * The token of the account associated with this ShardManager.
      */
@@ -126,7 +114,6 @@ public class DefaultShardManager implements ShardManager {
      * {@link ThreadPoolProvider} instances for shard specific configuration.
      */
     protected final ThreadingProviderConfig threadingConfig;
-
     /**
      * {@link EventConfig} containing listeners and possibly a custom event manager.
      */
@@ -146,16 +133,6 @@ public class DefaultShardManager implements ShardManager {
      * loaded or chunk members by default.
      */
     protected final ChunkingFilter chunkingFilter;
-    /**
-     * The worker running on the {@link #executor ScheduledExecutorService} that
-     * spawns new shards.
-     */
-    protected Future<?> worker;
-    /**
-     * The gateway url for JDA to use. Will be {@code nul} until the first shard is
-     * created.
-     */
-    protected String gatewayURL;
 
     protected final IntFunction<? extends RestConfig> restConfigProvider;
 
@@ -167,6 +144,20 @@ public class DefaultShardManager implements ShardManager {
 
     @Nonnull
     protected final HttpClient httpClient;
+    /**
+     * The {@link ShardCacheView ShardCacheView} that holds all shards.
+     */
+    protected ShardCacheViewImpl shards;
+    /**
+     * The worker running on the {@link #executor ScheduledExecutorService} that
+     * spawns new shards.
+     */
+    protected Future<?> worker;
+    /**
+     * The gateway url for JDA to use. Will be {@code nul} until the first shard is
+     * created.
+     */
+    protected String gatewayURL;
 
     public DefaultShardManager(@Nonnull String token) {
         this(token, null);
@@ -254,6 +245,17 @@ public class DefaultShardManager implements ShardManager {
                 }
             }
         }
+    }
+
+    protected static <E extends ExecutorService> ExecutorPair<E> resolveExecutor(
+            ThreadPoolProvider<? extends E> provider, int shardId) {
+        E executor = null;
+        boolean automaticShutdown = true;
+        if (provider != null) {
+            executor = provider.provide(shardId);
+            automaticShutdown = provider.shouldShutdownAutomatically(shardId);
+        }
+        return new ExecutorPair<>(executor, automaticShutdown);
     }
 
     @Nonnull
@@ -773,17 +775,6 @@ public class DefaultShardManager implements ShardManager {
         ThreadFactory factory = threadFactory == null ? DEFAULT_THREAD_FACTORY : threadFactory;
 
         return Executors.newSingleThreadScheduledExecutor(factory);
-    }
-
-    protected static <E extends ExecutorService> ExecutorPair<E> resolveExecutor(
-            ThreadPoolProvider<? extends E> provider, int shardId) {
-        E executor = null;
-        boolean automaticShutdown = true;
-        if (provider != null) {
-            executor = provider.provide(shardId);
-            automaticShutdown = provider.shouldShutdownAutomatically(shardId);
-        }
-        return new ExecutorPair<>(executor, automaticShutdown);
     }
 
     protected static class ExecutorPair<E extends ExecutorService> {

@@ -28,20 +28,12 @@ public class MemberPresenceImpl {
     private EnumMap<ClientType, OnlineStatus> clientStatus;
     private OnlineStatus status = OnlineStatus.OFFLINE;
 
-    public void setActivities(List<Activity> activities) {
-        this.activities = activities;
-    }
-
-    public void setClientStatus(EnumMap<ClientType, OnlineStatus> clientStatus) {
-        this.clientStatus = clientStatus;
-    }
-
-    public void setOnlineStatus(OnlineStatus status) {
-        this.status = status;
-    }
-
     public List<Activity> getActivities() {
         return activities;
+    }
+
+    public void setActivities(List<Activity> activities) {
+        this.activities = activities;
     }
 
     public EnumMap<ClientType, OnlineStatus> getClientStatus() {
@@ -51,8 +43,16 @@ public class MemberPresenceImpl {
         return clientStatus;
     }
 
+    public void setClientStatus(EnumMap<ClientType, OnlineStatus> clientStatus) {
+        this.clientStatus = clientStatus;
+    }
+
     public OnlineStatus getOnlineStatus() {
         return status;
+    }
+
+    public void setOnlineStatus(OnlineStatus status) {
+        this.status = status;
     }
 
     public void setOnlineStatus(ClientType type, OnlineStatus clientStatus) {

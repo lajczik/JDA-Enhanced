@@ -51,14 +51,14 @@ import javax.annotation.Nonnull;
  * This is done during the queue work iteration so many requests to one endpoint would be moved correctly.
  *
  * <p>For example, the first message sending:
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * public void onReady(ReadyEvent event) {
  *   TextChannel channel = event.getJDA().getTextChannelById("123");
  *   for (int i = 1; i <= 100; i++) {
  *     channel.sendMessage("Message: " + i).queue();
  *   }
  * }
- * }
+ *}
  *
  * <p>This will send 100 messages on startup. At this point we don't yet know the hash for this route, so we put them all in {@code uninit+POST/channels/{channel.id}/messages:channel_id=123}.
  * The bucket iterates the requests in sync and gets the first response. This response provides the hash for this route, and we create a bucket for it.
@@ -81,9 +81,6 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
 
     private final Future<?> cleanupWorker;
     private final RateLimitConfig config;
-
-    private boolean isStopped, isShutdown;
-
     private final ReentrantLock lock = new ReentrantLock();
     // Route -> Should we print warning for 429? AKA did we already hit it once before
     private final Set<Route> hitRatelimit = new HashSet<>(5);
@@ -93,32 +90,12 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
     private final Map<String, Bucket> buckets = new HashMap<>();
     // Bucket -> Rate-Limit Worker
     private final Map<Bucket, Future<?>> rateLimitQueue = new HashMap<>();
+    private boolean isStopped, isShutdown;
 
     public SequentialRestRateLimiter(@Nonnull RateLimitConfig config) {
         this.config = config;
         this.shutdownHandle = new RateLimitFuture<>(config.getScheduler());
         this.cleanupWorker = config.getScheduler().scheduleAtFixedRate(this::cleanup, 30, 30, TimeUnit.SECONDS);
-    }
-
-    private static class RateLimitFuture<T> extends CompletableFuture<T> {
-        private final ScheduledExecutorService scheduler;
-
-        private RateLimitFuture(ScheduledExecutorService scheduler) {
-            this.scheduler = scheduler;
-        }
-
-        @Nonnull
-        @Override
-        public Executor defaultExecutor() {
-            return scheduler;
-        }
-
-        @Nonnull
-        @CheckReturnValue
-        @Override
-        public <U> CompletableFuture<U> newIncompleteFuture() {
-            return new RateLimitFuture<>(scheduler);
-        }
     }
 
     @Override
@@ -410,6 +387,27 @@ public final class SequentialRestRateLimiter implements RestRateLimiter {
                 return bucket;
             }
         });
+    }
+
+    private static class RateLimitFuture<T> extends CompletableFuture<T> {
+        private final ScheduledExecutorService scheduler;
+
+        private RateLimitFuture(ScheduledExecutorService scheduler) {
+            this.scheduler = scheduler;
+        }
+
+        @Nonnull
+        @Override
+        public Executor defaultExecutor() {
+            return scheduler;
+        }
+
+        @Nonnull
+        @CheckReturnValue
+        @Override
+        public <U> CompletableFuture<U> newIncompleteFuture() {
+            return new RateLimitFuture<>(scheduler);
+        }
     }
 
     private abstract class Bucket implements Runnable {

@@ -378,7 +378,7 @@ public interface User extends UserSnowflake {
      * which is rarely useful since the channel id never changes.
      *
      * <p><b>Examples</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Send message without response handling
      * public void sendMessage(User user, String content) {
      *     user.openPrivateChannel()
@@ -393,7 +393,7 @@ public interface User extends UserSnowflake {
      *                .delay(30, TimeUnit.SECONDS) // RestAction<Message> with delayed response
      *                .flatMap(Message::delete); // RestAction<Void> (executed 30 seconds after sending)
      * }
-     * }
+     *}
      *
      * @throws UnsupportedOperationException
      *         If the recipient User is the currently logged in account (represented by {@link net.dv8tion.jda.api.entities.SelfUser SelfUser})
@@ -465,131 +465,6 @@ public interface User extends UserSnowflake {
     PrimaryGuild getPrimaryGuild();
 
     /**
-     * Represents the information contained in a {@link User User}'s profile.
-     */
-    class Profile {
-        private final long userId;
-        private final String bannerId;
-        private final int accentColor;
-
-        public Profile(long userId, String bannerId, int accentColor) {
-            this.userId = userId;
-            this.bannerId = bannerId;
-            this.accentColor = accentColor;
-        }
-
-        /**
-         * The Discord Id for this user's banner image.
-         * If the user has not set a banner, this will return null.
-         *
-         * @return Possibly-null String containing the {@link User User} banner id.
-         */
-        @Nullable
-        public String getBannerId() {
-            return bannerId;
-        }
-
-        /**
-         * The URL for the user's banner image.
-         * If the user has not set a banner, this will return null.
-         *
-         * @return Possibly-null String containing the {@link User User} banner url.
-         *
-         * @see User#BANNER_URL
-         */
-        @Nullable
-        public String getBannerUrl() {
-            return bannerId == null
-                    ? null
-                    : getBannerUrl(bannerId.startsWith("a_") ? ImageFormat.ANIMATED_WEBP : ImageFormat.PNG);
-        }
-
-        /**
-         * The URL for the user's banner image.
-         * If the user has not set a banner, this will return null.
-         *
-         * @param  format
-         *         The format in which the image should be
-         *
-         * @throws IllegalArgumentException
-         *         If the format is {@code null}
-         *
-         * @return Possibly-null String containing the {@link User User} banner url.
-         *
-         * @see    DiscordAssets#userBanner(ImageFormat, String, String)
-         */
-        @Nullable
-        public String getBannerUrl(@Nonnull ImageFormat format) {
-            ImageProxy proxy = getBanner(format);
-            return proxy == null ? null : proxy.getUrl();
-        }
-
-        /**
-         * Returns an {@link ImageProxy} for this user's banner.
-         *
-         * @return Possibly-null {@link ImageProxy} of this user's banner
-         *
-         * @see    #getBannerUrl()
-         */
-        @Nullable
-        public ImageProxy getBanner() {
-            String bannerUrl = getBannerUrl();
-            return bannerUrl == null ? null : new ImageProxy(bannerUrl);
-        }
-
-        /**
-         * Returns an {@link ImageProxy} for this user's banner.
-         *
-         * @param  format
-         *         The format in which the image should be
-         *
-         * @throws IllegalArgumentException
-         *         If the format is {@code null}
-         *
-         * @return Possibly-null {@link ImageProxy} of this user's banner
-         *
-         * @see    #getBannerUrl(ImageFormat)
-         * @see    DiscordAssets#userBanner(ImageFormat, String, String)
-         */
-        @Nullable
-        public ImageProxy getBanner(@Nonnull ImageFormat format) {
-            return DiscordAssets.userBanner(format, Long.toUnsignedString(userId), getBannerId());
-        }
-
-        /**
-         * The user's accent color.
-         * If the user has not set an accent color, this will return null.
-         * The automatically calculated color is not returned.
-         * The accent color is not shown in the client if the user has set a banner.
-         *
-         * @return Possibly-null {@link java.awt.Color} containing the {@link User User} accent color.
-         */
-        @Nullable
-        public Color getAccentColor() {
-            return accentColor == DEFAULT_ACCENT_COLOR_RAW ? null : new Color(accentColor);
-        }
-
-        /**
-         * The raw RGB value of this user's accent color.
-         * <br>Defaults to {@link #DEFAULT_ACCENT_COLOR_RAW} if this user's banner color is not available.
-         *
-         * @return The raw RGB color value or {@link User#DEFAULT_ACCENT_COLOR_RAW}
-         */
-        public int getAccentColorRaw() {
-            return accentColor;
-        }
-
-        @Override
-        public String toString() {
-            return new EntityString(this)
-                    .addMetadata("userId", userId)
-                    .addMetadata("bannerId", bannerId)
-                    .addMetadata("accentColor", accentColor)
-                    .toString();
-        }
-    }
-
-    /**
      * Represents the bit offsets used by Discord for public flags
      */
     enum UserFlag {
@@ -636,35 +511,6 @@ public interface User extends UserSnowflake {
             this.offset = offset;
             this.raw = 1 << offset;
             this.name = name;
-        }
-
-        /**
-         * The readable name as used in the Discord Client.
-         *
-         * @return The readable name of this UserFlag.
-         */
-        @Nonnull
-        public String getName() {
-            return this.name;
-        }
-
-        /**
-         * The binary offset of the flag.
-         *
-         * @return The offset that represents this UserFlag.
-         */
-        public int getOffset() {
-            return offset;
-        }
-
-        /**
-         * The value of this flag when viewed as raw value.
-         * <br>This is equivalent to: <code>1 {@literal <<} {@link #getOffset()}</code>
-         *
-         * @return The raw value of this specific flag.
-         */
-        public int getRawValue() {
-            return raw;
         }
 
         /**
@@ -756,6 +602,148 @@ public interface User extends UserSnowflake {
             Checks.notNull(flags, "Flag Collection");
 
             return getRaw(flags.toArray(EMPTY_FLAGS));
+        }
+
+        /**
+         * The readable name as used in the Discord Client.
+         *
+         * @return The readable name of this UserFlag.
+         */
+        @Nonnull
+        public String getName() {
+            return this.name;
+        }
+
+        /**
+         * The binary offset of the flag.
+         *
+         * @return The offset that represents this UserFlag.
+         */
+        public int getOffset() {
+            return offset;
+        }
+
+        /**
+         * The value of this flag when viewed as raw value.
+         * <br>This is equivalent to: <code>1 {@literal <<} {@link #getOffset()}</code>
+         *
+         * @return The raw value of this specific flag.
+         */
+        public int getRawValue() {
+            return raw;
+        }
+    }
+
+    /**
+     * Represents the information contained in a {@link User User}'s profile.
+     */
+    class Profile {
+        private final long userId;
+        private final String bannerId;
+        private final int accentColor;
+
+        public Profile(long userId, String bannerId, int accentColor) {
+            this.userId = userId;
+            this.bannerId = bannerId;
+            this.accentColor = accentColor;
+        }
+
+        /**
+         * The Discord Id for this user's banner image.
+         * If the user has not set a banner, this will return null.
+         *
+         * @return Possibly-null String containing the {@link User User} banner id.
+         */
+        @Nullable
+        public String getBannerId() {
+            return bannerId;
+        }
+
+        /**
+         * The URL for the user's banner image.
+         * If the user has not set a banner, this will return null.
+         *
+         * @return Possibly-null String containing the {@link User User} banner url.
+         * @see User#BANNER_URL
+         */
+        @Nullable
+        public String getBannerUrl() {
+            return bannerId == null
+                    ? null
+                    : getBannerUrl(bannerId.startsWith("a_") ? ImageFormat.ANIMATED_WEBP : ImageFormat.PNG);
+        }
+
+        /**
+         * The URL for the user's banner image.
+         * If the user has not set a banner, this will return null.
+         *
+         * @param format The format in which the image should be
+         * @return Possibly-null String containing the {@link User User} banner url.
+         * @throws IllegalArgumentException If the format is {@code null}
+         * @see DiscordAssets#userBanner(ImageFormat, String, String)
+         */
+        @Nullable
+        public String getBannerUrl(@Nonnull ImageFormat format) {
+            ImageProxy proxy = getBanner(format);
+            return proxy == null ? null : proxy.getUrl();
+        }
+
+        /**
+         * Returns an {@link ImageProxy} for this user's banner.
+         *
+         * @return Possibly-null {@link ImageProxy} of this user's banner
+         * @see #getBannerUrl()
+         */
+        @Nullable
+        public ImageProxy getBanner() {
+            String bannerUrl = getBannerUrl();
+            return bannerUrl == null ? null : new ImageProxy(bannerUrl);
+        }
+
+        /**
+         * Returns an {@link ImageProxy} for this user's banner.
+         *
+         * @param format The format in which the image should be
+         * @return Possibly-null {@link ImageProxy} of this user's banner
+         * @throws IllegalArgumentException If the format is {@code null}
+         * @see #getBannerUrl(ImageFormat)
+         * @see DiscordAssets#userBanner(ImageFormat, String, String)
+         */
+        @Nullable
+        public ImageProxy getBanner(@Nonnull ImageFormat format) {
+            return DiscordAssets.userBanner(format, Long.toUnsignedString(userId), getBannerId());
+        }
+
+        /**
+         * The user's accent color.
+         * If the user has not set an accent color, this will return null.
+         * The automatically calculated color is not returned.
+         * The accent color is not shown in the client if the user has set a banner.
+         *
+         * @return Possibly-null {@link java.awt.Color} containing the {@link User User} accent color.
+         */
+        @Nullable
+        public Color getAccentColor() {
+            return accentColor == DEFAULT_ACCENT_COLOR_RAW ? null : new Color(accentColor);
+        }
+
+        /**
+         * The raw RGB value of this user's accent color.
+         * <br>Defaults to {@link #DEFAULT_ACCENT_COLOR_RAW} if this user's banner color is not available.
+         *
+         * @return The raw RGB color value or {@link User#DEFAULT_ACCENT_COLOR_RAW}
+         */
+        public int getAccentColorRaw() {
+            return accentColor;
+        }
+
+        @Override
+        public String toString() {
+            return new EntityString(this)
+                    .addMetadata("userId", userId)
+                    .addMetadata("bannerId", bannerId)
+                    .addMetadata("accentColor", accentColor)
+                    .toString();
         }
     }
 

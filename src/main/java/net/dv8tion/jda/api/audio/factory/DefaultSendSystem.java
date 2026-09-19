@@ -22,11 +22,7 @@ import net.dv8tion.jda.internal.audio.AudioConnection;
 import net.dv8tion.jda.internal.utils.JDALogger;
 import org.slf4j.MDC;
 
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetSocketAddress;
-import java.net.NoRouteToHostException;
-import java.net.SocketException;
+import java.net.*;
 import java.util.concurrent.ConcurrentMap;
 
 import javax.annotation.CheckForNull;

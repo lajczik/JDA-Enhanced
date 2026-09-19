@@ -46,15 +46,6 @@ public enum AttachmentFlag {
     }
 
     /**
-     * The raw value used by Discord for this flag.
-     *
-     * @return The raw value
-     */
-    public int getRaw() {
-        return raw;
-    }
-
-    /**
      * Converts a bitfield to an {@link EnumSet} of {@link AttachmentFlag} values.
      *
      * @param  bitset
@@ -71,5 +62,14 @@ public enum AttachmentFlag {
             }
         }
         return flags;
+    }
+
+    /**
+     * The raw value used by Discord for this flag.
+     *
+     * @return The raw value
+     */
+    public int getRaw() {
+        return raw;
     }
 }

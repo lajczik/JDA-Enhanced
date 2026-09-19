@@ -39,9 +39,9 @@ import javax.annotation.Nonnull;
  */
 public class SubcommandData implements SerializableData {
     protected final List<OptionData> options = new ArrayList<>(CommandData.MAX_OPTIONS);
-    protected String name, description;
     private final LocalizationMap nameLocalizations = new LocalizationMap(this::checkName);
     private final LocalizationMap descriptionLocalizations = new LocalizationMap(this::checkDescription);
+    protected String name, description;
     private boolean allowRequired = true;
 
     /**
@@ -64,6 +64,47 @@ public class SubcommandData implements SerializableData {
         setDescription(description);
     }
 
+    /**
+     * Parses the provided serialization back into an SubcommandData instance.
+     * <br>This is the reverse function for {@link #toData()}.
+     *
+     * @param json The serialized {@link DataObject} representing the subcommand
+     * @return The parsed SubcommandData instance, which can be further configured through setters
+     * @throws net.dv8tion.jda.api.exceptions.ParsingException If the serialized object is missing required fields
+     * @throws IllegalArgumentException If any of the values are failing the respective checks such as length
+     */
+    @Nonnull
+    public static SubcommandData fromData(@Nonnull DataObject json) {
+        String name = json.getString("name");
+        String description = json.getString("description");
+        SubcommandData sub = new SubcommandData(name, description);
+        json.optArray("options").ifPresent(arr -> arr.stream(DataArray::getObject)
+                .map(OptionData::fromData)
+                .forEach(sub::addOptions));
+        sub.setNameLocalizations(LocalizationUtils.mapFromProperty(json, "name_localizations"));
+        sub.setDescriptionLocalizations(LocalizationUtils.mapFromProperty(json, "description_localizations"));
+
+        return sub;
+    }
+
+    /**
+     * Converts the provided {@link Command.Subcommand} into a SubCommandData instance.
+     *
+     * @param subcommand The subcommand to convert
+     * @return An instance of SubCommandData
+     * @throws IllegalArgumentException If null is provided or the subcommand has illegal configuration
+     */
+    @Nonnull
+    public static SubcommandData fromSubcommand(@Nonnull Command.Subcommand subcommand) {
+        Checks.notNull(subcommand, "Subcommand");
+        SubcommandData data = new SubcommandData(subcommand.getName(), subcommand.getDescription());
+        data.setNameLocalizations(subcommand.getNameLocalizations().toMap());
+        data.setDescriptionLocalizations(
+                subcommand.getDescriptionLocalizations().toMap());
+        subcommand.getOptions().stream().map(OptionData::fromOption).forEach(data::addOptions);
+        return data;
+    }
+
     protected void checkName(@Nonnull String name) {
         Checks.inRange(name, 1, 32, "Name");
         Checks.isLowercase(name, "Name");
@@ -72,24 +113,6 @@ public class SubcommandData implements SerializableData {
 
     protected void checkDescription(@Nonnull String description) {
         Checks.inRange(description, 1, 100, "Description");
-    }
-
-    /**
-     * Configure the name
-     *
-     * @param  name
-     *         The lowercase alphanumeric (with dash) name, 1-32 characters
-     *
-     * @throws IllegalArgumentException
-     *         If the name is null, not alphanumeric, or not between 1-32 characters
-     *
-     * @return The SubcommandData instance, for chaining
-     */
-    @Nonnull
-    public SubcommandData setName(@Nonnull String name) {
-        checkName(name);
-        this.name = name;
-        return this;
     }
 
     /**
@@ -114,46 +137,6 @@ public class SubcommandData implements SerializableData {
     public SubcommandData setNameLocalization(@Nonnull DiscordLocale locale, @Nonnull String name) {
         // Checks are done in LocalizationMap
         nameLocalizations.setTranslation(locale, name);
-        return this;
-    }
-
-    /**
-     * Sets multiple {@link DiscordLocale language-specific} localizations of this subcommand's name.
-     *
-     * @param  map
-     *         The map from which to transfer the translated names
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If the map is null</li>
-     *             <li>If the map contains an {@link DiscordLocale#UNKNOWN} key</li>
-     *             <li>If the map contains a name which does not pass the corresponding {@link #setName(String) name check}</li>
-     *         </ul>
-     *
-     * @return This builder instance, for chaining
-     */
-    @Nonnull
-    public SubcommandData setNameLocalizations(@Nonnull Map<DiscordLocale, String> map) {
-        // Checks are done in LocalizationMap
-        nameLocalizations.setTranslations(map);
-        return this;
-    }
-
-    /**
-     * Configure the description
-     *
-     * @param  description
-     *         The description, 1-100 characters
-     *
-     * @throws IllegalArgumentException
-     *         If the name is null or not between 1-100 characters
-     *
-     * @return The SubcommandData instance, for chaining
-     */
-    @Nonnull
-    public SubcommandData setDescription(@Nonnull String description) {
-        checkDescription(description);
-        this.description = description;
         return this;
     }
 
@@ -183,38 +166,16 @@ public class SubcommandData implements SerializableData {
     }
 
     /**
-     * Sets multiple {@link DiscordLocale language-specific} localizations of this subcommand's description.
-     *
-     * @param  map
-     *         The map from which to transfer the translated descriptions
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If the map is null</li>
-     *             <li>If the map contains an {@link DiscordLocale#UNKNOWN} key</li>
-     *             <li>If the map contains a description which does not pass the corresponding {@link #setDescription(String) description check}</li>
-     *         </ul>
-     *
-     * @return This builder instance, for chaining
-     */
-    @Nonnull
-    public SubcommandData setDescriptionLocalizations(@Nonnull Map<DiscordLocale, String> map) {
-        // Checks are done in LocalizationMap
-        descriptionLocalizations.setTranslations(map);
-        return this;
-    }
-
-    /**
      * Removes all options that evaluate to {@code true} under the provided {@code condition}.
      *
      * <p><b>Example: Remove all options</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * command.removeOptions(option -> true);
-     * }
+     *}
      * <p><b>Example: Remove all options that are required</b>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * command.removeOptions(option -> option.isRequired());
-     * }
+     *}
      *
      * @param  condition
      *         The removal condition (must not throw)
@@ -431,6 +392,24 @@ public class SubcommandData implements SerializableData {
     }
 
     /**
+     * Configure the name
+     *
+     * @param  name
+     *         The lowercase alphanumeric (with dash) name, 1-32 characters
+     *
+     * @throws IllegalArgumentException
+     *         If the name is null, not alphanumeric, or not between 1-32 characters
+     *
+     * @return The SubcommandData instance, for chaining
+     */
+    @Nonnull
+    public SubcommandData setName(@Nonnull String name) {
+        checkName(name);
+        this.name = name;
+        return this;
+    }
+
+    /**
      * The localizations of this subcommand's name for {@link DiscordLocale various languages}.
      *
      * @return The {@link LocalizationMap} containing the mapping from {@link DiscordLocale} to the localized name
@@ -438,6 +417,28 @@ public class SubcommandData implements SerializableData {
     @Nonnull
     public LocalizationMap getNameLocalizations() {
         return nameLocalizations;
+    }
+
+    /**
+     * Sets multiple {@link DiscordLocale language-specific} localizations of this subcommand's name.
+     *
+     * @param  map
+     *         The map from which to transfer the translated names
+     *
+     * @throws IllegalArgumentException
+     *         <ul>
+     *             <li>If the map is null</li>
+     *             <li>If the map contains an {@link DiscordLocale#UNKNOWN} key</li>
+     *             <li>If the map contains a name which does not pass the corresponding {@link #setName(String) name check}</li>
+     *         </ul>
+     *
+     * @return This builder instance, for chaining
+     */
+    @Nonnull
+    public SubcommandData setNameLocalizations(@Nonnull Map<DiscordLocale, String> map) {
+        // Checks are done in LocalizationMap
+        nameLocalizations.setTranslations(map);
+        return this;
     }
 
     /**
@@ -451,6 +452,24 @@ public class SubcommandData implements SerializableData {
     }
 
     /**
+     * Configure the description
+     *
+     * @param  description
+     *         The description, 1-100 characters
+     *
+     * @throws IllegalArgumentException
+     *         If the name is null or not between 1-100 characters
+     *
+     * @return The SubcommandData instance, for chaining
+     */
+    @Nonnull
+    public SubcommandData setDescription(@Nonnull String description) {
+        checkDescription(description);
+        this.description = description;
+        return this;
+    }
+
+    /**
      * The localizations of this subcommand's description for {@link DiscordLocale various languages}.
      *
      * @return The {@link LocalizationMap} containing the mapping from {@link DiscordLocale} to the localized description
@@ -458,6 +477,28 @@ public class SubcommandData implements SerializableData {
     @Nonnull
     public LocalizationMap getDescriptionLocalizations() {
         return descriptionLocalizations;
+    }
+
+    /**
+     * Sets multiple {@link DiscordLocale language-specific} localizations of this subcommand's description.
+     *
+     * @param  map
+     *         The map from which to transfer the translated descriptions
+     *
+     * @throws IllegalArgumentException
+     *         <ul>
+     *             <li>If the map is null</li>
+     *             <li>If the map contains an {@link DiscordLocale#UNKNOWN} key</li>
+     *             <li>If the map contains a description which does not pass the corresponding {@link #setDescription(String) description check}</li>
+     *         </ul>
+     *
+     * @return This builder instance, for chaining
+     */
+    @Nonnull
+    public SubcommandData setDescriptionLocalizations(@Nonnull Map<DiscordLocale, String> map) {
+        // Checks are done in LocalizationMap
+        descriptionLocalizations.setTranslations(map);
+        return this;
     }
 
     @Nonnull
@@ -470,55 +511,5 @@ public class SubcommandData implements SerializableData {
                 .put("description", description)
                 .put("description_localizations", descriptionLocalizations)
                 .put("options", DataArray.fromCollection(options));
-    }
-
-    /**
-     * Parses the provided serialization back into an SubcommandData instance.
-     * <br>This is the reverse function for {@link #toData()}.
-     *
-     * @param  json
-     *         The serialized {@link DataObject} representing the subcommand
-     *
-     * @throws net.dv8tion.jda.api.exceptions.ParsingException
-     *         If the serialized object is missing required fields
-     * @throws IllegalArgumentException
-     *         If any of the values are failing the respective checks such as length
-     *
-     * @return The parsed SubcommandData instance, which can be further configured through setters
-     */
-    @Nonnull
-    public static SubcommandData fromData(@Nonnull DataObject json) {
-        String name = json.getString("name");
-        String description = json.getString("description");
-        SubcommandData sub = new SubcommandData(name, description);
-        json.optArray("options").ifPresent(arr -> arr.stream(DataArray::getObject)
-                .map(OptionData::fromData)
-                .forEach(sub::addOptions));
-        sub.setNameLocalizations(LocalizationUtils.mapFromProperty(json, "name_localizations"));
-        sub.setDescriptionLocalizations(LocalizationUtils.mapFromProperty(json, "description_localizations"));
-
-        return sub;
-    }
-
-    /**
-     * Converts the provided {@link Command.Subcommand} into a SubCommandData instance.
-     *
-     * @param  subcommand
-     *         The subcommand to convert
-     *
-     * @throws IllegalArgumentException
-     *         If null is provided or the subcommand has illegal configuration
-     *
-     * @return An instance of SubCommandData
-     */
-    @Nonnull
-    public static SubcommandData fromSubcommand(@Nonnull Command.Subcommand subcommand) {
-        Checks.notNull(subcommand, "Subcommand");
-        SubcommandData data = new SubcommandData(subcommand.getName(), subcommand.getDescription());
-        data.setNameLocalizations(subcommand.getNameLocalizations().toMap());
-        data.setDescriptionLocalizations(
-                subcommand.getDescriptionLocalizations().toMap());
-        subcommand.getOptions().stream().map(OptionData::fromOption).forEach(data::addOptions);
-        return data;
     }
 }

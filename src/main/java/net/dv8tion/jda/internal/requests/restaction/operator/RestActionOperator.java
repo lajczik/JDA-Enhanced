@@ -27,9 +27,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public abstract class RestActionOperator<I, O> implements RestAction<O> {
+    protected final RestAction<I> action;
     protected BooleanSupplier check;
     protected long deadline = -1;
-    protected final RestAction<I> action;
 
     public RestActionOperator(RestAction<I> action) {
         this.action = action;

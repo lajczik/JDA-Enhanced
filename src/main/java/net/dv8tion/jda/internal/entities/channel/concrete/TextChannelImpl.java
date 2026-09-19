@@ -69,15 +69,15 @@ public class TextChannelImpl extends AbstractStandardGuildMessageChannelImpl<Tex
         return slowmode;
     }
 
-    @Nonnull
-    @Override
-    public TextChannelManager getManager() {
-        return new TextChannelManagerImpl(this);
-    }
-
     @Override
     public TextChannelImpl setSlowmode(int slowmode) {
         this.slowmode = slowmode;
         return this;
+    }
+
+    @Nonnull
+    @Override
+    public TextChannelManager getManager() {
+        return new TextChannelManagerImpl(this);
     }
 }

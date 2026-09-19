@@ -65,6 +65,24 @@ public enum CloseCode {
     }
 
     /**
+     * Retrieves the CloseCode representation
+     * for the specified integer close code
+     *
+     * @param code The close code to match
+     * @return The CloseCode field matching the specified integer
+     * or {@code null} if no match was found
+     */
+    @Nullable
+    public static CloseCode from(int code) {
+        for (CloseCode c : values()) {
+            if (c.code == code) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    /**
      * The integer code in the form of {@code 4xxx}/{@code 1xxx}
      *
      * @return The integer representation for this CloseCode
@@ -101,25 +119,5 @@ public enum CloseCode {
                 .addMetadata("code", code)
                 .addMetadata("meaning", meaning)
                 .toString();
-    }
-
-    /**
-     * Retrieves the CloseCode representation
-     * for the specified integer close code
-     *
-     * @param  code
-     *         The close code to match
-     *
-     * @return The CloseCode field matching the specified integer
-     *         or {@code null} if no match was found
-     */
-    @Nullable
-    public static CloseCode from(int code) {
-        for (CloseCode c : values()) {
-            if (c.code == code) {
-                return c;
-            }
-        }
-        return null;
     }
 }

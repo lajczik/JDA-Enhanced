@@ -87,6 +87,19 @@ public interface AudioManager {
      * The {@link SpeakingMode} that should be used when sending audio via
      * the provided {@link AudioSendHandler} from {@link #setSendingHandler(AudioSendHandler)}.
      * By default this will use {@link SpeakingMode#VOICE}.
+     *
+     * @return The current speaking mode, represented in an {@link EnumSet}
+     * @incubating Discord has not officially confirmed that this feature will be available to bots
+     * @see #setSpeakingMode(Collection)
+     */
+    @Nonnull
+    @Incubating
+    EnumSet<SpeakingMode> getSpeakingMode();
+
+    /**
+     * The {@link SpeakingMode} that should be used when sending audio via
+     * the provided {@link AudioSendHandler} from {@link #setSendingHandler(AudioSendHandler)}.
+     * By default this will use {@link SpeakingMode#VOICE}.
      * <br>Example: {@code EnumSet.of(SpeakingMode.PRIORITY_SPEAKER, SpeakingMode.VOICE)}
      *
      * @param  mode
@@ -125,21 +138,6 @@ public interface AudioManager {
     }
 
     /**
-     * The {@link SpeakingMode} that should be used when sending audio via
-     * the provided {@link AudioSendHandler} from {@link #setSendingHandler(AudioSendHandler)}.
-     * By default this will use {@link SpeakingMode#VOICE}.
-     *
-     * @return The current speaking mode, represented in an {@link EnumSet}
-     *
-     * @see    #setSpeakingMode(Collection)
-     *
-     * @incubating Discord has not officially confirmed that this feature will be available to bots
-     */
-    @Nonnull
-    @Incubating
-    EnumSet<SpeakingMode> getSpeakingMode();
-
-    /**
      * Gets the {@link net.dv8tion.jda.api.JDA JDA} instance that this AudioManager is a part of.
      *
      * @return The corresponding JDA instance
@@ -175,6 +173,13 @@ public interface AudioManager {
     boolean isConnected();
 
     /**
+     * The currently set timeout value, in <b>milliseconds</b>, used when waiting for an audio connection to be established.
+     *
+     * @return The currently set timeout.
+     */
+    long getConnectTimeout();
+
+    /**
      * Sets the amount of time, in milliseconds, that will be used as the timeout when waiting for the audio connection
      * to successfully connect. The default value is 10 second (10,000 milliseconds).
      * <br><b>Note</b>: If you set this value to 0, you can remove timeout functionality and JDA will wait FOREVER for the connection
@@ -187,11 +192,13 @@ public interface AudioManager {
     void setConnectTimeout(long timeout);
 
     /**
-     * The currently set timeout value, in <b>milliseconds</b>, used when waiting for an audio connection to be established.
+     * The currently set {@link net.dv8tion.jda.api.audio.AudioSendHandler AudioSendHandler}. If there is
+     * no sender currently set, this method will return {@code null}.
      *
-     * @return The currently set timeout.
+     * @return The currently active {@link net.dv8tion.jda.api.audio.AudioSendHandler AudioSendHandler} or {@code null}.
      */
-    long getConnectTimeout();
+    @Nullable
+    AudioSendHandler getSendingHandler();
 
     /**
      * Sets the {@link net.dv8tion.jda.api.audio.AudioSendHandler}
@@ -211,13 +218,13 @@ public interface AudioManager {
     void setSendingHandler(@Nullable AudioSendHandler handler);
 
     /**
-     * The currently set {@link net.dv8tion.jda.api.audio.AudioSendHandler AudioSendHandler}. If there is
-     * no sender currently set, this method will return {@code null}.
+     * The currently set {@link net.dv8tion.jda.api.audio.AudioReceiveHandler AudioReceiveHandler}.
+     * If there is no receiver currently set, this method will return {@code null}.
      *
-     * @return The currently active {@link net.dv8tion.jda.api.audio.AudioSendHandler AudioSendHandler} or {@code null}.
+     * @return The currently active {@link net.dv8tion.jda.api.audio.AudioReceiveHandler AudioReceiveHandler} or {@code null}.
      */
     @Nullable
-    AudioSendHandler getSendingHandler();
+    AudioReceiveHandler getReceivingHandler();
 
     /**
      * Sets the {@link net.dv8tion.jda.api.audio.AudioReceiveHandler AudioReceiveHandler}
@@ -235,13 +242,14 @@ public interface AudioManager {
     void setReceivingHandler(@Nullable AudioReceiveHandler handler);
 
     /**
-     * The currently set {@link net.dv8tion.jda.api.audio.AudioReceiveHandler AudioReceiveHandler}.
-     * If there is no receiver currently set, this method will return {@code null}.
+     * The currently set {@link net.dv8tion.jda.api.audio.hooks.ConnectionListener ConnectionListener}
+     * or {@code null} if no {@link net.dv8tion.jda.api.audio.hooks.ConnectionListener ConnectionListener} has been {@link #setConnectionListener(ConnectionListener) set}.
      *
-     * @return The currently active {@link net.dv8tion.jda.api.audio.AudioReceiveHandler AudioReceiveHandler} or {@code null}.
+     * @return The current {@link net.dv8tion.jda.api.audio.hooks.ConnectionListener ConnectionListener} instance
+     *         for this AudioManager.
      */
     @Nullable
-    AudioReceiveHandler getReceivingHandler();
+    ConnectionListener getConnectionListener();
 
     /**
      * Sets the {@link net.dv8tion.jda.api.audio.hooks.ConnectionListener ConnectionListener} for this AudioManager.
@@ -254,16 +262,6 @@ public interface AudioManager {
     void setConnectionListener(@Nullable ConnectionListener listener);
 
     /**
-     * The currently set {@link net.dv8tion.jda.api.audio.hooks.ConnectionListener ConnectionListener}
-     * or {@code null} if no {@link net.dv8tion.jda.api.audio.hooks.ConnectionListener ConnectionListener} has been {@link #setConnectionListener(ConnectionListener) set}.
-     *
-     * @return The current {@link net.dv8tion.jda.api.audio.hooks.ConnectionListener ConnectionListener} instance
-     *         for this AudioManager.
-     */
-    @Nullable
-    ConnectionListener getConnectionListener();
-
-    /**
      * The current {@link net.dv8tion.jda.api.audio.hooks.ConnectionStatus ConnectionStatus}.
      * <br>This status indicates represents the connection status of an audio connection.
      *
@@ -271,6 +269,13 @@ public interface AudioManager {
      */
     @Nonnull
     ConnectionStatus getConnectionStatus();
+
+    /**
+     * Whether audio connections from this AudioManager automatically reconnect
+     *
+     * @return Whether audio connections from this AudioManager automatically reconnect
+     */
+    boolean isAutoReconnect();
 
     /**
      * Sets whether audio connections from this AudioManager
@@ -282,11 +287,13 @@ public interface AudioManager {
     void setAutoReconnect(boolean shouldReconnect);
 
     /**
-     * Whether audio connections from this AudioManager automatically reconnect
+     * Whether connections from this AudioManager are muted,
+     * if this is {@code true} packages by the registered {@link net.dv8tion.jda.api.audio.AudioSendHandler AudioSendHandler}
+     * will be ignored by Discord.
      *
-     * @return Whether audio connections from this AudioManager automatically reconnect
+     * @return Whether connections from this AudioManager are muted
      */
-    boolean isAutoReconnect();
+    boolean isSelfMuted();
 
     /**
      * Set this to {@code true} if the current connection should be displayed as muted,
@@ -300,13 +307,13 @@ public interface AudioManager {
     void setSelfMuted(boolean muted);
 
     /**
-     * Whether connections from this AudioManager are muted,
-     * if this is {@code true} packages by the registered {@link net.dv8tion.jda.api.audio.AudioSendHandler AudioSendHandler}
-     * will be ignored by Discord.
+     * Whether connections from this AudioManager are deafened.
+     * <br>This does not include being muted, that value can be set individually from {@link #setSelfMuted(boolean)}
+     * and checked via {@link #isSelfMuted()}
      *
-     * @return Whether connections from this AudioManager are muted
+     * @return True, if connections from this AudioManager are deafened
      */
-    boolean isSelfMuted();
+    boolean isSelfDeafened();
 
     /**
      * Sets whether connections from this AudioManager should be deafened.
@@ -317,13 +324,4 @@ public interface AudioManager {
      *        Whether connections from this AudioManager should be deafened.
      */
     void setSelfDeafened(boolean deafened);
-
-    /**
-     * Whether connections from this AudioManager are deafened.
-     * <br>This does not include being muted, that value can be set individually from {@link #setSelfMuted(boolean)}
-     * and checked via {@link #isSelfMuted()}
-     *
-     * @return True, if connections from this AudioManager are deafened
-     */
-    boolean isSelfDeafened();
 }

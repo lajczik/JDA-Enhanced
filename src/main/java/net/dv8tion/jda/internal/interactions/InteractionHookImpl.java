@@ -123,11 +123,6 @@ public class InteractionHookImpl extends AbstractWebhookClient<Message> implemen
         });
     }
 
-    public InteractionHookImpl setCallbackResponse(InteractionCallbackResponseImpl callbackResponse) {
-        this.callbackResponse = callbackResponse;
-        return this;
-    }
-
     @Nonnull
     @Override
     public InteractionImpl getInteraction() {
@@ -145,6 +140,11 @@ public class InteractionHookImpl extends AbstractWebhookClient<Message> implemen
                     "Cannot get callback response. Has this interaction been acknowledged yet?");
         }
         return callbackResponse;
+    }
+
+    public InteractionHookImpl setCallbackResponse(InteractionCallbackResponseImpl callbackResponse) {
+        this.callbackResponse = callbackResponse;
+        return this;
     }
 
     @Override

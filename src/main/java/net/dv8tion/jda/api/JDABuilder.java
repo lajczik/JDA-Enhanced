@@ -272,13 +272,6 @@ public class JDABuilder {
         return create(token, intents).applyDefault();
     }
 
-    protected JDABuilder applyDefault() {
-        return this.setMemberCachePolicy(MemberCachePolicy.DEFAULT)
-                .setChunkingFilter(ChunkingFilter.NONE)
-                .disableCache(CacheFlag.getPrivileged())
-                .setLargeThreshold(250);
-    }
-
     /**
      * Creates a JDABuilder with low memory profile settings.
      * <br>
@@ -399,13 +392,6 @@ public class JDABuilder {
     @CheckReturnValue
     public static JDABuilder createLight(@Nullable String token, @Nonnull Collection<GatewayIntent> intents) {
         return create(token, intents).applyLight();
-    }
-
-    protected JDABuilder applyLight() {
-        return this.setMemberCachePolicy(MemberCachePolicy.NONE)
-                .setChunkingFilter(ChunkingFilter.NONE)
-                .disableCache(EnumSet.allOf(CacheFlag.class))
-                .setLargeThreshold(50);
     }
 
     /**
@@ -560,6 +546,20 @@ public class JDABuilder {
     @CheckReturnValue
     public static JDABuilder create(@Nullable String token, @Nonnull Collection<GatewayIntent> intents) {
         return new JDABuilder(token, GatewayIntent.getRaw(intents)).applyIntents();
+    }
+
+    protected JDABuilder applyDefault() {
+        return this.setMemberCachePolicy(MemberCachePolicy.DEFAULT)
+                .setChunkingFilter(ChunkingFilter.NONE)
+                .disableCache(CacheFlag.getPrivileged())
+                .setLargeThreshold(250);
+    }
+
+    protected JDABuilder applyLight() {
+        return this.setMemberCachePolicy(MemberCachePolicy.NONE)
+                .setChunkingFilter(ChunkingFilter.NONE)
+                .disableCache(EnumSet.allOf(CacheFlag.class))
+                .setLargeThreshold(50);
     }
 
     protected JDABuilder applyIntents() {
@@ -803,7 +803,7 @@ public class JDABuilder {
      *
      *     builder.setMemberCachePolicy(policy);
      * }
-     * }
+     *}
      *
      * @param policy
      *               The {@link MemberCachePolicy} or null to use default

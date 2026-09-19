@@ -72,6 +72,12 @@ public class DetachedPrivateChannelImpl extends AbstractChannelImpl<DetachedPriv
     }
 
     @Override
+    public DetachedPrivateChannelImpl setLatestMessageIdLong(long latestMessageId) {
+        this.latestMessageId = latestMessageId;
+        return this;
+    }
+
+    @Override
     public boolean canTalk() {
         return false;
     }
@@ -119,12 +125,6 @@ public class DetachedPrivateChannelImpl extends AbstractChannelImpl<DetachedPriv
     @Override
     public boolean canDeleteOtherUsersMessages() {
         return false;
-    }
-
-    @Override
-    public DetachedPrivateChannelImpl setLatestMessageIdLong(long latestMessageId) {
-        this.latestMessageId = latestMessageId;
-        return this;
     }
 
     @Override

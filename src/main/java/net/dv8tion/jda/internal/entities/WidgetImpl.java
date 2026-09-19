@@ -229,10 +229,6 @@ public class WidgetImpl implements Widget {
             this.game = json.isNull("game") ? null : EntityBuilder.createActivity(json.getObject("game"));
         }
 
-        private void setVoiceState(VoiceState voiceState) {
-            state = voiceState;
-        }
-
         @Override
         public boolean isBot() {
             return bot;
@@ -369,6 +365,10 @@ public class WidgetImpl implements Widget {
         @Nonnull
         public VoiceState getVoiceState() {
             return state == null ? new VoiceStateImpl(this, widget) : state;
+        }
+
+        private void setVoiceState(VoiceState voiceState) {
+            state = voiceState;
         }
 
         @Override

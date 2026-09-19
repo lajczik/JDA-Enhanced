@@ -20,7 +20,10 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.UserSnowflake;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.messages.MessageSearchResponse;
@@ -79,6 +82,38 @@ public class MessageSearchActionImpl extends RestActionImpl<MessageSearchRespons
     public MessageSearchActionImpl(Guild guild) {
         super(guild.getJDA(), Route.Guilds.SEARCH_MESSAGES.compile(guild.getId()));
         this.guild = guild;
+    }
+
+    @Nonnull
+    private static Route.CompiledRoute appendList(
+            @Nonnull Route.CompiledRoute route, @Nonnull String paramName, @Nonnull Collection<String> list) {
+        for (String element : list) {
+            route = route.withQueryParams(paramName, element);
+        }
+        return route;
+    }
+
+    @Nonnull
+    private static <T> Route.CompiledRoute appendList(
+            @Nonnull Route.CompiledRoute route,
+            @Nonnull String paramName,
+            @Nonnull Collection<T> list,
+            @Nonnull Function<? super T, String> valueFunction) {
+        for (T element : list) {
+            route = route.withQueryParams(paramName, valueFunction.apply(element));
+        }
+        return route;
+    }
+
+    @Nonnull
+    private static Long2ObjectMap<DataObject> readSelfThreadMemberObjects(DataObject object) {
+        if (object.isNull("members")) {
+            return Long2ObjectMaps.emptyMap();
+        }
+
+        Long2ObjectMap<DataObject> result = new Long2ObjectOpenHashMap<>();
+        object.getArray("members").stream(DataArray::getObject).forEach(o -> result.put(o.getUnsignedLong("id"), o));
+        return result;
     }
 
     @Nonnull
@@ -507,27 +542,6 @@ public class MessageSearchActionImpl extends RestActionImpl<MessageSearchRespons
         return route;
     }
 
-    @Nonnull
-    private static Route.CompiledRoute appendList(
-            @Nonnull Route.CompiledRoute route, @Nonnull String paramName, @Nonnull Collection<String> list) {
-        for (String element : list) {
-            route = route.withQueryParams(paramName, element);
-        }
-        return route;
-    }
-
-    @Nonnull
-    private static <T> Route.CompiledRoute appendList(
-            @Nonnull Route.CompiledRoute route,
-            @Nonnull String paramName,
-            @Nonnull Collection<T> list,
-            @Nonnull Function<? super T, String> valueFunction) {
-        for (T element : list) {
-            route = route.withQueryParams(paramName, valueFunction.apply(element));
-        }
-        return route;
-    }
-
     @Override
     protected void handleSuccess(Response response, Request<MessageSearchResponse> request) {
         MessageSearchResponse searchResponse;
@@ -592,17 +606,6 @@ public class MessageSearchActionImpl extends RestActionImpl<MessageSearchRespons
                         },
                         "Unable to read a thread channel from search results")
                 .forEach(c -> result.put(c.getIdLong(), c));
-        return result;
-    }
-
-    @Nonnull
-    private static Long2ObjectMap<DataObject> readSelfThreadMemberObjects(DataObject object) {
-        if (object.isNull("members")) {
-            return Long2ObjectMaps.emptyMap();
-        }
-
-        Long2ObjectMap<DataObject> result = new Long2ObjectOpenHashMap<>();
-        object.getArray("members").stream(DataArray::getObject).forEach(o -> result.put(o.getUnsignedLong("id"), o));
         return result;
     }
 }

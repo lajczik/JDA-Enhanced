@@ -28,11 +28,11 @@ import java.nio.ShortBuffer;
  * Class that wraps functionality around the Opus decoder.
  */
 public class Decoder {
+    protected final ShortBuffer decodeBuffer = ShortBuffer.allocate(4096);
     protected int ssrc;
     protected char lastSeq;
     protected int lastTimestamp;
     protected PointerByReference opusDecoder;
-    protected final ShortBuffer decodeBuffer = ShortBuffer.allocate(4096);
     protected byte[] decodeInputBuffer = new byte[1024];
 
     protected Decoder(int ssrc) {

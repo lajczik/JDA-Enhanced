@@ -130,6 +130,26 @@ public class SelectOption implements SerializableData {
     }
 
     /**
+     * Inverse function for {@link #toData()} which parses the serialized option data
+     *
+     * @param data The serialized option data
+     * @return The parsed SelectOption instance
+     * @throws net.dv8tion.jda.api.exceptions.ParsingException If the data representation is invalid
+     * @throws IllegalArgumentException If some part of the data has an invalid length or null is provided
+     */
+    @Nonnull
+    @CheckReturnValue
+    public static SelectOption fromData(@Nonnull DataObject data) {
+        Checks.notNull(data, "DataObject");
+        return new SelectOption(
+                data.getString("label"),
+                data.getString("value"),
+                data.getString("description", null),
+                data.getBoolean("default", false),
+                data.optObject("emoji").map(EntityBuilder::createEmoji).orElse(null));
+    }
+
+    /**
      * Returns a copy of this select option with the changed label.
      *
      * @param  label
@@ -276,31 +296,6 @@ public class SelectOption implements SerializableData {
             object.put("description", description);
         }
         return object;
-    }
-
-    /**
-     * Inverse function for {@link #toData()} which parses the serialized option data
-     *
-     * @param  data
-     *         The serialized option data
-     *
-     * @throws net.dv8tion.jda.api.exceptions.ParsingException
-     *         If the data representation is invalid
-     * @throws IllegalArgumentException
-     *         If some part of the data has an invalid length or null is provided
-     *
-     * @return The parsed SelectOption instance
-     */
-    @Nonnull
-    @CheckReturnValue
-    public static SelectOption fromData(@Nonnull DataObject data) {
-        Checks.notNull(data, "DataObject");
-        return new SelectOption(
-                data.getString("label"),
-                data.getString("value"),
-                data.getString("description", null),
-                data.getBoolean("default", false),
-                data.optObject("emoji").map(EntityBuilder::createEmoji).orElse(null));
     }
 
     @Override

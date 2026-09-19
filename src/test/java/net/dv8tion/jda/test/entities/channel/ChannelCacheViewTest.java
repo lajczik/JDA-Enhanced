@@ -44,8 +44,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 class ChannelCacheViewTest {
-    private static long counter = 0;
-
     @SuppressWarnings("StringConcatToTextBlock")
     private static final String VALID_SORT_ORDER = String.join(
             "\n",
@@ -74,6 +72,8 @@ class ChannelCacheViewTest {
             "FORUM with parent",
             "CATEGORY parent of MEDIA",
             "MEDIA with parent");
+
+    private static long counter = 0;
 
     @SuppressWarnings("unchecked")
     private static <T extends Channel> T mockChannel(ChannelType type, String name) {

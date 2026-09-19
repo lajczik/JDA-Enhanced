@@ -53,7 +53,7 @@ import javax.annotation.Nonnull;
  * Other users cannot see the choices selected, and they will disappear when the client restarts or the message is reloaded.
  *
  * <p><b>Examples</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
  *   if (!event.getName().equals("class")) return;
  *
@@ -67,13 +67,50 @@ import javax.annotation.Nonnull;
  *     .addComponents(ActionRow.of(menu))
  *     .queue();
  * }
- * }
+ *}
  *
  * @see SelectTarget
  * @see EntitySelectInteraction
  * @see StringSelectMenu
  */
 public interface EntitySelectMenu extends SelectMenu {
+    /**
+     * Creates a new {@link Builder} for a select menu with the provided custom id.
+     *
+     * @param customId The id used to identify this menu with {@link ActionComponent#getCustomId()} for component interactions
+     * @param types The supported {@link SelectTarget SelectTargets}
+     * @return The {@link Builder} used to create the select menu
+     * @throws IllegalArgumentException <ul>
+     * <li>If the provided id is null, empty, or longer than {@value ID_MAX_LENGTH} characters.</li>
+     * <li>If the provided types are null, empty, or invalid.</li>
+     * </ul>
+     */
+    @Nonnull
+    @CheckReturnValue
+    static Builder create(@Nonnull String customId, @Nonnull Collection<SelectTarget> types) {
+        return new Builder(customId).setEntityTypes(types);
+    }
+
+    /**
+     * Creates a new {@link Builder} for a select menu with the provided custom id.
+     *
+     * @param customId The id used to identify this menu with {@link ActionComponent#getCustomId()} for component interactions
+     * @param type The first supported {@link SelectTarget}
+     * @param types Other supported {@link SelectTarget SelectTargets}
+     * @return The {@link Builder} used to create the select menu
+     * @throws IllegalArgumentException <ul>
+     * <li>If the provided id is null, empty, or longer than {@value ID_MAX_LENGTH} characters.</li>
+     * <li>If the provided types are null or invalid.</li>
+     * </ul>
+     */
+    @Nonnull
+    @CheckReturnValue
+    static Builder create(@Nonnull String customId, @Nonnull SelectTarget type, @Nonnull SelectTarget... types) {
+        Checks.notNull(type, "Type");
+        Checks.noneNull(types, "Types");
+        return create(customId, EnumSet.of(type, types));
+    }
+
     @Nonnull
     @Override
     default EntitySelectMenu asDisabled() {
@@ -154,54 +191,6 @@ public interface EntitySelectMenu extends SelectMenu {
             builder.setUniqueId(getUniqueId());
         }
         return builder;
-    }
-
-    /**
-     * Creates a new {@link Builder} for a select menu with the provided custom id.
-     *
-     * @param  customId
-     *         The id used to identify this menu with {@link ActionComponent#getCustomId()} for component interactions
-     * @param  types
-     *         The supported {@link SelectTarget SelectTargets}
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If the provided id is null, empty, or longer than {@value ID_MAX_LENGTH} characters.</li>
-     *             <li>If the provided types are null, empty, or invalid.</li>
-     *         </ul>
-     *
-     * @return The {@link Builder} used to create the select menu
-     */
-    @Nonnull
-    @CheckReturnValue
-    static Builder create(@Nonnull String customId, @Nonnull Collection<SelectTarget> types) {
-        return new Builder(customId).setEntityTypes(types);
-    }
-
-    /**
-     * Creates a new {@link Builder} for a select menu with the provided custom id.
-     *
-     * @param  customId
-     *         The id used to identify this menu with {@link ActionComponent#getCustomId()} for component interactions
-     * @param  type
-     *         The first supported {@link SelectTarget}
-     * @param  types
-     *         Other supported {@link SelectTarget SelectTargets}
-     *
-     * @throws IllegalArgumentException
-     *         <ul>
-     *             <li>If the provided id is null, empty, or longer than {@value ID_MAX_LENGTH} characters.</li>
-     *             <li>If the provided types are null or invalid.</li>
-     *         </ul>
-     *
-     * @return The {@link Builder} used to create the select menu
-     */
-    @Nonnull
-    @CheckReturnValue
-    static Builder create(@Nonnull String customId, @Nonnull SelectTarget type, @Nonnull SelectTarget... types) {
-        Checks.notNull(type, "Type");
-        Checks.noneNull(types, "Types");
-        return create(customId, EnumSet.of(type, types));
     }
 
     /**

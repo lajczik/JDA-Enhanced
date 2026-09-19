@@ -58,104 +58,6 @@ public interface Activity {
     int MAX_ACTIVITY_STATE_LENGTH = 128;
 
     /**
-     * Whether this is a <a href="https://discord.com/developers/docs/rich-presence/best-practices" target="_blank">Rich Presence</a>
-     * <br>If {@code false} the result of {@link #asRichPresence()} is {@code null}
-     *
-     * @return {@code true} if this is a {@link net.dv8tion.jda.api.entities.RichPresence RichPresence}
-     */
-    boolean isRich();
-
-    /**
-     * {@link net.dv8tion.jda.api.entities.RichPresence RichPresence} representation of
-     * this Activity.
-     *
-     * @return RichPresence or {@code null} if {@link #isRich()} returns {@code false}
-     */
-    @Nullable
-    RichPresence asRichPresence();
-
-    /**
-     * The displayed name of the {@link Activity Activity}.
-     * <br>For {@link ActivityType#CUSTOM_STATUS} this will return the custom status text.
-     *
-     * @return String containing the Activity's name.
-     */
-    @Nonnull
-    String getName();
-
-    /**
-     * The user's activity state
-     * <br>Example: "Looking to Play", "Playing Solo", "In a Group"
-     *
-     * <p>This shows below the normal activity information in the profile.
-     *
-     * <p><b>Example</b><br>
-     * Code:
-     * {@snippet lang="java":
-     * Activity.playing("Trivia")
-     *     .withState("Question 20")
-     * }
-     * Display:
-     * <pre>
-     * Playing Trivia
-     * Question 20
-     * </pre>
-     *
-     * @return The user's current party status
-     */
-    @Nullable
-    String getState();
-
-    /**
-     * The URL of the {@link Activity Activity} if the game is actually a Stream.
-     * <br>This will return null for regular games.
-     *
-     * @return Possibly-null String containing the Activity's URL.
-     */
-    @Nullable
-    String getUrl();
-
-    /**
-     * The type of {@link Activity Activity}.
-     *
-     * @return Never-null {@link net.dv8tion.jda.api.entities.Activity.ActivityType ActivityType} representing the type of Activity
-     */
-    @Nonnull
-    ActivityType getType();
-
-    /**
-     * Information on the match duration, start, and end.
-     *
-     * @return {@link net.dv8tion.jda.api.entities.Activity.Timestamps Timestamps} wrapper of {@code null} if unset
-     */
-    @Nullable
-    Timestamps getTimestamps();
-
-    /**
-     * The emoji (or custom emoji) attached to a custom status.
-     *
-     * @return Possibly-null {@link Emoji} used for custom status
-     */
-    @Nullable
-    EmojiUnion getEmoji();
-
-    /**
-     * Adds the provided state to the activity.
-     * <br>The state is shown below the activity, unless it is a {@link #customStatus(String) custom status}.
-     *
-     * @param  state
-     *         The activity state, or null to unset
-     *
-     * @throws IllegalArgumentException
-     *         If the state is longer than {@value #MAX_ACTIVITY_STATE_LENGTH} characters
-     *
-     * @return New activity instance with the provided state
-     */
-    @Nonnull
-    @Contract("_->new")
-    Activity withState(@Nullable String state);
-
-    /**
      * Creates a new Activity instance with the specified name.
      * <br>In order to appear as "streaming" in the official client you must
      * provide a valid (see documentation of method) streaming URL in {@link #streaming(String, String) Activity.streaming(String, String)}.
@@ -364,6 +266,100 @@ public interface Activity {
     }
 
     /**
+     * Whether this is a <a href="https://discord.com/developers/docs/rich-presence/best-practices" target="_blank">Rich Presence</a>
+     * <br>If {@code false} the result of {@link #asRichPresence()} is {@code null}
+     *
+     * @return {@code true} if this is a {@link net.dv8tion.jda.api.entities.RichPresence RichPresence}
+     */
+    boolean isRich();
+
+    /**
+     * {@link net.dv8tion.jda.api.entities.RichPresence RichPresence} representation of
+     * this Activity.
+     *
+     * @return RichPresence or {@code null} if {@link #isRich()} returns {@code false}
+     */
+    @Nullable
+    RichPresence asRichPresence();
+
+    /**
+     * The displayed name of the {@link Activity Activity}.
+     * <br>For {@link ActivityType#CUSTOM_STATUS} this will return the custom status text.
+     *
+     * @return String containing the Activity's name.
+     */
+    @Nonnull
+    String getName();
+
+    /**
+     * The user's activity state
+     * <br>Example: "Looking to Play", "Playing Solo", "In a Group"
+     *
+     * <p>This shows below the normal activity information in the profile.
+     *
+     * <p><b>Example</b><br>
+     * Code:
+     * {@snippet lang = "java":
+     * Activity.playing("Trivia")
+     *     .withState("Question 20")
+     *}
+     * Display:
+     * <pre>
+     * Playing Trivia
+     * Question 20
+     * </pre>
+     *
+     * @return The user's current party status
+     */
+    @Nullable
+    String getState();
+
+    /**
+     * The URL of the {@link Activity Activity} if the game is actually a Stream.
+     * <br>This will return null for regular games.
+     *
+     * @return Possibly-null String containing the Activity's URL.
+     */
+    @Nullable
+    String getUrl();
+
+    /**
+     * The type of {@link Activity Activity}.
+     *
+     * @return Never-null {@link net.dv8tion.jda.api.entities.Activity.ActivityType ActivityType} representing the type of Activity
+     */
+    @Nonnull
+    ActivityType getType();
+
+    /**
+     * Information on the match duration, start, and end.
+     *
+     * @return {@link net.dv8tion.jda.api.entities.Activity.Timestamps Timestamps} wrapper of {@code null} if unset
+     */
+    @Nullable
+    Timestamps getTimestamps();
+
+    /**
+     * The emoji (or custom emoji) attached to a custom status.
+     *
+     * @return Possibly-null {@link Emoji} used for custom status
+     */
+    @Nullable
+    EmojiUnion getEmoji();
+
+    /**
+     * Adds the provided state to the activity.
+     * <br>The state is shown below the activity, unless it is a {@link #customStatus(String) custom status}.
+     *
+     * @param state The activity state, or null to unset
+     * @return New activity instance with the provided state
+     * @throws IllegalArgumentException If the state is longer than {@value #MAX_ACTIVITY_STATE_LENGTH} characters
+     */
+    @Nonnull
+    @Contract("_->new")
+    Activity withState(@Nullable String state);
+
+    /**
      * The activity being executed, differentiating between, amongst others, playing, listening and streaming.
      */
     enum ActivityType {
@@ -397,7 +393,7 @@ public interface Activity {
          * Used to indicate that the {@link Activity Activity} should display
          * as {@code Competing in...} in the official client.
          *
-         * @since  4.2.1
+         * @since 4.2.1
          */
         COMPETING(5);
 
@@ -405,15 +401,6 @@ public interface Activity {
 
         ActivityType(int key) {
             this.key = key;
-        }
-
-        /**
-         * The Discord defined id key for this ActivityType.
-         *
-         * @return the id key.
-         */
-        public int getKey() {
-            return key;
         }
 
         /**
@@ -442,6 +429,15 @@ public interface Activity {
                 case 5:
                     return COMPETING;
             }
+        }
+
+        /**
+         * The Discord defined id key for this ActivityType.
+         *
+         * @return the id key.
+         */
+        public int getKey() {
+            return key;
         }
     }
 

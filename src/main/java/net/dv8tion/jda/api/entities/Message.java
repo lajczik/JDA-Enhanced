@@ -2671,15 +2671,6 @@ public interface Message extends ISnowflake, Formattable {
         }
 
         /**
-         * Returns the value of the MessageFlag as represented in the bitfield. It is always a power of 2 (single bit)
-         *
-         * @return Non-Zero bit value of the field
-         */
-        public int getValue() {
-            return value;
-        }
-
-        /**
          * Given a bitfield, this function extracts all Enum values according to their bit values and returns
          * an EnumSet containing all matching MessageFlags
          *
@@ -2715,6 +2706,15 @@ public interface Message extends ISnowflake, Formattable {
                 flags |= messageFlag.value;
             }
             return flags;
+        }
+
+        /**
+         * Returns the value of the MessageFlag as represented in the bitfield. It is always a power of 2 (single bit)
+         *
+         * @return Non-Zero bit value of the field
+         */
+        public int getValue() {
+            return value;
         }
     }
 

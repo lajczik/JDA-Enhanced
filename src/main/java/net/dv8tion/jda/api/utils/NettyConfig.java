@@ -763,15 +763,6 @@ public class NettyConfig implements AutoCloseable {
     }
 
     /**
-     * Alias for {@link #isHttpCompression()}.
-     *
-     * @return True if HTTP client compression is enabled
-     */
-    public boolean isHttpClientCompression() {
-        return httpCompression;
-    }
-
-    /**
      * Sets whether HTTP client compression (GZIP / Brotli) is enabled.
      * <br>This method is thread-safe and updates the underlying {@link HttpClient}.
      *
@@ -789,6 +780,15 @@ public class NettyConfig implements AutoCloseable {
             }
         }
         return this;
+    }
+
+    /**
+     * Alias for {@link #isHttpCompression()}.
+     *
+     * @return True if HTTP client compression is enabled
+     */
+    public boolean isHttpClientCompression() {
+        return httpCompression;
     }
 
     /**
@@ -850,16 +850,6 @@ public class NettyConfig implements AutoCloseable {
     }
 
     /**
-     * The socket connection timeout as a {@link Duration}.
-     *
-     * @return The connect timeout Duration
-     */
-    @Nonnull
-    public Duration getConnectTimeout() {
-        return Duration.ofMillis(connectTimeoutMillis);
-    }
-
-    /**
      * Sets the socket connection timeout in milliseconds.
      *
      * @param connectTimeoutMillis
@@ -872,6 +862,16 @@ public class NettyConfig implements AutoCloseable {
         Checks.positive(connectTimeoutMillis, "Connect timeout");
         this.connectTimeoutMillis = connectTimeoutMillis;
         return this;
+    }
+
+    /**
+     * The socket connection timeout as a {@link Duration}.
+     *
+     * @return The connect timeout Duration
+     */
+    @Nonnull
+    public Duration getConnectTimeout() {
+        return Duration.ofMillis(connectTimeoutMillis);
     }
 
     /**

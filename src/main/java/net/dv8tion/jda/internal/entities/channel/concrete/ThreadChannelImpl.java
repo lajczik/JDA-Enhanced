@@ -100,6 +100,12 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
         return ChannelFlag.fromRaw(flags);
     }
 
+    @Override
+    public ThreadChannelImpl setFlags(int flags) {
+        this.flags = flags;
+        return this;
+    }
+
     @Nonnull
     @Override
     public ChannelType getType() {
@@ -112,8 +118,20 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     }
 
     @Override
+    public ThreadChannelImpl setLatestMessageIdLong(long latestMessageId) {
+        this.latestMessageId = latestMessageId;
+        return this;
+    }
+
+    @Override
     public int getMessageCount() {
         return messageCount;
+    }
+
+    @Override
+    public ThreadChannelImpl setMessageCount(int messageCount) {
+        this.messageCount = messageCount;
+        return this;
     }
 
     @Override
@@ -122,13 +140,31 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     }
 
     @Override
+    public ThreadChannelImpl setTotalMessageCount(int messageCount) {
+        this.totalMessageCount = Math.max(messageCount, this.messageCount); // If this is 0 we use the older count
+        return this;
+    }
+
+    @Override
     public int getMemberCount() {
         return memberCount;
     }
 
     @Override
+    public ThreadChannelImpl setMemberCount(int memberCount) {
+        this.memberCount = memberCount;
+        return this;
+    }
+
+    @Override
     public boolean isLocked() {
         return locked;
+    }
+
+    @Override
+    public ThreadChannelImpl setLocked(boolean locked) {
+        this.locked = locked;
+        return this;
     }
 
     @Override
@@ -157,6 +193,11 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
         return parentChannel;
     }
 
+    public ThreadChannelImpl setParentChannel(IThreadContainer channel) {
+        this.parentChannel = (IThreadContainerUnion) channel;
+        return this;
+    }
+
     @Nonnull
     @Override
     public List<ForumTag> getAppliedTags() {
@@ -167,6 +208,13 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
         return parent.asForumChannel().getAvailableTagCache().stream()
                 .filter(tag -> this.appliedTags.contains(tag.getIdLong()))
                 .toList();
+    }
+
+    public ThreadChannelImpl setAppliedTags(LongStream tags) {
+        LongSet set = new LongOpenHashSet(ForumChannel.MAX_POST_TAGS);
+        tags.forEach(set::add);
+        this.appliedTags = set;
+        return this;
     }
 
     @Nonnull
@@ -229,12 +277,24 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     }
 
     @Override
+    public ThreadChannelImpl setArchived(boolean archived) {
+        this.archived = archived;
+        return this;
+    }
+
+    @Override
     public boolean isInvitable() {
         if (type != ChannelType.GUILD_PRIVATE_THREAD) {
             throw new UnsupportedOperationException("Only private threads support the concept of invitable.");
         }
 
         return invitable;
+    }
+
+    @Override
+    public ThreadChannelImpl setInvitable(boolean invitable) {
+        this.invitable = invitable;
+        return this;
     }
 
     @Nonnull
@@ -249,6 +309,12 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
         return autoArchiveDuration;
     }
 
+    @Override
+    public ThreadChannelImpl setAutoArchiveDuration(AutoArchiveDuration autoArchiveDuration) {
+        this.autoArchiveDuration = autoArchiveDuration;
+        return this;
+    }
+
     @Nonnull
     @Override
     public OffsetDateTime getTimeCreated() {
@@ -258,6 +324,12 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     @Override
     public int getSlowmode() {
         return slowmode;
+    }
+
+    @Override
+    public ThreadChannelImpl setSlowmode(int slowmode) {
+        this.slowmode = slowmode;
+        return this;
     }
 
     @Nonnull
@@ -324,47 +396,6 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     }
 
     @Override
-    public ThreadChannelImpl setLatestMessageIdLong(long latestMessageId) {
-        this.latestMessageId = latestMessageId;
-        return this;
-    }
-
-    @Override
-    public ThreadChannelImpl setAutoArchiveDuration(AutoArchiveDuration autoArchiveDuration) {
-        this.autoArchiveDuration = autoArchiveDuration;
-        return this;
-    }
-
-    public ThreadChannelImpl setParentChannel(IThreadContainer channel) {
-        this.parentChannel = (IThreadContainerUnion) channel;
-        return this;
-    }
-
-    @Override
-    public ThreadChannelImpl setLocked(boolean locked) {
-        this.locked = locked;
-        return this;
-    }
-
-    @Override
-    public ThreadChannelImpl setArchived(boolean archived) {
-        this.archived = archived;
-        return this;
-    }
-
-    @Override
-    public ThreadChannelImpl setInvitable(boolean invitable) {
-        this.invitable = invitable;
-        return this;
-    }
-
-    @Override
-    public ThreadChannelImpl setArchiveTimestamp(long archiveTimestamp) {
-        this.archiveTimestamp = archiveTimestamp;
-        return this;
-    }
-
-    @Override
     public ThreadChannelImpl setCreationTimestamp(long creationTimestamp) {
         this.creationTimestamp = creationTimestamp;
         return this;
@@ -376,45 +407,14 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
         return this;
     }
 
-    @Override
-    public ThreadChannelImpl setMessageCount(int messageCount) {
-        this.messageCount = messageCount;
-        return this;
-    }
-
-    @Override
-    public ThreadChannelImpl setTotalMessageCount(int messageCount) {
-        this.totalMessageCount = Math.max(messageCount, this.messageCount); // If this is 0 we use the older count
-        return this;
-    }
-
-    @Override
-    public ThreadChannelImpl setMemberCount(int memberCount) {
-        this.memberCount = memberCount;
-        return this;
-    }
-
-    @Override
-    public ThreadChannelImpl setSlowmode(int slowmode) {
-        this.slowmode = slowmode;
-        return this;
-    }
-
-    public ThreadChannelImpl setAppliedTags(LongStream tags) {
-        LongSet set = new LongOpenHashSet(ForumChannel.MAX_POST_TAGS);
-        tags.forEach(set::add);
-        this.appliedTags = set;
-        return this;
-    }
-
-    @Override
-    public ThreadChannelImpl setFlags(int flags) {
-        this.flags = flags;
-        return this;
-    }
-
     public long getArchiveTimestamp() {
         return archiveTimestamp;
+    }
+
+    @Override
+    public ThreadChannelImpl setArchiveTimestamp(long archiveTimestamp) {
+        this.archiveTimestamp = archiveTimestamp;
+        return this;
     }
 
     public LongSet getAppliedTagsSet() {

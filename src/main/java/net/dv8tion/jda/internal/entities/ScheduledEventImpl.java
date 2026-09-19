@@ -64,10 +64,20 @@ public class ScheduledEventImpl implements ScheduledEvent {
         return name;
     }
 
+    public ScheduledEventImpl setName(String name) {
+        this.name = name;
+        return this;
+    }
+
     @Nullable
     @Override
     public String getDescription() {
         return description;
+    }
+
+    public ScheduledEventImpl setDescription(String description) {
+        this.description = description;
+        return this;
     }
 
     @Nullable
@@ -90,6 +100,11 @@ public class ScheduledEventImpl implements ScheduledEvent {
         return creator;
     }
 
+    public ScheduledEventImpl setCreator(User creator) {
+        this.creator = creator;
+        return this;
+    }
+
     @Override
     public long getCreatorIdLong() {
         return creatorId;
@@ -101,10 +116,20 @@ public class ScheduledEventImpl implements ScheduledEvent {
         return status;
     }
 
+    public ScheduledEventImpl setStatus(Status status) {
+        this.status = status;
+        return this;
+    }
+
     @Nonnull
     @Override
     public Type getType() {
         return type;
+    }
+
+    public ScheduledEventImpl setType(Type type) {
+        this.type = type;
+        return this;
     }
 
     @Nonnull
@@ -113,10 +138,20 @@ public class ScheduledEventImpl implements ScheduledEvent {
         return startTime;
     }
 
+    public ScheduledEventImpl setStartTime(OffsetDateTime startTime) {
+        this.startTime = startTime;
+        return this;
+    }
+
     @Nullable
     @Override
     public OffsetDateTime getEndTime() {
         return endTime;
+    }
+
+    public ScheduledEventImpl setEndTime(OffsetDateTime endTime) {
+        this.endTime = endTime;
+        return this;
     }
 
     @Nullable
@@ -134,6 +169,11 @@ public class ScheduledEventImpl implements ScheduledEvent {
         return location;
     }
 
+    public ScheduledEventImpl setLocation(String location) {
+        this.location = location;
+        return this;
+    }
+
     @Nonnull
     @Override
     public String getJumpUrl() {
@@ -143,6 +183,11 @@ public class ScheduledEventImpl implements ScheduledEvent {
     @Override
     public int getInterestedUserCount() {
         return interestedUserCount;
+    }
+
+    public ScheduledEventImpl setInterestedUserCount(int interestedUserCount) {
+        this.interestedUserCount = interestedUserCount;
+        return this;
     }
 
     @Nonnull
@@ -194,26 +239,6 @@ public class ScheduledEventImpl implements ScheduledEvent {
         return new ScheduledEventMembersPaginationActionImpl(this);
     }
 
-    public ScheduledEventImpl setName(String name) {
-        this.name = name;
-        return this;
-    }
-
-    public ScheduledEventImpl setType(Type type) {
-        this.type = type;
-        return this;
-    }
-
-    public ScheduledEventImpl setLocation(String location) {
-        this.location = location;
-        return this;
-    }
-
-    public ScheduledEventImpl setDescription(String description) {
-        this.description = description;
-        return this;
-    }
-
     public ScheduledEventImpl setCoverImage(String image) {
         this.coverImage = image;
         return this;
@@ -221,31 +246,6 @@ public class ScheduledEventImpl implements ScheduledEvent {
 
     public ScheduledEventImpl setCreatorId(long creatorId) {
         this.creatorId = creatorId;
-        return this;
-    }
-
-    public ScheduledEventImpl setCreator(User creator) {
-        this.creator = creator;
-        return this;
-    }
-
-    public ScheduledEventImpl setStatus(Status status) {
-        this.status = status;
-        return this;
-    }
-
-    public ScheduledEventImpl setStartTime(OffsetDateTime startTime) {
-        this.startTime = startTime;
-        return this;
-    }
-
-    public ScheduledEventImpl setEndTime(OffsetDateTime endTime) {
-        this.endTime = endTime;
-        return this;
-    }
-
-    public ScheduledEventImpl setInterestedUserCount(int interestedUserCount) {
-        this.interestedUserCount = interestedUserCount;
         return this;
     }
 

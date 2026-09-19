@@ -34,7 +34,7 @@ import javax.annotation.Nonnull;
  * <br>Maximum - 100
  *
  * <p><b>Example</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * // Count all thread members who are bots
  * public static CompletableFuture<AtomicInteger> countBotMembers(ThreadChannel thread) {
  *     AtomicInteger count = new AtomicInteger();
@@ -45,7 +45,7 @@ import javax.annotation.Nonnull;
  *         return true; // continues iterating if this returns true
  *     }).thenApply((v) -> count);
  * }
- * }
+ *}
  *
  * @see ThreadChannel#retrieveThreadMembers()
  */

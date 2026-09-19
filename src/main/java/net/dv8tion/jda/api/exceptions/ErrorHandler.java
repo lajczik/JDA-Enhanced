@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
  * Utility class to simplify error handling with {@link RestAction RestActions} and {@link ErrorResponse ErrorResponses}.
  *
  * <p><b>Example</b><br>
- * {@snippet lang="java":
+ * {@snippet lang = "java":
  * // Send message to user and delete it 30 seconds later, handles blocked messages in context channel.
  * public void sendMessage(TextChannel context, User user, String content) {
  *     user.openPrivateChannel()
@@ -44,7 +44,7 @@ import javax.annotation.Nullable;
  *                 ErrorResponse.CANNOT_SEND_TO_USER,  // Fallback handling for blocked messages
  *                 (e) -> context.sendMessage("Failed to send message, you block private messages!").queue()));
  * }
- * }
+ *}
  *
  * @see ErrorResponse
  * @see ErrorResponseException
@@ -79,7 +79,7 @@ public class ErrorHandler implements Consumer<Throwable> {
      * Ignore the specified set of error responses.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Creates a message with the provided content and deletes it 30 seconds later
      * public static void selfDestruct(MessageChannel channel, String content) {
      *     channel.sendMessage(content)
@@ -87,7 +87,7 @@ public class ErrorHandler implements Consumer<Throwable> {
      *         .flatMap(Message::delete)
      *         .queue(null, new ErrorHandler().ignore(UNKNOWN_MESSAGE));
      * }
-     * }
+     *}
      *
      * @param  ignored
      *         Ignored error response
@@ -110,7 +110,7 @@ public class ErrorHandler implements Consumer<Throwable> {
      * Ignore the specified set of error responses.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Creates a message with the provided content and deletes it 30 seconds later
      * public static void selfDestruct(User user, String content) {
      *     user.openPrivateChannel()
@@ -119,7 +119,7 @@ public class ErrorHandler implements Consumer<Throwable> {
      *         .flatMap(Message::delete)
      *         .queue(null, new ErrorHandler().ignore(EnumSet.of(UNKNOWN_MESSAGE, CANNOT_SEND_TO_USER)));
      * }
-     * }
+     *}
      *
      * @param  errorResponses
      *         The error responses to ignore
@@ -138,12 +138,12 @@ public class ErrorHandler implements Consumer<Throwable> {
      * Ignore exceptions of the specified types.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Ignore SocketTimeoutException
      * public static void ban(Guild guild, String userId) {
      *     guild.ban(userId).queue(null, new ErrorHandler().ignore(SocketTimeoutException.class);
      * }
-     * }
+     *}
      *
      * @param  clazz
      *         The class to ignore
@@ -178,12 +178,12 @@ public class ErrorHandler implements Consumer<Throwable> {
      * Ignore exceptions on specific conditions.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * // Ignore all exceptions except for ErrorResponseException
      * public static void ban(Guild guild, String userId) {
      *     guild.ban(userId).queue(null, new ErrorHandler().ignore((ex) -> !(ex instanceof ErrorResponseException));
      * }
-     * }
+     *}
      *
      * @param  condition
      *         The condition to check
@@ -205,7 +205,7 @@ public class ErrorHandler implements Consumer<Throwable> {
      * <br>This will apply the specified handler to use instead of the base consumer if one of the provided ErrorResponses happens.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public static void sendMessage(TextChannel context, User user, String content) {
      *     user.openPrivateChannel()
      *         .flatMap(channel -> channel.sendMessage(content))
@@ -213,7 +213,7 @@ public class ErrorHandler implements Consumer<Throwable> {
      *             .handle(ErrorResponse.CANNOT_SEND_TO_USER,
      *                 (ex) -> context.sendMessage("Cannot send direct message, please enable direct messages from server members!").queue()));
      * }
-     * }
+     *}
      *
      * @param  response
      *         The first {@link ErrorResponse} to match
@@ -237,7 +237,7 @@ public class ErrorHandler implements Consumer<Throwable> {
      * <br>This will apply the specified handler to use instead of the base consumer if one of the provided ErrorResponses happens.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public static void sendMessage(TextChannel context, User user, String content) {
      *     user.openPrivateChannel()
      *         .flatMap(channel -> channel.sendMessage(content))
@@ -245,7 +245,7 @@ public class ErrorHandler implements Consumer<Throwable> {
      *             .handle(EnumSet.of(ErrorResponse.CANNOT_SEND_TO_USER),
      *                 (ex) -> context.sendMessage("Cannot send direct message, please enable direct messages from server members!").queue()));
      * }
-     * }
+     *}
      *
      * @param  errorResponses
      *         The {@link ErrorResponse ErrorResponses} to match
@@ -271,13 +271,13 @@ public class ErrorHandler implements Consumer<Throwable> {
      * <br>This will apply the specified handler if the throwable is of the specified type. The check is done using {@link Class#isInstance(Object)}.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public static void logErrorResponse(RestAction<?> action) {
      *     action.queue(null, new ErrorHandler()
      *         .handle(ErrorResponseException.class,
      *             (ex) -> System.out.println(ex.getErrorResponse())));
      * }
-     * }
+     *}
      *
      * @param  clazz
      *         The throwable type
@@ -300,14 +300,14 @@ public class ErrorHandler implements Consumer<Throwable> {
      * <br>This will apply the specified handler if the throwable is of the specified type. The check is done using {@link Class#isInstance(Object)}.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public static void logErrorResponse(RestAction<?> action) {
      *     action.queue(null, new ErrorHandler()
      *         .handle(ErrorResponseException.class,
      *             ErrorResponseException::isServerError,
      *             (ex) -> System.out.println(ex.getErrorCode() + ": " + ex.getMeaning())));
      * }
-     * }
+     *}
      *
      * @param  clazz
      *         The throwable type
@@ -334,14 +334,14 @@ public class ErrorHandler implements Consumer<Throwable> {
      * <br>This will apply the specified handler if the throwable is of the specified type. The check is done using {@link Class#isInstance(Object)}.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public static void logErrorResponse(RestAction<?> action) {
      *     action.queue(null, new ErrorHandler()
      *         .handle(Arrays.asList(Throwable.class),
      *             (ex) -> ex instanceof Error,
      *             (ex) -> ex.printStackTrace()));
      * }
-     * }
+     *}
      *
      * @param  clazz
      *         The throwable types
@@ -369,14 +369,14 @@ public class ErrorHandler implements Consumer<Throwable> {
      * Handle specific conditions.
      *
      * <p><b>Example</b><br>
-     * {@snippet lang="java":
+     * {@snippet lang = "java":
      * public static void logErrorResponse(RestAction<?> action) {
      *     action.queue(null, new ErrorHandler()
      *         .handle(
      *             (ex) -> !(ex instanceof ErrorResponseException),
      *             Throwable::printStackTrace));
      * }
-     * }
+     *}
      *
      * @param  condition
      *         Condition that must apply to use this handler

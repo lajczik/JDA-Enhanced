@@ -104,21 +104,6 @@ public class FileProxy {
     }
 
     /**
-     * Sets the default {@link Scheduler} used by {@link FileProxy} and {@link ImageProxy}.
-     * <br>This can still be overridden on a per-instance basis with {@link #withScheduler(Scheduler)}.
-     *
-     * @param  scheduler
-     *         The default {@link Scheduler} to use for reactive operations
-     *
-     * @throws IllegalArgumentException
-     *         If the provided {@link Scheduler} is null
-     */
-    public static void setDefaultScheduler(@Nonnull Scheduler scheduler) {
-        Checks.notNull(scheduler, "Default Scheduler");
-        FileProxy.defaultScheduler = scheduler;
-    }
-
-    /**
      * Resets the default {@link Scheduler} used by {@link FileProxy} and {@link ImageProxy}
      * if it matches the expected scheduler, or unconditionally if {@code expected} is null.
      *
@@ -139,6 +124,18 @@ public class FileProxy {
     @Nullable
     public static Scheduler getDefaultScheduler() {
         return defaultScheduler;
+    }
+
+    /**
+     * Sets the default {@link Scheduler} used by {@link FileProxy} and {@link ImageProxy}.
+     * <br>This can still be overridden on a per-instance basis with {@link #withScheduler(Scheduler)}.
+     *
+     * @param scheduler The default {@link Scheduler} to use for reactive operations
+     * @throws IllegalArgumentException If the provided {@link Scheduler} is null
+     */
+    public static void setDefaultScheduler(@Nonnull Scheduler scheduler) {
+        Checks.notNull(scheduler, "Default Scheduler");
+        FileProxy.defaultScheduler = scheduler;
     }
 
     /**
@@ -367,27 +364,6 @@ public class FileProxy {
         return FutureUtil.thenApplyCancellable(future, Function.identity(), disposable::dispose);
     }
 
-    private static class DownloadFuture<T> extends CompletableFuture<T> {
-        private final Scheduler scheduler;
-
-        private DownloadFuture(Scheduler scheduler) {
-            this.scheduler = scheduler;
-        }
-
-        @Nonnull
-        @Override
-        public Executor defaultExecutor() {
-            return scheduler::schedule;
-        }
-
-        @Nonnull
-        @CheckReturnValue
-        @Override
-        public <U> CompletableFuture<U> newIncompleteFuture() {
-            return new DownloadFuture<>(scheduler);
-        }
-    }
-
     /**
      * Retrieves the {@link InputStream} of this file
      *
@@ -466,6 +442,27 @@ public class FileProxy {
         return FileUpload.fromStreamSupplier(name, () -> {
             return download().join();
         });
+    }
+
+    private static class DownloadFuture<T> extends CompletableFuture<T> {
+        private final Scheduler scheduler;
+
+        private DownloadFuture(Scheduler scheduler) {
+            this.scheduler = scheduler;
+        }
+
+        @Nonnull
+        @Override
+        public Executor defaultExecutor() {
+            return scheduler::schedule;
+        }
+
+        @Nonnull
+        @CheckReturnValue
+        @Override
+        public <U> CompletableFuture<U> newIncompleteFuture() {
+            return new DownloadFuture<>(scheduler);
+        }
     }
 
     protected static class DownloadTask {

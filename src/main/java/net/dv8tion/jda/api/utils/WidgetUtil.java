@@ -55,6 +55,35 @@ public class WidgetUtil {
     public static final String WIDGET_URL = RestConfig.DEFAULT_BASE_URL + "guilds/%s/widget.json";
     public static final String WIDGET_HTML =
             "<iframe src=\"https://discord.com/widget?id=%s&theme=%s\" width=\"%d\" height=\"%d\" allowtransparency=\"true\" frameborder=\"0\"></iframe>";
+    /**
+     * Makes a GET request to get the information for a Guild's widget. This
+     * widget (if available) contains information about the guild, including the
+     * Guild's name, an invite code (if set), a list of voice channels, and a
+     * list of online members (plus the voice states of any members in voice
+     * channels).
+     *
+     * <p>This Widget can be obtained from any valid guild ID that has
+     * it enabled; no accounts need to be on the server to access this information.
+     *
+     * @param guildId
+     * The id of the Guild
+     * @throws UncheckedIOException
+     * If an I/O error occurs
+     * @throws RateLimitedException
+     * If the request was rate limited, <b>respect the timeout</b>!
+     * @return {@code null} if the provided guild ID is not a valid Discord guild ID
+     * <br>a Widget object with null fields and isAvailable() returning
+     * false if the guild ID is valid but the guild in question does not
+     * have the widget enabled
+     * <br>a filled-in Widget object if the guild ID is valid and the guild
+     * in question has the widget enabled.
+     */
+    private static final HttpClient DEFAULT_HTTP_CLIENT = HttpClient.create(ConnectionProvider.builder("JDA-Widget")
+                    .maxConnections(64)
+                    .pendingAcquireTimeout(Duration.ofSeconds(45))
+                    .maxIdleTime(Duration.ofSeconds(10))
+                    .build())
+            .compress(true);
 
     /**
      * Gets the banner image for the specified guild of the specified type.
@@ -172,38 +201,6 @@ public class WidgetUtil {
     public static Widget getWidget(@Nonnull String guildId) throws RateLimitedException {
         return getWidget(MiscUtil.parseSnowflake(guildId));
     }
-
-    /**
-     * Makes a GET request to get the information for a Guild's widget. This
-     * widget (if available) contains information about the guild, including the
-     * Guild's name, an invite code (if set), a list of voice channels, and a
-     * list of online members (plus the voice states of any members in voice
-     * channels).
-     *
-     * <p>This Widget can be obtained from any valid guild ID that has
-     * it enabled; no accounts need to be on the server to access this information.
-     *
-     * @param  guildId
-     *         The id of the Guild
-     *
-     * @throws UncheckedIOException
-     *         If an I/O error occurs
-     * @throws RateLimitedException
-     *         If the request was rate limited, <b>respect the timeout</b>!
-     *
-     * @return {@code null} if the provided guild ID is not a valid Discord guild ID
-     *         <br>a Widget object with null fields and isAvailable() returning
-     *         false if the guild ID is valid but the guild in question does not
-     *         have the widget enabled
-     *         <br>a filled-in Widget object if the guild ID is valid and the guild
-     *         in question has the widget enabled.
-     */
-    private static final HttpClient DEFAULT_HTTP_CLIENT = HttpClient.create(ConnectionProvider.builder("JDA-Widget")
-                    .maxConnections(64)
-                    .pendingAcquireTimeout(Duration.ofSeconds(45))
-                    .maxIdleTime(Duration.ofSeconds(10))
-                    .build())
-            .compress(true);
 
     /**
      * Makes an asynchronous request to get the information for a Guild's widget as a Project Reactor {@link Mono}.

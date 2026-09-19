@@ -33,16 +33,16 @@ public abstract class ManagerBase<M extends Manager<M>> extends AuditableRestAct
     private static boolean enablePermissionChecks = true;
     protected long set = 0;
 
-    public static void setPermissionChecksEnabled(boolean enable) {
-        enablePermissionChecks = enable;
+    protected ManagerBase(JDA api, Route.CompiledRoute route) {
+        super(api, route);
     }
 
     public static boolean isPermissionChecksEnabled() {
         return enablePermissionChecks;
     }
 
-    protected ManagerBase(JDA api, Route.CompiledRoute route) {
-        super(api, route);
+    public static void setPermissionChecksEnabled(boolean enable) {
+        enablePermissionChecks = enable;
     }
 
     @Nonnull
