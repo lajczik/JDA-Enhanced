@@ -29,8 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class NettyUtilsTest {
     @Test
-    void testOpenSslAvailability() {
-        assertNotNull(NettyUtils.getSslProviderName());
+    void testSslAndTransportNames() {
+        assertEquals("JDK", NettyUtils.getSslProviderName());
         assertNotNull(NettyUtils.getTransportName(true));
         assertNotNull(NettyUtils.getTransportName(false));
     }

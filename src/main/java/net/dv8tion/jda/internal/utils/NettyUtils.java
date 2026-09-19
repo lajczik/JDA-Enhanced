@@ -53,8 +53,6 @@ public class NettyUtils {
 
     private static final boolean EPOLL_AVAILABLE;
     private static final boolean KQUEUE_AVAILABLE;
-    private static final boolean OPENSSL_AVAILABLE;
-    private static final String OPENSSL_VERSION;
 
     static {
         boolean epoll = false;
@@ -92,28 +90,6 @@ public class NettyUtils {
             log.debug("Netty KQueue check failed: {}", t.getMessage());
         }
         KQUEUE_AVAILABLE = kqueue;
-
-        boolean openssl = false;
-        String opensslVersion = null;
-        try {
-            Class<?> openSslClass = Class.forName("io.netty.handler.ssl.OpenSsl");
-            openssl = (boolean) openSslClass.getMethod("isAvailable").invoke(null);
-            if (openssl) {
-                opensslVersion =
-                        (String) openSslClass.getMethod("versionString").invoke(null);
-                log.debug("Netty OpenSSL native provider is available (version: {}).", opensslVersion);
-            } else {
-                Throwable cause = (Throwable)
-                        openSslClass.getMethod("unavailabilityCause").invoke(null);
-                log.debug(
-                        "Netty OpenSSL native provider is not available: {}",
-                        cause != null ? cause.getMessage() : "unknown");
-            }
-        } catch (Throwable t) {
-            log.debug("Netty OpenSSL check failed: {}", t.getMessage());
-        }
-        OPENSSL_AVAILABLE = openssl;
-        OPENSSL_VERSION = opensslVersion;
     }
 
     @Nonnull
@@ -129,9 +105,6 @@ public class NettyUtils {
 
     @Nonnull
     public static String getSslProviderName() {
-        if (OPENSSL_AVAILABLE) {
-            return "OpenSSL (" + (OPENSSL_VERSION != null ? OPENSSL_VERSION : "native") + ")";
-        }
         return "JDK";
     }
 
@@ -141,10 +114,6 @@ public class NettyUtils {
 
     public static boolean isKQueueAvailable() {
         return KQUEUE_AVAILABLE;
-    }
-
-    public static boolean isOpenSslAvailable() {
-        return OPENSSL_AVAILABLE;
     }
 
     @Nonnull
@@ -236,13 +205,7 @@ public class NettyUtils {
 
     @Nonnull
     public static SslContext createSslContext() throws SSLException {
-        SslContextBuilder builder = SslContextBuilder.forClient();
-        if (OPENSSL_AVAILABLE) {
-            builder.sslProvider(SslProvider.OPENSSL);
-        } else {
-            builder.sslProvider(SslProvider.JDK);
-        }
-        return builder.build();
+        return SslContextBuilder.forClient().sslProvider(SslProvider.JDK).build();
     }
 
     public static void configureBootstrap(@Nonnull Bootstrap bootstrap) {
@@ -273,12 +236,7 @@ public class NettyUtils {
         };
     }
 
-    /**
-     * Disposes an {@link HttpClient} by disposing its underlying connection provider and loop resources.
-     *
-     * @param client
-     *        The HttpClient to dispose, or null
-     */
+    // Disposes an HttpClient by disposing its underlying connection provider and loop resources.
     public static void disposeHttpClient(@Nullable HttpClient client) {
         if (client == null) {
             return;

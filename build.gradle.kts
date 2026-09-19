@@ -58,7 +58,7 @@ plugins {
 
 val exampleJavaVersion = JavaLanguageVersion.of(25)
 val libraryJavaVersion = JavaLanguageVersion.of(21)
-group = "net.dv8tion"
+group = "io.github.lajczik"
 version = "6.6.0"
 
 projectEnvironment {
@@ -83,7 +83,6 @@ artifactFilters {
         "io.netty:netty-transport-native-epoll",
         "io.netty:netty-transport-classes-kqueue",
         "io.netty:netty-transport-native-kqueue",
-        "io.netty:netty-tcnative-classes",
         "com.github.luben:zstd-jni",
         // Reactor Netty transitive modules unused by JDA
         "io.netty:netty-resolver-dns",
@@ -153,7 +152,7 @@ if (projectEnvironment.canPublish) {
     project.version = "${projectEnvironment.version.get()}_${projectEnvironment.commitHash}"
 }
 
-project.group = "net.dv8tion"
+project.group = "io.github.lajczik"
 
 base {
     archivesName.set("JDA-Enhanced")
@@ -217,7 +216,6 @@ dependencies {
     }
     api(libs.netty.codec.http)
     api(libs.netty.handler)
-    api(libs.netty.tcnative.classes)
     api(libs.netty.codec.classes.quic)
     api(libs.netty.transport.classes.epoll)
     api(variantOf(libs.netty.transport.native.epoll) { classifier("linux-x86_64") })
@@ -576,12 +574,12 @@ tasks.withType<Test>().configureEach {
 fun MavenPom.populate() {
     packaging = "jar"
     name.set(project.name)
-    description.set("Java wrapper for the popular chat & VOIP service: Discord https://discord.com")
-    url.set("https://github.com/discord-jda/JDA")
+    description.set("Lightweight java wrapper for the popular chat & VOIP service: Discord https://discord.com")
+    url.set("https://github.com/lajczik/JDA-Enhanced")
     scm {
-        url.set("https://github.com/discord-jda/JDA")
-        connection.set("scm:git:git://github.com/discord-jda/JDA")
-        developerConnection.set("scm:git:ssh:git@github.com:discord-jda/JDA")
+        url.set("https://github.com/lajczik/JDA-Enhanced")
+        connection.set("scm:git:git://github.com/lajczik/JDA-Enhanced.git")
+        developerConnection.set("scm:git:ssh:git@github.com/lajczik/JDA-Enhanced.git")
     }
     licenses {
         license {
@@ -591,6 +589,11 @@ fun MavenPom.populate() {
         }
     }
     developers {
+        developer {
+            id.set("lychee")
+            name.set("lajczik")
+            email.set("lajczik@gmail.com")
+        }
         developer {
             id.set("Minn")
             name.set("Florian Spieß")
