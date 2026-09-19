@@ -61,29 +61,28 @@ Add the repository and dependency to your build file. Replace `$version` with th
 ```kotlin
 repositories {
     mavenCentral()
-    // or your own repository / JitPack for snapshot builds
 }
 
 dependencies {
     implementation("io.github.lajczik:JDA-Enhanced:$version") {
-        // === Audio excludes (safe if you don't use voice) ===
-        // exclude(module = "opus-java")  // Opus encoding via JNA native bindings
-        // exclude(module = "tink")       // DAVE protocol audio encryption
+        // === Audio & Voice (safe to exclude if not using voice) ===
+        // exclude(module = "opus-java")                      // Opus encoding via JNA native bindings
+        // exclude(module = "tink")                           // Discord DAVE protocol audio encryption
 
-        // === Compression excludes (if you only use zlib or don't need zstd) ===
-        // exclude(module = "zstd-jni")   // Zstandard native compression for gateway
+        // === Gateway Compression (safe to exclude if not using Zstandard) ===
+        // exclude(module = "zstd-jni")                       // Zstandard native compression (~10MB+; falls back to JDK zlib)
 
-        // === Platform-specific Netty transport excludes ===
-        // exclude(module = "netty-transport-classes-epoll")  // Linux epoll (not needed on Windows/macOS)
-        // exclude(module = "netty-transport-native-epoll")   // Linux epoll native binaries
-        // exclude(module = "netty-transport-classes-kqueue")  // macOS kqueue (not needed on Linux/Windows)
+        // === Platform-specific Netty Transport ===
+        // exclude(module = "netty-transport-native-epoll")   // Linux epoll native binaries (not needed on Windows/macOS)
+        // exclude(module = "netty-transport-classes-epoll")  // Linux epoll transport classes (not needed on Windows/macOS)
 
-        // === Reactor Netty transitive excludes ===
-        // exclude(module = "netty-resolver-dns")          // Netty DNS resolver (JDK resolver works fine)
-        // exclude(module = "netty-codec-dns")             // DNS wire protocol codec
-        // exclude(module = "netty-handler-proxy")         // SOCKS/HTTP proxy handler (if not behind a proxy)
-        // exclude(module = "netty-codec-socks")           // SOCKS protocol codec
-        // exclude(module = "netty-codec-http2")           // HTTP/2 codec (Discord API is HTTP/1.1)
+        // === Reactor Netty Transitive Modules (safe to exclude to minimize jar size) ===
+        // exclude(module = "netty-codec-http2")              // HTTP/2 codec (Discord REST/WS APIs use HTTP/1.1)
+        // exclude(module = "netty-resolver-dns")             // Netty async DNS resolver (JDK DNS resolver works fine)
+        // exclude(module = "netty-codec-dns")                // DNS wire protocol codec
+        // exclude(module = "netty-handler-proxy")            // SOCKS/HTTP proxy handler (only needed if behind a proxy)
+        // exclude(module = "netty-codec-socks")              // SOCKS protocol codec
+        // exclude(module = "netty-codec-classes-quic")       // QUIC protocol classes
     }
 }
 ```
@@ -100,10 +99,24 @@ repositories {
 
 dependencies {
     implementation("io.github.lajczik:JDA-Enhanced:$version") {
-        // exclude module: 'opus-java'   // Opus encoding
-        // exclude module: 'tink'        // DAVE protocol audio encryption
-        // exclude module: 'zstd-jni'    // Zstandard compression
-        // exclude module: 'netty-transport-native-epoll'  // Linux epoll binaries
+        // === Audio & Voice (safe to exclude if not using voice) ===
+        // exclude module: 'opus-java'                      // Opus encoding via JNA native bindings
+        // exclude module: 'tink'                           // Discord DAVE protocol audio encryption
+
+        // === Gateway Compression (safe to exclude if not using Zstandard) ===
+        // exclude module: 'zstd-jni'                       // Zstandard native compression (~10MB+; falls back to JDK zlib)
+
+        // === Platform-specific Netty Transport ===
+        // exclude module: 'netty-transport-native-epoll'   // Linux epoll native binaries (not needed on Windows/macOS)
+        // exclude module: 'netty-transport-classes-epoll'  // Linux epoll transport classes (not needed on Windows/macOS)
+
+        // === Reactor Netty Transitive Modules (safe to exclude to minimize jar size) ===
+        // exclude module: 'netty-codec-http2'              // HTTP/2 codec (Discord REST/WS APIs use HTTP/1.1)
+        // exclude module: 'netty-resolver-dns'             // Netty async DNS resolver (JDK DNS resolver works fine)
+        // exclude module: 'netty-codec-dns'                // DNS wire protocol codec
+        // exclude module: 'netty-handler-proxy'            // SOCKS/HTTP proxy handler (only needed if behind a proxy)
+        // exclude module: 'netty-codec-socks'              // SOCKS protocol codec
+        // exclude module: 'netty-codec-classes-quic'       // QUIC protocol classes
     }
 }
 ```
@@ -119,32 +132,79 @@ dependencies {
     <artifactId>JDA-Enhanced</artifactId>
     <version>$version</version> <!-- replace $version with the latest version -->
     <exclusions>
-        <!-- Audio: Opus encoding via JNA native bindings -->
+        <!-- === Audio & Voice (safe to exclude if not using voice) === -->
+        <!-- Opus audio encoding via JNA native bindings -->
         <!--
         <exclusion>
             <groupId>club.minnced</groupId>
             <artifactId>opus-java</artifactId>
         </exclusion>
         -->
-        <!-- Audio: DAVE protocol encryption -->
+        <!-- Discord DAVE end-to-end audio encryption -->
         <!--
         <exclusion>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink</artifactId>
         </exclusion>
         -->
-        <!-- Compression: Zstandard native -->
+
+        <!-- === Gateway Compression (safe to exclude if not using Zstandard) === -->
+        <!-- Zstandard native compression (~10MB+ binaries; falls back to JDK zlib) -->
         <!--
         <exclusion>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
         </exclusion>
         -->
-        <!-- Transport: Linux epoll (not needed on Windows/macOS) -->
+
+        <!-- === Platform-specific Netty Transport === -->
+        <!-- Linux epoll native transport (not needed on Windows/macOS or when using NIO) -->
         <!--
         <exclusion>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-epoll</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-classes-epoll</artifactId>
+        </exclusion>
+        -->
+
+        <!-- === Reactor Netty Transitive Modules (safe to exclude to minimize jar size) === -->
+        <!-- HTTP/2 protocol codec (Discord API uses HTTP/1.1) -->
+        <!--
+        <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http2</artifactId>
+        </exclusion>
+        -->
+        <!-- Netty async DNS resolver (standard JDK resolver works fine) -->
+        <!--
+        <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-resolver-dns</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-dns</artifactId>
+        </exclusion>
+        -->
+        <!-- SOCKS/HTTP proxy handler (only needed if connecting through a proxy) -->
+        <!--
+        <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler-proxy</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-socks</artifactId>
+        </exclusion>
+        -->
+        <!-- QUIC protocol support -->
+        <!--
+        <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-classes-quic</artifactId>
         </exclusion>
         -->
     </exclusions>
