@@ -78,11 +78,9 @@ dependencies {
 
         // === Reactor Netty Transitive Modules (safe to exclude to minimize jar size) ===
         // exclude(module = "netty-codec-http2")              // HTTP/2 codec (Discord REST/WS APIs use HTTP/1.1)
-        // exclude(module = "netty-resolver-dns")             // Netty async DNS resolver (JDK DNS resolver works fine)
-        // exclude(module = "netty-codec-dns")                // DNS wire protocol codec
         // exclude(module = "netty-handler-proxy")            // SOCKS/HTTP proxy handler (only needed if behind a proxy)
         // exclude(module = "netty-codec-socks")              // SOCKS protocol codec
-        // exclude(module = "netty-codec-classes-quic")       // QUIC protocol classes
+        // exclude(module = "netty-codec-compression")        // HTTP client compression (safe to exclude if setHttpCompression(false))
     }
 }
 ```
@@ -112,11 +110,9 @@ dependencies {
 
         // === Reactor Netty Transitive Modules (safe to exclude to minimize jar size) ===
         // exclude module: 'netty-codec-http2'              // HTTP/2 codec (Discord REST/WS APIs use HTTP/1.1)
-        // exclude module: 'netty-resolver-dns'             // Netty async DNS resolver (JDK DNS resolver works fine)
-        // exclude module: 'netty-codec-dns'                // DNS wire protocol codec
         // exclude module: 'netty-handler-proxy'            // SOCKS/HTTP proxy handler (only needed if behind a proxy)
         // exclude module: 'netty-codec-socks'              // SOCKS protocol codec
-        // exclude module: 'netty-codec-classes-quic'       // QUIC protocol classes
+        // exclude module: 'netty-codec-compression'        // HTTP client compression (safe to exclude if setHttpCompression(false))
     }
 }
 ```
@@ -178,17 +174,6 @@ dependencies {
             <artifactId>netty-codec-http2</artifactId>
         </exclusion>
         -->
-        <!-- Netty async DNS resolver (standard JDK resolver works fine) -->
-        <!--
-        <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-resolver-dns</artifactId>
-        </exclusion>
-        <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-codec-dns</artifactId>
-        </exclusion>
-        -->
         <!-- SOCKS/HTTP proxy handler (only needed if connecting through a proxy) -->
         <!--
         <exclusion>
@@ -200,11 +185,11 @@ dependencies {
             <artifactId>netty-codec-socks</artifactId>
         </exclusion>
         -->
-        <!-- QUIC protocol support -->
+        <!-- HTTP client compression (safe to exclude if setHttpCompression(false)) -->
         <!--
         <exclusion>
             <groupId>io.netty</groupId>
-            <artifactId>netty-codec-classes-quic</artifactId>
+            <artifactId>netty-codec-compression</artifactId>
         </exclusion>
         -->
     </exclusions>
