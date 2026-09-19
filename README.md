@@ -25,7 +25,7 @@ This fork replaces OkHttp and nv-websocket-client with **Netty** and **Reactor N
 | **WebSocket** | nv-websocket-client | Netty WebSocket |
 | **Audio UDP** | Raw `DatagramSocket` | Netty `DatagramChannel` |
 | **Gateway compression** | java.util.zip | Netty Zlib + Zstd stream decoders |
-| **JSON engine** | Fixed (nanojson) | Pluggable `JsonEngine` (nanojson, Jackson 2, Jackson 3) |
+| **JSON engine** | Fixed (Jackson 2) | Pluggable `JsonEngine` (nanojson default, Jackson 2, Jackson 3) |
 | **Collections** | `commons-collections4` `MultiSet` | Zero-dependency `Bag` / `HashBag` |
 | **Threading** | ForkJoinPool everywhere | Virtual threads + dedicated Netty thread factories |
 | **Message caching** | Eager `ReceivedMessage` | Lazy `LazyReceivedMessage` (fields parsed on access) |
@@ -55,7 +55,8 @@ You can learn more by visiting the [wiki][wiki] or referencing the [Javadocs][do
 
 Add the repository and dependency to your build file. Replace `$version` with the version you want to use.
 
-### Gradle (Kotlin DSL)
+<details>
+<summary><b>Gradle (Kotlin DSL)</b></summary>
 
 ```kotlin
 repositories {
@@ -77,9 +78,6 @@ dependencies {
         // exclude(module = "netty-transport-native-epoll")   // Linux epoll native binaries
         // exclude(module = "netty-transport-classes-kqueue")  // macOS kqueue (not needed on Linux/Windows)
 
-        // === TLS excludes (if using JDK SSL instead of Netty's native TLS) ===
-        // exclude(module = "netty-tcnative-classes") // BoringSSL native TLS provider
-
         // === Reactor Netty transitive excludes ===
         // exclude(module = "netty-resolver-dns")          // Netty DNS resolver (JDK resolver works fine)
         // exclude(module = "netty-codec-dns")             // DNS wire protocol codec
@@ -90,7 +88,10 @@ dependencies {
 }
 ```
 
-### Gradle (Groovy DSL)
+</details>
+
+<details>
+<summary><b>Gradle (Groovy DSL)</b></summary>
 
 ```groovy
 repositories {
@@ -107,7 +108,10 @@ dependencies {
 }
 ```
 
-### Maven
+</details>
+
+<details>
+<summary><b>Maven</b></summary>
 
 ```xml
 <dependency>
@@ -146,6 +150,8 @@ dependencies {
     </exclusions>
 </dependency>
 ```
+
+</details>
 
 ### Build artifacts
 
