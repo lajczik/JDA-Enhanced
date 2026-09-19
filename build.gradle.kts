@@ -81,16 +81,11 @@ artifactFilters {
     nettyExclusions.addAll(
         "io.netty:netty-transport-classes-epoll",
         "io.netty:netty-transport-native-epoll",
-        "io.netty:netty-transport-classes-kqueue",
-        "io.netty:netty-transport-native-kqueue",
         "com.github.luben:zstd-jni",
         // Reactor Netty transitive modules unused by JDA
-        "io.netty:netty-resolver-dns",
-        "io.netty:netty-codec-dns",
         "io.netty:netty-handler-proxy",
         "io.netty:netty-codec-socks",
         "io.netty:netty-codec-http2",
-        "io.netty:netty-codec-compression",
     )
 }
 
