@@ -69,7 +69,40 @@ public class NettyConfigTest {
         assertThat(config.getHttpClient()).isNotNull();
         assertThat(config.getMaxConnectionIdleTime()).isEqualTo(Duration.ofSeconds(60));
         assertThat(config.getMaxConnectionLifeTime()).isEqualTo(Duration.ofMinutes(5));
+        assertThat(config.isHttpCompression()).isTrue();
+        assertThat(config.isHttpClientCompression()).isTrue();
         config.close();
+    }
+
+    @Test
+    void testHttpCompressionConfiguration() {
+        NettyConfig defaultConfig = NettyConfig.getDefault();
+        NettyConfig noCompressionConfig = NettyConfig.getDefault(false);
+        try {
+            assertThat(defaultConfig.isHttpCompression()).isTrue();
+            assertThat(defaultConfig.isHttpClientCompression()).isTrue();
+
+            assertThat(noCompressionConfig.isHttpCompression()).isFalse();
+            assertThat(noCompressionConfig.isHttpClientCompression()).isFalse();
+
+            assertThat(defaultConfig).isNotEqualTo(noCompressionConfig);
+            assertThat(defaultConfig.hashCode()).isNotEqualTo(noCompressionConfig.hashCode());
+
+            NettyConfig lowMemNoComp = NettyConfig.lowMemory(false);
+            try {
+                assertThat(lowMemNoComp.isHttpCompression()).isFalse();
+            } finally {
+                lowMemNoComp.close();
+            }
+
+            noCompressionConfig.setHttpCompression(true);
+            assertThat(noCompressionConfig.isHttpCompression()).isTrue();
+            noCompressionConfig.setHttpClientCompression(false);
+            assertThat(noCompressionConfig.isHttpClientCompression()).isFalse();
+        } finally {
+            defaultConfig.close();
+            noCompressionConfig.close();
+        }
     }
 
     @Test
@@ -219,6 +252,7 @@ public class NettyConfigTest {
                     .setByteBufAllocator(UnpooledByteBufAllocator.DEFAULT)
                     .setUseNativeTransport(false)
                     .setTcpNoDelay(false)
+                    .setHttpCompression(false)
                     .setWebsocketEventLoopThreadCount(2)
                     .setHttpClientEventLoopThreadCount(4)
                     .setWebsocketConnectTimeout(Duration.ofSeconds(8))
@@ -240,6 +274,7 @@ public class NettyConfigTest {
                     .setByteBufAllocator(UnpooledByteBufAllocator.DEFAULT)
                     .setUseNativeTransport(false)
                     .setTcpNoDelay(false)
+                    .setHttpClientCompression(false)
                     .setWebsocketEventLoopThreadCount(2)
                     .setHttpClientEventLoopThreadCount(4)
                     .setWebsocketConnectTimeout(5, TimeUnit.SECONDS)
@@ -261,6 +296,8 @@ public class NettyConfigTest {
                 assertThat(config.getHttpAggregatorMaxContentLength()).isEqualTo(64 * 1024);
                 assertThat(config.getWebsocketLoopGroup()).isSameAs(group);
                 assertThat(config.getHttpClientLoopGroup()).isSameAs(group);
+                assertThat(config.isHttpCompression()).isFalse();
+                assertThat(config.isHttpClientCompression()).isFalse();
             } finally {
                 manager.shutdown();
             }

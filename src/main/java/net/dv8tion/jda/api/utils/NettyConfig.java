@@ -101,6 +101,16 @@ public class NettyConfig implements AutoCloseable {
     public static final Duration DEFAULT_MAX_CONNECTION_LIFE_TIME = Duration.ofMinutes(5);
 
     /**
+     * The default setting for HTTP client response compression ({@code true}).
+     */
+    public static final boolean DEFAULT_HTTP_COMPRESSION = true;
+
+    /**
+     * Alias for {@link #DEFAULT_HTTP_COMPRESSION}.
+     */
+    public static final boolean DEFAULT_HTTP_CLIENT_COMPRESSION = true;
+
+    /**
      * The default {@link ByteBufAllocator} used across JDA for high throughput and low GC pressure.
      */
     public static final ByteBufAllocator DEFAULT_ALLOCATOR = PooledByteBufAllocator.DEFAULT;
@@ -123,12 +133,24 @@ public class NettyConfig implements AutoCloseable {
     private int connectTimeoutMillis;
     private int maxFramePayloadLength;
     private int httpAggregatorMaxContentLength;
+    private boolean httpCompression;
 
     /**
      * Creates a new {@link NettyConfig} initialized with default configuration
      * values.
      */
     public NettyConfig() {
+        this(DEFAULT_HTTP_COMPRESSION);
+    }
+
+    /**
+     * Creates a new {@link NettyConfig} initialized with default configuration
+     * values and specified HTTP client compression setting.
+     *
+     * @param httpCompression
+     *                        Whether HTTP client compression (GZIP / Brotli) is enabled
+     */
+    public NettyConfig(boolean httpCompression) {
         this(
                 PooledByteBufAllocator.DEFAULT,
                 true,
@@ -142,7 +164,8 @@ public class NettyConfig implements AutoCloseable {
                 null,
                 null,
                 null,
-                null);
+                null,
+                httpCompression);
     }
 
     /**
@@ -223,7 +246,93 @@ public class NettyConfig implements AutoCloseable {
                 null,
                 loopResources,
                 connectionProvider,
-                httpClient);
+                httpClient,
+                DEFAULT_HTTP_COMPRESSION);
+    }
+
+    /**
+     * Constructs a new {@link NettyConfig} with custom parameters, sharing the WebSocket event loop group for audio.
+     *
+     * @param allocator
+     *                                       The {@link ByteBufAllocator} to use, or
+     *                                       {@code null} to use
+     *                                       {@link PooledByteBufAllocator#DEFAULT}
+     * @param useNativeTransport
+     *                                       Whether to use native transport
+     *                                       (Epoll/KQueue) if available
+     * @param tcpNoDelay
+     *                                       Whether TCP_NODELAY is enabled
+     * @param websocketEventLoopThreads
+     *                                       The number of threads in the WebSocket
+     *                                       event loop group (must be positive)
+     * @param httpClientEventLoopThreads
+     *                                       The number of threads in the HTTP
+     *                                       client event loop group (must be
+     *                                       positive)
+     * @param connectTimeoutMillis
+     *                                       The socket connection timeout in
+     *                                       milliseconds (must be positive)
+     * @param maxFramePayloadLength
+     *                                       The maximum WebSocket frame payload
+     *                                       length in bytes (must be positive)
+     * @param httpAggregatorMaxContentLength
+     *                                       The maximum HTTP object aggregator
+     *                                       content length in bytes (must be
+     *                                       positive)
+     * @param websocketLoopGroup
+     *                                       The {@link EventLoopGroup} to use for
+     *                                       WebSocket connections, or {@code null}
+     *                                       to create a default one
+     * @param httpClientLoopGroup
+     *                                       The {@link EventLoopGroup} to use for
+     *                                       HTTP client connections, or
+     *                                       {@code null} to create a default one
+     * @param loopResources
+     *                                       Custom {@link LoopResources} for
+     *                                       Reactor Netty HTTP client, or
+     *                                       {@code null}
+     * @param connectionProvider
+     *                                       Custom {@link ConnectionProvider} for
+     *                                       Reactor Netty HTTP client connection
+     *                                       pool, or {@code null}
+     * @param httpClient
+     *                                       A pre-configured {@link HttpClient}, or
+     *                                       {@code null} to build a default one
+     * @param httpCompression
+     *                                       Whether HTTP client compression (GZIP / Brotli) is enabled
+     */
+    public NettyConfig(
+            @Nullable ByteBufAllocator allocator,
+            boolean useNativeTransport,
+            boolean tcpNoDelay,
+            int websocketEventLoopThreads,
+            int httpClientEventLoopThreads,
+            int connectTimeoutMillis,
+            int maxFramePayloadLength,
+            int httpAggregatorMaxContentLength,
+            @Nullable EventLoopGroup websocketLoopGroup,
+            @Nullable EventLoopGroup httpClientLoopGroup,
+            @Nullable LoopResources loopResources,
+            @Nullable ConnectionProvider connectionProvider,
+            @Nullable HttpClient httpClient,
+            boolean httpCompression) {
+        this(
+                allocator,
+                useNativeTransport,
+                tcpNoDelay,
+                websocketEventLoopThreads,
+                httpClientEventLoopThreads,
+                DEFAULT_AUDIO_EVENT_LOOP_THREADS,
+                connectTimeoutMillis,
+                maxFramePayloadLength,
+                httpAggregatorMaxContentLength,
+                websocketLoopGroup,
+                httpClientLoopGroup,
+                null,
+                loopResources,
+                connectionProvider,
+                httpClient,
+                httpCompression);
     }
 
     /**
@@ -308,9 +417,115 @@ public class NettyConfig implements AutoCloseable {
             @Nullable LoopResources loopResources,
             @Nullable ConnectionProvider connectionProvider,
             @Nullable HttpClient httpClient) {
+        this(
+                allocator,
+                useNativeTransport,
+                tcpNoDelay,
+                websocketEventLoopThreads,
+                httpClientEventLoopThreads,
+                audioEventLoopThreads,
+                connectTimeoutMillis,
+                maxFramePayloadLength,
+                httpAggregatorMaxContentLength,
+                websocketLoopGroup,
+                httpClientLoopGroup,
+                audioLoopGroup,
+                loopResources,
+                connectionProvider,
+                httpClient,
+                DEFAULT_HTTP_COMPRESSION);
+    }
+
+    /**
+     * Constructs a new {@link NettyConfig} with full custom parameters including audio event loop configuration
+     * and HTTP client compression.
+     *
+     * <p><b>Music Bot Recommendation:</b>
+     * If your bot connects to many voice channels concurrently (such as a music bot), it is strongly recommended
+     * to either increase {@code websocketEventLoopThreads} or configure dedicated {@code audioEventLoopThreads}
+     * / a dedicated {@code audioLoopGroup}. By default (when {@code audioLoopGroup == null} and {@code audioEventLoopThreads <= 0}),
+     * audio UDP packets and voice signaling multiplex over {@link #getWebsocketLoopGroup()}. Isolating audio onto a separate
+     * EventLoopGroup prevents voice packets (20ms frames) from experiencing jitter or latency when processing heavy
+     * Gateway traffic.
+     *
+     * @param allocator
+     *                                       The {@link ByteBufAllocator} to use, or
+     *                                       {@code null} to use
+     *                                       {@link PooledByteBufAllocator#DEFAULT}
+     * @param useNativeTransport
+     *                                       Whether to use native transport
+     *                                       (Epoll/KQueue) if available
+     * @param tcpNoDelay
+     *                                       Whether TCP_NODELAY is enabled
+     * @param websocketEventLoopThreads
+     *                                       The number of threads in the WebSocket
+     *                                       event loop group (must be positive)
+     * @param httpClientEventLoopThreads
+     *                                       The number of threads in the HTTP
+     *                                       client event loop group (must be
+     *                                       positive)
+     * @param audioEventLoopThreads
+     *                                       The number of threads in the Audio
+     *                                       event loop group, or {@code 0} to share
+     *                                       the WebSocket event loop group
+     * @param connectTimeoutMillis
+     *                                       The socket connection timeout in
+     *                                       milliseconds (must be positive)
+     * @param maxFramePayloadLength
+     *                                       The maximum WebSocket frame payload
+     *                                       length in bytes (must be positive)
+     * @param httpAggregatorMaxContentLength
+     *                                       The maximum HTTP object aggregator
+     *                                       content length in bytes (must be
+     *                                       positive)
+     * @param websocketLoopGroup
+     *                                       The {@link EventLoopGroup} to use for
+     *                                       WebSocket connections, or {@code null}
+     *                                       to create a default one
+     * @param httpClientLoopGroup
+     *                                       The {@link EventLoopGroup} to use for
+     *                                       HTTP client connections, or
+     *                                       {@code null} to create a default one
+     * @param audioLoopGroup
+     *                                       The {@link EventLoopGroup} to use for
+     *                                       audio connections (WebSocket and UDP),
+     *                                       or {@code null} to share the WebSocket
+     *                                       event loop group (or create one if {@code audioEventLoopThreads > 0})
+     * @param loopResources
+     *                                       Custom {@link LoopResources} for
+     *                                       Reactor Netty HTTP client, or
+     *                                       {@code null}
+     * @param connectionProvider
+     *                                       Custom {@link ConnectionProvider} for
+     *                                       Reactor Netty HTTP client connection
+     *                                       pool, or {@code null}
+     * @param httpClient
+     *                                       A pre-configured {@link HttpClient}, or
+     *                                       {@code null} to build a default one
+     * @param httpCompression
+     *                                       Whether HTTP client compression (GZIP / Brotli) is enabled
+     */
+    public NettyConfig(
+            @Nullable ByteBufAllocator allocator,
+            boolean useNativeTransport,
+            boolean tcpNoDelay,
+            int websocketEventLoopThreads,
+            int httpClientEventLoopThreads,
+            int audioEventLoopThreads,
+            int connectTimeoutMillis,
+            int maxFramePayloadLength,
+            int httpAggregatorMaxContentLength,
+            @Nullable EventLoopGroup websocketLoopGroup,
+            @Nullable EventLoopGroup httpClientLoopGroup,
+            @Nullable EventLoopGroup audioLoopGroup,
+            @Nullable LoopResources loopResources,
+            @Nullable ConnectionProvider connectionProvider,
+            @Nullable HttpClient httpClient,
+            boolean httpCompression) {
         this.allocator = allocator != null ? allocator : PooledByteBufAllocator.DEFAULT;
         this.useNativeTransport = useNativeTransport;
         this.tcpNoDelay = tcpNoDelay;
+        this.httpCompression = httpCompression;
         Checks.positive(websocketEventLoopThreads, "WebSocket event loop threads");
         this.websocketEventLoopThreads = websocketEventLoopThreads;
         Checks.positive(httpClientEventLoopThreads, "HttpClient event loop threads");
@@ -366,9 +581,12 @@ public class NettyConfig implements AutoCloseable {
                     .build();
         }
 
-        return HttpClient.create(provider)
-                .compress(true)
-                .responseTimeout(Duration.ofSeconds(20))
+        HttpClient client = HttpClient.create(provider);
+        if (config.httpCompression) {
+            client = client.compress(true);
+        }
+
+        return client.responseTimeout(Duration.ofSeconds(20))
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.connectTimeoutMillis)
                 .option(ChannelOption.ALLOCATOR, config.allocator)
                 .option(ChannelOption.TCP_NODELAY, config.tcpNoDelay)
@@ -387,6 +605,19 @@ public class NettyConfig implements AutoCloseable {
     }
 
     /**
+     * Gets a new default {@link NettyConfig} instance with the specified HTTP client compression setting.
+     *
+     * @param  httpCompression
+     *         Whether HTTP client compression (GZIP / Brotli) is enabled
+     *
+     * @return A new NettyConfig
+     */
+    @Nonnull
+    public static NettyConfig getDefault(boolean httpCompression) {
+        return new NettyConfig(httpCompression);
+    }
+
+    /**
      * Creates a {@link NettyConfig} optimized for low-memory environments (such as
      * micro-containers or Raspberry Pi).
      * <br>
@@ -396,6 +627,22 @@ public class NettyConfig implements AutoCloseable {
      */
     @Nonnull
     public static NettyConfig lowMemory() {
+        return lowMemory(DEFAULT_HTTP_COMPRESSION);
+    }
+
+    /**
+     * Creates a {@link NettyConfig} optimized for low-memory environments (such as
+     * micro-containers or Raspberry Pi) with specified HTTP client compression setting.
+     * <br>
+     * Uses unpooled heap buffers and smaller payload buffers.
+     *
+     * @param  httpCompression
+     *         Whether HTTP client compression (GZIP / Brotli) is enabled
+     *
+     * @return A NettyConfig optimized for minimal memory footprint
+     */
+    @Nonnull
+    public static NettyConfig lowMemory(boolean httpCompression) {
         return new NettyConfig(
                 UnpooledByteBufAllocator.DEFAULT,
                 true,
@@ -409,7 +656,8 @@ public class NettyConfig implements AutoCloseable {
                 null,
                 null,
                 null,
-                null);
+                null,
+                httpCompression);
     }
 
     /**
@@ -492,7 +740,7 @@ public class NettyConfig implements AutoCloseable {
     }
 
     /**
-     * Sets whether TCP_NODELAY is enabled for sockets.
+     * Sets whether TCP_NODELAY (Nagle's algorithm disabled) is enabled for sockets.
      *
      * @param tcpNoDelay
      *                   True to enable TCP_NODELAY, false to disable
@@ -503,6 +751,57 @@ public class NettyConfig implements AutoCloseable {
     public NettyConfig setTcpNoDelay(boolean tcpNoDelay) {
         this.tcpNoDelay = tcpNoDelay;
         return this;
+    }
+
+    /**
+     * Whether HTTP client compression (GZIP / Brotli) is enabled.
+     *
+     * @return True if HTTP compression is enabled
+     */
+    public boolean isHttpCompression() {
+        return httpCompression;
+    }
+
+    /**
+     * Alias for {@link #isHttpCompression()}.
+     *
+     * @return True if HTTP client compression is enabled
+     */
+    public boolean isHttpClientCompression() {
+        return httpCompression;
+    }
+
+    /**
+     * Sets whether HTTP client compression (GZIP / Brotli) is enabled.
+     * <br>This method is thread-safe and updates the underlying {@link HttpClient}.
+     *
+     * @param  httpCompression
+     *         True to enable HTTP compression, false to disable
+     *
+     * @return This NettyConfig instance for chaining
+     */
+    @Nonnull
+    public synchronized NettyConfig setHttpCompression(boolean httpCompression) {
+        if (this.httpCompression != httpCompression) {
+            this.httpCompression = httpCompression;
+            if (this.httpClient != null) {
+                this.httpClient = this.httpClient.compress(httpCompression);
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Alias for {@link #setHttpCompression(boolean)}.
+     *
+     * @param  httpClientCompression
+     *         True to enable HTTP client compression, false to disable
+     *
+     * @return This NettyConfig instance for chaining
+     */
+    @Nonnull
+    public synchronized NettyConfig setHttpClientCompression(boolean httpClientCompression) {
+        return setHttpCompression(httpClientCompression);
     }
 
     /**
@@ -566,7 +865,6 @@ public class NettyConfig implements AutoCloseable {
      * @param connectTimeoutMillis
      *                             The connect timeout in milliseconds (must be
      *                             positive)
-     *
      * @return This NettyConfig instance for chaining
      */
     @Nonnull
@@ -819,6 +1117,7 @@ public class NettyConfig implements AutoCloseable {
         if (!(o instanceof NettyConfig that)) return false;
         return useNativeTransport == that.useNativeTransport
                 && tcpNoDelay == that.tcpNoDelay
+                && httpCompression == that.httpCompression
                 && websocketEventLoopThreads == that.websocketEventLoopThreads
                 && httpClientEventLoopThreads == that.httpClientEventLoopThreads
                 && audioEventLoopThreads == that.audioEventLoopThreads
@@ -840,6 +1139,7 @@ public class NettyConfig implements AutoCloseable {
                 allocator,
                 useNativeTransport,
                 tcpNoDelay,
+                httpCompression,
                 websocketEventLoopThreads,
                 httpClientEventLoopThreads,
                 audioEventLoopThreads,

@@ -134,6 +134,7 @@ public class DefaultShardManagerBuilder {
     protected LoopResources loopResources = null;
     protected ConnectionProvider connectionProvider = null;
     protected HttpClient httpClient = null;
+    protected boolean httpCompression = NettyConfig.DEFAULT_HTTP_COMPRESSION;
     protected ThreadFactory threadFactory = null;
     protected ChunkingFilter chunkingFilter = ChunkingFilter.ALL;
     protected MemberCachePolicy memberCachePolicy = MemberCachePolicy.ALL;
@@ -2454,6 +2455,7 @@ public class DefaultShardManagerBuilder {
             this.byteBufAllocator = config.getByteBufAllocator();
             this.useNativeTransport = config.isUseNativeTransport();
             this.tcpNoDelay = config.isTcpNoDelay();
+            this.httpCompression = config.isHttpCompression();
             this.websocketEventLoopThreads = config.getWebsocketEventLoopThreads();
             this.httpClientEventLoopThreads = config.getHttpClientEventLoopThreads();
             this.audioEventLoopThreads = config.getAudioEventLoopThreads();
@@ -2470,6 +2472,7 @@ public class DefaultShardManagerBuilder {
             this.byteBufAllocator = null;
             this.useNativeTransport = true;
             this.tcpNoDelay = true;
+            this.httpCompression = NettyConfig.DEFAULT_HTTP_COMPRESSION;
             this.websocketEventLoopThreads = NettyConfig.DEFAULT_WEBSOCKET_EVENT_LOOP_THREADS;
             this.httpClientEventLoopThreads = NettyConfig.DEFAULT_HTTP_CLIENT_EVENT_LOOP_THREADS;
             this.audioEventLoopThreads = NettyConfig.DEFAULT_AUDIO_EVENT_LOOP_THREADS;
@@ -2713,6 +2716,38 @@ public class DefaultShardManagerBuilder {
     public DefaultShardManagerBuilder setConnectionProvider(@Nullable ConnectionProvider connectionProvider) {
         this.connectionProvider = connectionProvider;
         return this;
+    }
+
+    /**
+     * Sets whether HTTP client compression (GZIP / Brotli) should be enabled across all shards.
+     * <br>Defaults to {@link NettyConfig#DEFAULT_HTTP_COMPRESSION} ({@code true}).
+     *
+     * @param  httpCompression
+     *         True to enable HTTP compression, false to disable
+     *
+     * @return The DefaultShardManagerBuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#isHttpCompression()
+     */
+    @Nonnull
+    public DefaultShardManagerBuilder setHttpCompression(boolean httpCompression) {
+        this.httpCompression = httpCompression;
+        return this;
+    }
+
+    /**
+     * Alias for {@link #setHttpCompression(boolean)}.
+     *
+     * @param  httpClientCompression
+     *         True to enable HTTP client compression, false to disable
+     *
+     * @return The DefaultShardManagerBuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#isHttpClientCompression()
+     */
+    @Nonnull
+    public DefaultShardManagerBuilder setHttpClientCompression(boolean httpClientCompression) {
+        return setHttpCompression(httpClientCompression);
     }
 
     /**
@@ -3225,7 +3260,8 @@ public class DefaultShardManagerBuilder {
                 this.audioLoopGroup,
                 this.loopResources,
                 this.connectionProvider,
-                this.httpClient);
+                this.httpClient,
+                this.httpCompression);
         DefaultShardManager manager = new DefaultShardManager(
                 this.token,
                 this.shards,

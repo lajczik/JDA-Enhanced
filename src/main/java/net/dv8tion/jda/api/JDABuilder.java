@@ -134,6 +134,7 @@ public class JDABuilder {
     protected LoopResources loopResources = null;
     protected ConnectionProvider connectionProvider = null;
     protected HttpClient httpClient = null;
+    protected boolean httpCompression = NettyConfig.DEFAULT_HTTP_COMPRESSION;
 
     protected JDABuilder(@Nullable String token, int intents) {
         this.token = token;
@@ -1128,6 +1129,7 @@ public class JDABuilder {
             this.byteBufAllocator = config.getByteBufAllocator();
             this.useNativeTransport = config.isUseNativeTransport();
             this.tcpNoDelay = config.isTcpNoDelay();
+            this.httpCompression = config.isHttpCompression();
             this.websocketEventLoopThreads = config.getWebsocketEventLoopThreads();
             this.httpClientEventLoopThreads = config.getHttpClientEventLoopThreads();
             this.audioEventLoopThreads = config.getAudioEventLoopThreads();
@@ -1144,6 +1146,7 @@ public class JDABuilder {
             this.byteBufAllocator = null;
             this.useNativeTransport = true;
             this.tcpNoDelay = true;
+            this.httpCompression = NettyConfig.DEFAULT_HTTP_COMPRESSION;
             this.websocketEventLoopThreads = NettyConfig.DEFAULT_WEBSOCKET_EVENT_LOOP_THREADS;
             this.httpClientEventLoopThreads = NettyConfig.DEFAULT_HTTP_CLIENT_EVENT_LOOP_THREADS;
             this.audioEventLoopThreads = NettyConfig.DEFAULT_AUDIO_EVENT_LOOP_THREADS;
@@ -1390,6 +1393,38 @@ public class JDABuilder {
     public JDABuilder setConnectionProvider(@Nullable ConnectionProvider connectionProvider) {
         this.connectionProvider = connectionProvider;
         return this;
+    }
+
+    /**
+     * Sets whether HTTP client compression (GZIP / Brotli) should be enabled.
+     * <br>Defaults to {@link NettyConfig#DEFAULT_HTTP_COMPRESSION} ({@code true}).
+     *
+     * @param  httpCompression
+     *         True to enable HTTP compression, false to disable
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#isHttpCompression()
+     */
+    @Nonnull
+    public JDABuilder setHttpCompression(boolean httpCompression) {
+        this.httpCompression = httpCompression;
+        return this;
+    }
+
+    /**
+     * Alias for {@link #setHttpCompression(boolean)}.
+     *
+     * @param  httpClientCompression
+     *         True to enable HTTP client compression, false to disable
+     *
+     * @return The JDABuilder instance. Useful for chaining.
+     *
+     * @see    NettyConfig#isHttpClientCompression()
+     */
+    @Nonnull
+    public JDABuilder setHttpClientCompression(boolean httpClientCompression) {
+        return setHttpCompression(httpClientCompression);
     }
 
     /**
@@ -2607,7 +2642,8 @@ public class JDABuilder {
                 this.audioLoopGroup,
                 this.loopResources,
                 this.connectionProvider,
-                this.httpClient);
+                this.httpClient,
+                this.httpCompression);
 
         JDAImpl jda = new JDAImpl(
                 authConfig, sessionConfig, threadingConfig, metaConfig, restConfig, audioModuleConfig, nettyConfig);
