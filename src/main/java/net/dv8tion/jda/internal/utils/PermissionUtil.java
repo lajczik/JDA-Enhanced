@@ -27,6 +27,8 @@ import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
 import net.dv8tion.jda.api.exceptions.DetachedEntityException;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.internal.entities.MemberImpl;
+import net.dv8tion.jda.internal.entities.channel.mixin.attribute.IInteractionPermissionMixin;
+import net.dv8tion.jda.internal.interactions.ChannelInteractionPermissions;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -315,45 +317,41 @@ public class PermissionUtil {
     }
 
     /**
-     * Checks to see if the {@link Member} has
-     * the specified {@link Permission Permissions}
-     * in the specified {@link IPermissionContainer GuildChannel}. This method
-     * properly deals with
-     * {@link PermissionOverride PermissionOverrides}
-     * and Owner status.
+     * Checks to see if the {@link Member} has the specified {@link Permission Permissions}
+     * in the specified {@link GuildChannel}. This method properly deals with
+     * {@link PermissionOverride PermissionOverrides} and Owner status.
      *
-     * <p>
-     * <b>Note:</b> this is based on effective permissions, not literal permissions.
-     * If a member has permissions that would
-     * enable them to do something without the literal permission to do it, this
-     * will still return true.
-     * <br>
-     * Example: If a member has the
-     * {@link Permission#ADMINISTRATOR} permission, they will be
-     * able to
+     * <p><b>Note:</b> this is based on effective permissions, not literal permissions. If a member has permissions that would
+     * enable them to do something without the literal permission to do it, this will still return true.
+     * <br>Example: If a member has the {@link Permission#ADMINISTRATOR} permission, they will be able to
      * {@link Permission#MESSAGE_SEND} in every channel.
      *
-     * @param member
-     *                    The {@link Member}
-     *                    whose permissions are being checked.
-     * @param channel
-     *                    The {@link IPermissionContainer GuildChannel} being
-     *                    checked.
-     * @param permissions
-     *                    The {@link Permission Permissions}
-     *                    being checked for.
+     * @param  channel
+     *         The {@link GuildChannel} being checked.
+     * @param  member
+     *         The {@link Member} whose permissions are being checked.
+     * @param  permissions
+     *         The {@link Permission Permissions} being checked for.
      *
      * @throws IllegalArgumentException
-     *                                  if any of the provided parameters is
-     *                                  {@code null}
-     *                                  or the provided entities are not from the
-     *                                  same guild
+     *         if any of the provided parameters is {@code null}
+     *         or the provided entities are not from the same guild
      *
      * @return True -
-     *         if the {@link Member} effectively
-     *         has the specified {@link Permission Permissions}.
+     *         if the {@link Member} effectively has the specified {@link Permission Permissions}.
      */
-    public static boolean checkPermission(IPermissionContainer channel, Member member, Permission... permissions) {
+    public static boolean checkPermission(GuildChannel channel, Member member, Permission... permissions) {
+        if (isInteractionPermissionOverride(channel)) {
+            IInteractionPermissionMixin<?> mixin = (IInteractionPermissionMixin<?>) channel;
+            long interactionPermissions = getInteractionPermissions(mixin, member);
+            long rawPermissions = Permission.getRaw(permissions);
+            return (interactionPermissions & rawPermissions) == rawPermissions;
+        }
+
+        return checkPermission(channel.getPermissionContainer(), member, permissions);
+    }
+
+    private static boolean checkPermission(IPermissionContainer channel, Member member, Permission... permissions) {
         Checks.notNull(channel, "Channel");
         Checks.notNull(member, "Member");
         Checks.notNull(permissions, "Permissions");
@@ -493,6 +491,14 @@ public class PermissionUtil {
         Checks.notNull(channel, "Channel");
         Checks.notNull(member, "Member");
 
+        if (isInteractionPermissionOverride(channel)) {
+            return getInteractionPermissions(((IInteractionPermissionMixin<?>) channel), member);
+        }
+
+        if (isInheritingPermissionsFromContainer(channel)) {
+            return getEffectivePermission(channel.getPermissionContainer(), member);
+        }
+
         Checks.check(
                 channel.getGuild().equals(member.getGuild()),
                 "Provided channel and provided member are not of the same guild!");
@@ -573,9 +579,14 @@ public class PermissionUtil {
     public static long getEffectivePermission(GuildChannel channel, Role role) {
         Checks.notNull(channel, "Channel");
         Checks.notNull(role, "Role");
+        checkGuild(channel.getGuild(), role.getGuild(), "Role");
 
-        if (!channel.getGuild().equals(role.getGuild())) {
-            throw new IllegalArgumentException("Provided channel and role are not of the same guild!");
+        if (channel.isDetached()) {
+            return 0L;
+        }
+
+        if (isInheritingPermissionsFromContainer(channel)) {
+            return getEffectivePermission(channel.getPermissionContainer(), role);
         }
 
         long permissions = getExplicitPermission(channel, role);
@@ -739,6 +750,10 @@ public class PermissionUtil {
                     + "Instead, please use the Member methods while supplying a GuildChannel");
         }
 
+        if (isInteractionPermissionOverride(channel)) {
+            return getInteractionPermissions((IInteractionPermissionMixin<?>) channel, member);
+        }
+
         long permission = includeRoles ? getExplicitPermission(member) : 0L;
 
         return applyExplicitOverrides(channel, member, permission);
@@ -842,10 +857,15 @@ public class PermissionUtil {
             throw new DetachedEntityException("Cannot get the explicit permissions of a detached role");
         }
 
+        checkGuild(channel.getGuild(), role.getGuild(), "Role");
+
+        if (channel.isDetached()) {
+            return 0L;
+        }
+
         IPermissionContainer permsChannel = channel.getPermissionContainer();
 
         Guild guild = role.getGuild();
-        checkGuild(channel.getGuild(), guild, "Role");
 
         long permission =
                 includeRoles ? role.getPermissionsRaw() | guild.getPublicRole().getPermissionsRaw() : 0;
@@ -860,6 +880,44 @@ public class PermissionUtil {
         override = permsChannel.getPermissionOverride(role);
 
         return override == null ? permission : apply(permission, override.getAllowedRaw(), override.getDeniedRaw());
+    }
+
+    @SuppressWarnings("ReferenceEquality")
+    private static boolean isInheritingPermissionsFromContainer(GuildChannel channel) {
+        // Intentionally checking reference equality to handle "return this;" implementation
+        return channel.getPermissionContainer() != channel;
+    }
+
+    private static boolean isInteractionPermissionOverride(GuildChannel channel) {
+        return channel instanceof IInteractionPermissionMixin<?>;
+    }
+
+    private static long getInteractionPermissions(IInteractionPermissionMixin<?> channel, Member member) {
+        Checks.notNull(member, "Member");
+        checkGuild(channel.getGuild(), member.getGuild(), "Member");
+
+        if (member.isOwner()) {
+            return ALL_PERMISSIONS;
+        }
+
+        ChannelInteractionPermissions interactionPermissions = channel.getInteractionPermissions();
+        if (interactionPermissions.getMemberId() == member.getIdLong()) {
+            return interactionPermissions.getPermissions();
+        }
+
+        if (channel.isObfuscated()) {
+            if (member.getIdLong() == channel.getJDA().getSelfUser().getIdLong()) {
+                // We know if the channel is obfuscated, the self-user has no permissions to see it
+                return 0L;
+            }
+
+            throw new DetachedEntityException(Helpers.format(
+                    "The requested member %s is not the interacting user (%s). "
+                            + "Since the used channel is obfuscated the permissions of other members cannot be determined.",
+                    member.getId(), Long.toUnsignedString(interactionPermissions.getMemberId())));
+        }
+
+        return 0L;
     }
 
     private static long applyExplicitOverrides(GuildChannel channel, Member member, long permission) {
@@ -916,6 +974,7 @@ public class PermissionUtil {
     }
 
     private static void checkGuild(Guild o1, Guild o2, String name) {
-        Checks.check(o1.equals(o2), "Specified %s is not in the same guild! (%s / %s)", name, o1, o2);
+        Checks.check(
+                o1.getIdLong() == o2.getIdLong(), "Specified %s is not in the same guild! (%s / %s)", name, o1, o2);
     }
 }

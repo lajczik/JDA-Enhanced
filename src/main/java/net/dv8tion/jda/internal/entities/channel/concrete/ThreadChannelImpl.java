@@ -22,7 +22,6 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.ThreadMember;
-import net.dv8tion.jda.api.entities.channel.ChannelFlag;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
 import net.dv8tion.jda.api.entities.channel.attribute.IThreadContainer;
@@ -49,7 +48,6 @@ import net.dv8tion.jda.internal.utils.Checks;
 import net.dv8tion.jda.internal.utils.Helpers;
 
 import java.time.OffsetDateTime;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.LongStream;
 
@@ -76,7 +74,6 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     private int totalMessageCount;
     private int memberCount;
     private int slowmode;
-    private int flags;
 
     public ThreadChannelImpl(long id, GuildImpl guild, ChannelType type) {
         super(id, guild);
@@ -92,18 +89,6 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
     @Override
     public GuildImpl getGuild() {
         return (GuildImpl) super.getGuild();
-    }
-
-    @Nonnull
-    @Override
-    public EnumSet<ChannelFlag> getFlags() {
-        return ChannelFlag.fromRaw(flags);
-    }
-
-    @Override
-    public ThreadChannelImpl setFlags(int flags) {
-        this.flags = flags;
-        return this;
     }
 
     @Nonnull
@@ -419,10 +404,6 @@ public class ThreadChannelImpl extends AbstractGuildChannelImpl<ThreadChannelImp
 
     public LongSet getAppliedTagsSet() {
         return appliedTags;
-    }
-
-    public int getRawFlags() {
-        return flags;
     }
 
     private void checkUnarchived() {

@@ -20,7 +20,6 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.PermissionOverride;
-import net.dv8tion.jda.api.entities.channel.ChannelFlag;
 import net.dv8tion.jda.api.entities.channel.concrete.ForumChannel;
 import net.dv8tion.jda.api.entities.channel.forums.ForumTag;
 import net.dv8tion.jda.api.entities.channel.unions.GuildChannelUnion;
@@ -37,7 +36,6 @@ import net.dv8tion.jda.internal.managers.channel.concrete.ForumChannelManagerImp
 import net.dv8tion.jda.internal.utils.cache.SortedSnowflakeCacheViewImpl;
 
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -53,7 +51,6 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
     private long parentCategoryId;
     private boolean nsfw = false;
     private int position;
-    private int flags;
     private int slowmode;
     private int defaultSortOrder;
     private int defaultLayout;
@@ -85,18 +82,6 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
         return getGuild().getMembers().stream()
                 .filter(m -> m.hasPermission(this, Permission.VIEW_CHANNEL))
                 .toList();
-    }
-
-    @Nonnull
-    @Override
-    public EnumSet<ChannelFlag> getFlags() {
-        return ChannelFlag.fromRaw(flags);
-    }
-
-    @Override
-    public ForumChannelImpl setFlags(int flags) {
-        this.flags = flags;
-        return this;
     }
 
     @Nonnull
@@ -205,11 +190,6 @@ public class ForumChannelImpl extends AbstractGuildChannelImpl<ForumChannelImpl>
     public ForumChannelImpl setDefaultLayout(int layout) {
         this.defaultLayout = layout;
         return this;
-    }
-
-    @Override
-    public int getRawFlags() {
-        return flags;
     }
 
     @Override

@@ -59,10 +59,10 @@ plugins {
 val exampleJavaVersion = JavaLanguageVersion.of(25)
 val libraryJavaVersion = JavaLanguageVersion.of(21)
 group = "io.github.lajczik"
-version = "6.6.0"
+version = "6.7.0"
 
 projectEnvironment {
-    version = Version(major = "6", minor = "6", revision = "0", classifier = null)
+    version = Version(major = "6", minor = "7", revision = "0", classifier = null)
 }
 
 artifactFilters {

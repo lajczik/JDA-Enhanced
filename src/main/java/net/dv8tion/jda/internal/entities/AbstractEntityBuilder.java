@@ -63,13 +63,16 @@ public abstract class AbstractEntityBuilder {
     }
 
     protected void configureCategory(DataObject json, CategoryMixin<?> channel) {
-        channel.setName(json.getString("name")).setPosition(json.getInt("position"));
+        channel.setName(json.getString("name"))
+                .setPosition(json.getInt("position"))
+                .setFlags(json.getInt("flags", 0));
     }
 
     protected void configureTextChannel(DataObject json, TextChannelMixin<?> channel) {
         channel.setParentCategory(json.getLong("parent_id", 0))
                 .setLatestMessageIdLong(json.getLong("last_message_id", 0))
                 .setName(json.getString("name"))
+                .setFlags(json.getInt("flags", 0))
                 .setTopic(json.getString("topic", null))
                 .setPosition(json.getInt("position"))
                 .setNSFW(json.getBoolean("nsfw"))
@@ -81,6 +84,7 @@ public abstract class AbstractEntityBuilder {
         channel.setParentCategory(json.getLong("parent_id", 0))
                 .setLatestMessageIdLong(json.getLong("last_message_id", 0))
                 .setName(json.getString("name"))
+                .setFlags(json.getInt("flags", 0))
                 .setTopic(json.getString("topic", null))
                 .setPosition(json.getInt("position"))
                 .setNSFW(json.getBoolean("nsfw"));
@@ -90,15 +94,29 @@ public abstract class AbstractEntityBuilder {
         channel.setParentCategory(json.getLong("parent_id", 0))
                 .setLatestMessageIdLong(json.getLong("last_message_id", 0))
                 .setName(json.getString("name"))
+                .setFlags(json.getInt("flags", 0))
                 .setStatus(json.getString("status", ""))
                 .setPosition(json.getInt("position"))
                 .setUserLimit(json.getInt("user_limit", 0))
                 .setNSFW(json.getBoolean("nsfw"))
                 .setBitrate(json.getInt("bitrate"))
                 .setRegion(json.getString("rtc_region", null))
+                // .setDefaultThreadSlowmode(json.getInt("default_thread_rate_limit_per_user", 0))
+                .setSlowmode(json.getInt("rate_limit_per_user", 0));
+    }
+
+    protected void configureStageChannel(DataObject json, StageChannelMixin<?> channel) {
+        channel.setParentCategory(json.getLong("parent_id", 0))
+                .setLatestMessageIdLong(json.getLong("last_message_id", 0))
+                .setName(json.getString("name"))
+                .setFlags(json.getInt("flags", 0))
+                .setPosition(json.getInt("position"))
+                .setBitrate(json.getInt("bitrate"))
+                .setUserLimit(json.getInt("user_limit", 0))
+                .setNSFW(json.getBoolean("nsfw"))
+                .setRegion(json.getString("rtc_region", null))
                 //
-                // .setDefaultThreadSlowmode(json.getInt("default_thread_rate_limit_per_user",
-                // 0))
+                // .setDefaultThreadSlowmode(json.getInt("default_thread_rate_limit_per_user", 0))
                 .setSlowmode(json.getInt("rate_limit_per_user", 0));
     }
 
@@ -222,21 +240,6 @@ public abstract class AbstractEntityBuilder {
         if (!memberJson.isNull("joined_at") && !member.hasTimeJoined()) {
             member.setJoinDate(Helpers.toTimestamp(memberJson.getString("joined_at")));
         }
-    }
-
-    protected void configureStageChannel(DataObject json, StageChannelMixin<?> channel) {
-        channel.setParentCategory(json.getLong("parent_id", 0))
-                .setLatestMessageIdLong(json.getLong("last_message_id", 0))
-                .setName(json.getString("name"))
-                .setPosition(json.getInt("position"))
-                .setBitrate(json.getInt("bitrate"))
-                .setUserLimit(json.getInt("user_limit", 0))
-                .setNSFW(json.getBoolean("nsfw"))
-                .setRegion(json.getString("rtc_region", null))
-                //
-                // .setDefaultThreadSlowmode(json.getInt("default_thread_rate_limit_per_user",
-                // 0))
-                .setSlowmode(json.getInt("rate_limit_per_user", 0));
     }
 
     protected void configureRole(DataObject roleJson, RoleMixin<?> role, long id) {
