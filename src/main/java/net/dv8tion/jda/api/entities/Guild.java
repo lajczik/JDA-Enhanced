@@ -109,21 +109,21 @@ public interface Guild extends IGuildChannelContainer<GuildChannel>, ISnowflake,
      *
      * @deprecated Replaced by {@link DiscordAssets#guildIcon(ImageFormat, String, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String ICON_URL = "https://cdn.discordapp.com/icons/%s/%s.%s";
     /**
      * Template for {@link #getSplashUrl()}.
      *
      * @deprecated Replaced by {@link DiscordAssets#guildSplash(ImageFormat, String, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String SPLASH_URL = "https://cdn.discordapp.com/splashes/%s/%s.png";
     /**
      * Template for {@link #getBannerUrl()}.
      *
      * @deprecated Replaced by {@link DiscordAssets#guildBanner(ImageFormat, String, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String BANNER_URL = "https://cdn.discordapp.com/banners/%s/%s.%s";
 
     /**

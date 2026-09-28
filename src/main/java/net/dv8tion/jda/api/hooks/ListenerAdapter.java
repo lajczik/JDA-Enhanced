@@ -17,6 +17,7 @@
 package net.dv8tion.jda.api.hooks;
 
 import net.dv8tion.jda.annotations.ReplaceWith;
+import net.dv8tion.jda.api.entities.ScheduledEvent;
 import net.dv8tion.jda.api.events.*;
 import net.dv8tion.jda.api.events.automod.*;
 import net.dv8tion.jda.api.events.channel.ChannelCreateEvent;
@@ -447,11 +448,11 @@ public abstract class ListenerAdapter implements EventListener {
      * Deprecated.
      *
      * @deprecated Replaced by {@link ScheduledEventUpdateCoverImageEvent},
-     *             note that the values previously were {@linkplain net.dv8tion.jda.api.entities.ScheduledEvent#getImageUrl() asset URLs}
-     *             and now are {@linkplain net.dv8tion.jda.api.entities.ScheduledEvent#getCoverImageId() asset hashes}.
+     *             note that the values previously were {@linkplain ScheduledEvent#getImageUrl() asset URLs}
+     *             and now are {@linkplain ScheduledEvent#getCoverImageId() asset hashes}.
      *             <br>Additionally, they were previously marked as non-null, when they are actually both nullable.
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     @ReplaceWith("onScheduledEventUpdateCoverImage(ScheduledEventUpdateCoverImageEvent)")
     public void onScheduledEventUpdateImage(@Nonnull ScheduledEventUpdateImageEvent event) {}
 
@@ -532,7 +533,12 @@ public abstract class ListenerAdapter implements EventListener {
     public void onRoleDelete(@Nonnull RoleDeleteEvent event) {}
 
     // Role Update Events
-    @Deprecated
+    /**
+     * Deprecated.
+     *
+     * @deprecated Replaced by {@link #onRoleUpdateColors(RoleUpdateColorsEvent)}
+     */
+    @Deprecated(since = "6.2.0")
     @ReplaceWith("onRoleUpdateColors(event)")
     public void onRoleUpdateColor(@Nonnull RoleUpdateColorEvent event) {}
 

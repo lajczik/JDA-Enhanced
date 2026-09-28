@@ -37,7 +37,7 @@ public interface StickerPack extends ISnowflake {
      *
      * @deprecated Replaced by {@link DiscordAssets#stickerPackBanner(ImageFormat, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String BANNER_URL = "https://cdn.discordapp.com/app-assets/710982414301790216/store/%s.%s";
 
     /**

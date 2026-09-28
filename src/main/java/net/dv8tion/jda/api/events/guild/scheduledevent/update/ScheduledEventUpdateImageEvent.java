@@ -44,7 +44,7 @@ import javax.annotation.Nonnull;
  * and now are {@linkplain ScheduledEvent#getCoverImageId() asset hashes}.
  * <br>Additionally, they were previously marked as non-null, when they are actually both nullable.
  */
-@Deprecated
+@Deprecated(since = "6.3.1")
 public class ScheduledEventUpdateImageEvent extends GenericScheduledEventUpdateEvent<String> {
     public static final String IDENTIFIER = "image";
 

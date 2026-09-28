@@ -107,7 +107,7 @@ public class Response implements Closeable {
      *             This overload is kept for binary compatibility with external
      *             code.
      */
-    @Deprecated
+    @Deprecated(since = "6.6.0-enhanced")
     public Response(
             int code,
             @Nonnull String message,

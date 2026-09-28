@@ -39,7 +39,7 @@ public interface ApplicationTeam extends ISnowflake {
      *
      * @deprecated Replaced by {@link DiscordAssets#applicationTeamIcon(ImageFormat, String, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String ICON_URL = "https://cdn.discordapp.com/team-icons/%s/%s.png";
 
     /**

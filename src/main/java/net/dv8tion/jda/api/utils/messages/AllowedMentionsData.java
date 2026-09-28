@@ -114,12 +114,12 @@ class AllowedMentionsData implements SerializableData {
         mentionRoles.addAll(roleIds);
     }
 
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     public void mentionUsers(@Nonnull Collection<String> userIds) {
         addMentionUsers(userIds);
     }
 
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     public void mentionRoles(@Nonnull Collection<String> roleIds) {
         addMentionRoles(roleIds);
     }

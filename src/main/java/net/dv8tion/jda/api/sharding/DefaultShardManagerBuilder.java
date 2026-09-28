@@ -1244,7 +1244,7 @@ public class DefaultShardManagerBuilder {
      * @deprecated Use {@link #setAudioModuleConfig(AudioModuleConfig)} instead
      */
     @Nonnull
-    @Deprecated
+    @Deprecated(since = "6.3.0")
     @ReplaceWith("setAudioModuleConfig(new AudioModuleConfig().withAudioSendFactory(factory))")
     public DefaultShardManagerBuilder setAudioSendFactory(@Nullable IAudioSendFactory factory) {
         if (audioModuleConfig == null) {

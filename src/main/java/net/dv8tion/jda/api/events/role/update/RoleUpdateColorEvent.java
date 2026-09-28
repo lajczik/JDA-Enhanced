@@ -34,7 +34,7 @@ import javax.annotation.Nullable;
  *
  * @deprecated Replaced by {@link RoleUpdateColorsEvent}
  */
-@Deprecated
+@Deprecated(since = "6.2.0")
 @ReplaceWith("RoleUpdateColorsEvent")
 public class RoleUpdateColorEvent extends GenericRoleUpdateEvent<Integer> {
     public static final String IDENTIFIER = "color";

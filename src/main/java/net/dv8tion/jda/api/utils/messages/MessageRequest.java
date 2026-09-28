@@ -952,7 +952,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * @deprecated This method is confusing because it only adds users rather than setting them.
      *             Use {@link #addMentionUsers(Collection)} to add users, or {@link #setMentionUsers(Collection)} to set/replace them.
      */
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionUsers(@Nonnull Collection<String> userIds) {
@@ -983,7 +983,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * @deprecated This method is confusing because it only adds users rather than setting them.
      *             Use {@link #addMentionUsers(String...)} to add users, or {@link #setMentionUsers(String...)} to set/replace them.
      */
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionUsers(@Nonnull String... userIds) {
@@ -1014,7 +1014,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * @deprecated This method is confusing because it only adds users rather than setting them.
      *             Use {@link #addMentionUsers(long...)} to add users, or {@link #setMentionUsers(long...)} to set/replace them.
      */
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionUsers(@Nonnull long... userIds) {
@@ -1045,7 +1045,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * @deprecated This method is confusing because it only adds roles rather than setting them.
      *             Use {@link #addMentionRoles(Collection)} to add roles, or {@link #setMentionRoles(Collection)} to set/replace them.
      */
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionRoles(@Nonnull Collection<String> roleIds) {
@@ -1076,7 +1076,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * @deprecated This method is confusing because it only adds roles rather than setting them.
      *             Use {@link #addMentionRoles(String...)} to add roles, or {@link #setMentionRoles(String...)} to set/replace them.
      */
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionRoles(@Nonnull String... roleIds) {
@@ -1107,7 +1107,7 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      * @deprecated This method is confusing because it only adds roles rather than setting them.
      *             Use {@link #addMentionRoles(long...)} to add roles, or {@link #setMentionRoles(long...)} to set/replace them.
      */
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionRoles(@Nonnull long... roleIds) {

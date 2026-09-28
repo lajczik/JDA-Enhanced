@@ -88,28 +88,28 @@ public interface User extends UserSnowflake {
      *
      * @deprecated Replaced by {@link DiscordAssets#userAvatar(ImageFormat, String, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String AVATAR_URL = "https://cdn.discordapp.com/avatars/%s/%s.%s";
     /**
      * Template for {@link #getDefaultAvatarUrl()}
      *
      * @deprecated Replaced by {@link DiscordAssets#userDefaultAvatar(ImageFormat, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String DEFAULT_AVATAR_URL = "https://cdn.discordapp.com/embed/avatars/%s.png";
     /**
      * Template for {@link Profile#getBannerUrl()}
      *
      * @deprecated Replaced by {@link DiscordAssets#userBanner(ImageFormat, String, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String BANNER_URL = "https://cdn.discordapp.com/banners/%s/%s.%s";
     /**
      * Template for {@link PrimaryGuild#getBadgeUrl()}
      *
      * @deprecated Replaced by {@link DiscordAssets#userTagBadge(ImageFormat, String, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String TAG_BADGE_URL = "https://cdn.discordapp.com/guild-tag-badges/%s/%s.png";
 
     // java.awt.Color fills the MSB with FF,

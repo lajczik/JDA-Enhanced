@@ -225,7 +225,7 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
      */
     @Nonnull
     @Override
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     public R mentionUsers(@Nonnull Collection<String> userIds) {
         return addMentionUsers(userIds);
     }
@@ -255,7 +255,7 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
      */
     @Nonnull
     @Override
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     public R mentionRoles(@Nonnull Collection<String> roleIds) {
         return addMentionRoles(roleIds);
     }

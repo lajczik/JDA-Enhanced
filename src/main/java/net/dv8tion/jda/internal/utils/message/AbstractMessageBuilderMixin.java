@@ -166,14 +166,14 @@ public interface AbstractMessageBuilderMixin<R extends MessageRequest<R>, B exte
 
     @Nonnull
     @Override
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     default R mentionUsers(@Nonnull Collection<String> userIds) {
         return addMentionUsers(userIds);
     }
 
     @Nonnull
     @Override
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     default R mentionRoles(@Nonnull Collection<String> roleIds) {
         return addMentionRoles(roleIds);
     }

@@ -47,7 +47,7 @@ public interface CustomEmoji extends Emoji, IMentionable {
      *
      * @deprecated Replaced by {@link DiscordAssets#customEmoji(ImageFormat, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String ICON_URL = "https://cdn.discordapp.com/emojis/%s.%s";
 
     @Nonnull

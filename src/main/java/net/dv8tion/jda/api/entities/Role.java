@@ -135,7 +135,7 @@ public interface Role extends IMentionable, IPermissionHolder, IDetachableEntity
      * @see    #getColorRaw()
      */
     @Nullable
-    @Deprecated
+    @Deprecated(since = "6.2.0")
     @ReplaceWith("getColors().getPrimary()")
     default Color getColor() {
         return getColors().getPrimary();
@@ -149,7 +149,7 @@ public interface Role extends IMentionable, IPermissionHolder, IDetachableEntity
      *
      * @deprecated Replaced by {@link #getColors()}
      */
-    @Deprecated
+    @Deprecated(since = "6.2.0")
     @ReplaceWith("getColors().getPrimaryRaw()")
     default int getColorRaw() {
         return getColors().getPrimaryRaw();

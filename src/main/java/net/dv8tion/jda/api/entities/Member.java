@@ -82,7 +82,7 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * @deprecated Replaced by
      *             {@link DiscordAssets#memberAvatar(ImageFormat, String, String, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String AVATAR_URL = "https://cdn.discordapp.com/guilds/%s/users/%s/avatars/%s.%s";
     /** Maximum number of days a Member can be timed out for */
     int MAX_TIME_OUT_LENGTH = 28;
@@ -840,7 +840,7 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      * @see #getColorRaw()
      */
     @Nullable
-    @Deprecated
+    @Deprecated(since = "6.2.0")
     @ReplaceWith("getColors().getPrimary()")
     default Color getColor() {
         return this.getColors().getPrimary();
@@ -858,7 +858,7 @@ public interface Member extends IMentionable, IPermissionHolder, IDetachableEnti
      *
      * @deprecated Replaced by {@code getColors().getPrimaryRaw()}
      */
-    @Deprecated
+    @Deprecated(since = "6.2.0")
     @ReplaceWith("getColors().getPrimaryRaw()")
     default int getColorRaw() {
         return this.getColors().getPrimaryRaw();

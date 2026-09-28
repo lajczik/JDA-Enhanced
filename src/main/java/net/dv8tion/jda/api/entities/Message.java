@@ -2470,7 +2470,7 @@ public interface Message extends ISnowflake, Formattable {
      *         Replaced with {@link #getInteractionMetadata()}
      */
     @Nullable
-    @Deprecated
+    @Deprecated(since = "5.3.0")
     Interaction getInteraction();
 
     /**
@@ -3029,7 +3029,7 @@ public interface Message extends ISnowflake, Formattable {
      *
      * @deprecated Replaced with {@link InteractionMetadata}
      */
-    @Deprecated
+    @Deprecated(since = "5.3.0")
     class Interaction implements ISnowflake {
         private final long id;
         private final int type;

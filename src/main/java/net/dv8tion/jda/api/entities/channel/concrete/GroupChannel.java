@@ -41,7 +41,7 @@ public interface GroupChannel extends MessageChannel, IDetachableEntity {
      *
      * @deprecated Replaced by {@link DiscordAssets#channelIcon(ImageFormat, String, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String ICON_URL = "https://cdn.discordapp.com/channel-icons/%s/%s.png";
 
     /**

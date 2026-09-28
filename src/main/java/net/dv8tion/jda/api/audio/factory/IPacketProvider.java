@@ -78,9 +78,11 @@ public interface IPacketProvider {
      * send from.
      *
      * @return The UDP socket connection used for audio sending.
+     *
+     * @deprecated Replaced by {@link #getDatagramChannel()}
      */
     @Nonnull
-    @Deprecated
+    @Deprecated(since = "6.6.0-enhanced")
     DatagramSocket getUdpSocket();
 
     /**

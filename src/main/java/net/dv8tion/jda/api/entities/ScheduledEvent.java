@@ -64,9 +64,9 @@ public interface ScheduledEvent extends ISnowflake, Comparable<ScheduledEvent> {
     /**
      * Template for {@link #getImageUrl()}
      *
-     * @deprecated Replaced by {@link net.dv8tion.jda.api.utils.DiscordAssets#scheduledEventCoverImage(ImageFormat, String, String)}
+     * @deprecated Replaced by {@link DiscordAssets#scheduledEventCoverImage(ImageFormat, String, String)}
      */
-    @Deprecated
+    @Deprecated(since = "6.3.1")
     String IMAGE_URL = "https://cdn.discordapp.com/guild-events/%s/%s.%s";
 
     /**

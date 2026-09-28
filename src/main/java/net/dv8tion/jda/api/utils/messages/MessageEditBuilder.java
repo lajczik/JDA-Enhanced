@@ -178,14 +178,14 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
 
     @Nonnull
     @Override
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     public MessageEditBuilder mentionUsers(@Nonnull Collection<String> userIds) {
         return addMentionUsers(userIds);
     }
 
     @Nonnull
     @Override
-    @Deprecated
+    @Deprecated(since = "6.7.0-enhanced")
     public MessageEditBuilder mentionRoles(@Nonnull Collection<String> roleIds) {
         return addMentionRoles(roleIds);
     }
