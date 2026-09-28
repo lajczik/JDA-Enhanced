@@ -551,13 +551,13 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionUsers(Collection)
+     * @see    #addMentionedUsers(Collection)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    R setMentionUsers(@Nullable Collection<String> userIds);
+    R setMentionedUsers(@Nullable Collection<String> userIds);
 
     /**
      * Sets the {@link User Users} that should be pinged,
@@ -576,25 +576,25 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionUsers(String...)
+     * @see    #addMentionedUsers(String...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    default R setMentionUsers(@Nonnull String... userIds) {
+    default R setMentionedUsers(@Nonnull String... userIds) {
         if (userIds == null) {
-            return setMentionUsers((Collection<String>) null);
+            return setMentionedUsers((Collection<String>) null);
         }
         if (userIds.length == 0) {
-            return setMentionUsers(Collections.emptyList());
+            return setMentionedUsers(Collections.emptyList());
         }
         if (userIds.length == 1) {
             Checks.notNull(userIds[0], "User ID");
-            return setMentionUsers(Collections.singletonList(userIds[0]));
+            return setMentionedUsers(Collections.singletonList(userIds[0]));
         }
         Checks.noneNull(userIds, "User IDs");
-        return setMentionUsers(Arrays.asList(userIds));
+        return setMentionedUsers(Arrays.asList(userIds));
     }
 
     /**
@@ -614,25 +614,25 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionUsers(long...)
+     * @see    #addMentionedUsers(long...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    default R setMentionUsers(@Nonnull long... userIds) {
+    default R setMentionedUsers(@Nonnull long... userIds) {
         Checks.notNull(userIds, "UserId array");
         if (userIds.length == 0) {
-            return setMentionUsers(Collections.emptyList());
+            return setMentionedUsers(Collections.emptyList());
         }
         if (userIds.length == 1) {
-            return setMentionUsers(Collections.singletonList(Long.toUnsignedString(userIds[0])));
+            return setMentionedUsers(Collections.singletonList(Long.toUnsignedString(userIds[0])));
         }
         List<String> stringIds = new ArrayList<>(userIds.length);
         for (long userId : userIds) {
             stringIds.add(Long.toUnsignedString(userId));
         }
-        return setMentionUsers(stringIds);
+        return setMentionedUsers(stringIds);
     }
 
     /**
@@ -652,13 +652,13 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionRoles(Collection)
+     * @see    #addMentionedRoles(Collection)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    R setMentionRoles(@Nullable Collection<String> roleIds);
+    R setMentionedRoles(@Nullable Collection<String> roleIds);
 
     /**
      * Sets the {@link Role Roles} that should be pinged,
@@ -677,25 +677,25 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionRoles(String...)
+     * @see    #addMentionedRoles(String...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    default R setMentionRoles(@Nonnull String... roleIds) {
+    default R setMentionedRoles(@Nonnull String... roleIds) {
         if (roleIds == null) {
-            return setMentionRoles((Collection<String>) null);
+            return setMentionedRoles((Collection<String>) null);
         }
         if (roleIds.length == 0) {
-            return setMentionRoles(Collections.emptyList());
+            return setMentionedRoles(Collections.emptyList());
         }
         if (roleIds.length == 1) {
             Checks.notNull(roleIds[0], "Role ID");
-            return setMentionRoles(Collections.singletonList(roleIds[0]));
+            return setMentionedRoles(Collections.singletonList(roleIds[0]));
         }
         Checks.noneNull(roleIds, "Role IDs");
-        return setMentionRoles(Arrays.asList(roleIds));
+        return setMentionedRoles(Arrays.asList(roleIds));
     }
 
     /**
@@ -715,25 +715,25 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionRoles(long...)
+     * @see    #addMentionedRoles(long...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    default R setMentionRoles(@Nonnull long... roleIds) {
+    default R setMentionedRoles(@Nonnull long... roleIds) {
         Checks.notNull(roleIds, "RoleId array");
         if (roleIds.length == 0) {
-            return setMentionRoles(Collections.emptyList());
+            return setMentionedRoles(Collections.emptyList());
         }
         if (roleIds.length == 1) {
-            return setMentionRoles(Collections.singletonList(Long.toUnsignedString(roleIds[0])));
+            return setMentionedRoles(Collections.singletonList(Long.toUnsignedString(roleIds[0])));
         }
         List<String> stringIds = new ArrayList<>(roleIds.length);
         for (long roleId : roleIds) {
             stringIds.add(Long.toUnsignedString(roleId));
         }
-        return setMentionRoles(stringIds);
+        return setMentionedRoles(stringIds);
     }
 
     /**
@@ -752,13 +752,13 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #setMentionUsers(Collection)
+     * @see    #setMentionedUsers(Collection)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    R addMentionUsers(@Nonnull Collection<String> userIds);
+    R addMentionedUsers(@Nonnull Collection<String> userIds);
 
     /**
      * Adds the provided {@link User Users} to the whitelist of users that should be pinged,
@@ -776,23 +776,23 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #setMentionUsers(String...)
+     * @see    #setMentionedUsers(String...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    default R addMentionUsers(@Nonnull String... userIds) {
+    default R addMentionedUsers(@Nonnull String... userIds) {
         Checks.notNull(userIds, "User IDs");
         if (userIds.length == 0) {
-            return addMentionUsers(Collections.emptyList());
+            return addMentionedUsers(Collections.emptyList());
         }
         if (userIds.length == 1) {
             Checks.notNull(userIds[0], "User ID");
-            return addMentionUsers(Collections.singletonList(userIds[0]));
+            return addMentionedUsers(Collections.singletonList(userIds[0]));
         }
         Checks.noneNull(userIds, "User IDs");
-        return addMentionUsers(Arrays.asList(userIds));
+        return addMentionedUsers(Arrays.asList(userIds));
     }
 
     /**
@@ -811,25 +811,25 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #setMentionUsers(long...)
+     * @see    #setMentionedUsers(long...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    default R addMentionUsers(@Nonnull long... userIds) {
+    default R addMentionedUsers(@Nonnull long... userIds) {
         Checks.notNull(userIds, "UserId array");
         if (userIds.length == 0) {
-            return addMentionUsers(Collections.emptyList());
+            return addMentionedUsers(Collections.emptyList());
         }
         if (userIds.length == 1) {
-            return addMentionUsers(Collections.singletonList(Long.toUnsignedString(userIds[0])));
+            return addMentionedUsers(Collections.singletonList(Long.toUnsignedString(userIds[0])));
         }
         List<String> stringIds = new ArrayList<>(userIds.length);
         for (long userId : userIds) {
             stringIds.add(Long.toUnsignedString(userId));
         }
-        return addMentionUsers(stringIds);
+        return addMentionedUsers(stringIds);
     }
 
     /**
@@ -848,13 +848,13 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #setMentionRoles(Collection)
+     * @see    #setMentionedRoles(Collection)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    R addMentionRoles(@Nonnull Collection<String> roleIds);
+    R addMentionedRoles(@Nonnull Collection<String> roleIds);
 
     /**
      * Adds the provided {@link Role Roles} to the whitelist of roles that should be pinged,
@@ -872,23 +872,23 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #setMentionRoles(String...)
+     * @see    #setMentionedRoles(String...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    default R addMentionRoles(@Nonnull String... roleIds) {
+    default R addMentionedRoles(@Nonnull String... roleIds) {
         Checks.notNull(roleIds, "Role IDs");
         if (roleIds.length == 0) {
-            return addMentionRoles(Collections.emptyList());
+            return addMentionedRoles(Collections.emptyList());
         }
         if (roleIds.length == 1) {
             Checks.notNull(roleIds[0], "Role ID");
-            return addMentionRoles(Collections.singletonList(roleIds[0]));
+            return addMentionedRoles(Collections.singletonList(roleIds[0]));
         }
         Checks.noneNull(roleIds, "Role IDs");
-        return addMentionRoles(Arrays.asList(roleIds));
+        return addMentionedRoles(Arrays.asList(roleIds));
     }
 
     /**
@@ -907,25 +907,25 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #setMentionRoles(long...)
+     * @see    #setMentionedRoles(long...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    default R addMentionRoles(@Nonnull long... roleIds) {
+    default R addMentionedRoles(@Nonnull long... roleIds) {
         Checks.notNull(roleIds, "RoleId array");
         if (roleIds.length == 0) {
-            return addMentionRoles(Collections.emptyList());
+            return addMentionedRoles(Collections.emptyList());
         }
         if (roleIds.length == 1) {
-            return addMentionRoles(Collections.singletonList(Long.toUnsignedString(roleIds[0])));
+            return addMentionedRoles(Collections.singletonList(Long.toUnsignedString(roleIds[0])));
         }
         List<String> stringIds = new ArrayList<>(roleIds.length);
         for (long roleId : roleIds) {
             stringIds.add(Long.toUnsignedString(roleId));
         }
-        return addMentionRoles(stringIds);
+        return addMentionedRoles(stringIds);
     }
 
     /**
@@ -944,19 +944,19 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionUsers(Collection)
-     * @see    #setMentionUsers(Collection)
+     * @see    #addMentionedUsers(Collection)
+     * @see    #setMentionedUsers(Collection)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      *
      * @deprecated This method is confusing because it only adds users rather than setting them.
-     *             Use {@link #addMentionUsers(Collection)} to add users, or {@link #setMentionUsers(Collection)} to set/replace them.
+     *             Use {@link #addMentionedUsers(Collection)} to add users, or {@link #setMentionedUsers(Collection)} to set/replace them.
      */
     @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionUsers(@Nonnull Collection<String> userIds) {
-        return addMentionUsers(userIds);
+        return addMentionedUsers(userIds);
     }
 
     /**
@@ -975,19 +975,19 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionUsers(String...)
-     * @see    #setMentionUsers(String...)
+     * @see    #addMentionedUsers(String...)
+     * @see    #setMentionedUsers(String...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      *
      * @deprecated This method is confusing because it only adds users rather than setting them.
-     *             Use {@link #addMentionUsers(String...)} to add users, or {@link #setMentionUsers(String...)} to set/replace them.
+     *             Use {@link #addMentionedUsers(String...)} to add users, or {@link #setMentionedUsers(String...)} to set/replace them.
      */
     @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionUsers(@Nonnull String... userIds) {
-        return addMentionUsers(userIds);
+        return addMentionedUsers(userIds);
     }
 
     /**
@@ -1006,19 +1006,19 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionUsers(long...)
-     * @see    #setMentionUsers(long...)
+     * @see    #addMentionedUsers(long...)
+     * @see    #setMentionedUsers(long...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      *
      * @deprecated This method is confusing because it only adds users rather than setting them.
-     *             Use {@link #addMentionUsers(long...)} to add users, or {@link #setMentionUsers(long...)} to set/replace them.
+     *             Use {@link #addMentionedUsers(long...)} to add users, or {@link #setMentionedUsers(long...)} to set/replace them.
      */
     @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionUsers(@Nonnull long... userIds) {
-        return addMentionUsers(userIds);
+        return addMentionedUsers(userIds);
     }
 
     /**
@@ -1037,19 +1037,19 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionRoles(Collection)
-     * @see    #setMentionRoles(Collection)
+     * @see    #addMentionedRoles(Collection)
+     * @see    #setMentionedRoles(Collection)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      *
      * @deprecated This method is confusing because it only adds roles rather than setting them.
-     *             Use {@link #addMentionRoles(Collection)} to add roles, or {@link #setMentionRoles(Collection)} to set/replace them.
+     *             Use {@link #addMentionedRoles(Collection)} to add roles, or {@link #setMentionedRoles(Collection)} to set/replace them.
      */
     @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionRoles(@Nonnull Collection<String> roleIds) {
-        return addMentionRoles(roleIds);
+        return addMentionedRoles(roleIds);
     }
 
     /**
@@ -1068,19 +1068,19 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionRoles(String...)
-     * @see    #setMentionRoles(String...)
+     * @see    #addMentionedRoles(String...)
+     * @see    #setMentionedRoles(String...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      *
      * @deprecated This method is confusing because it only adds roles rather than setting them.
-     *             Use {@link #addMentionRoles(String...)} to add roles, or {@link #setMentionRoles(String...)} to set/replace them.
+     *             Use {@link #addMentionedRoles(String...)} to add roles, or {@link #setMentionedRoles(String...)} to set/replace them.
      */
     @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionRoles(@Nonnull String... roleIds) {
-        return addMentionRoles(roleIds);
+        return addMentionedRoles(roleIds);
     }
 
     /**
@@ -1099,19 +1099,19 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
-     * @see    #addMentionRoles(long...)
-     * @see    #setMentionRoles(long...)
+     * @see    #addMentionedRoles(long...)
+     * @see    #setMentionedRoles(long...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      *
      * @deprecated This method is confusing because it only adds roles rather than setting them.
-     *             Use {@link #addMentionRoles(long...)} to add roles, or {@link #setMentionRoles(long...)} to set/replace them.
+     *             Use {@link #addMentionedRoles(long...)} to add roles, or {@link #setMentionedRoles(long...)} to set/replace them.
      */
     @Deprecated(since = "6.7.0-enhanced")
     @Nonnull
     @CheckReturnValue
     default R mentionRoles(@Nonnull long... roleIds) {
-        return addMentionRoles(roleIds);
+        return addMentionedRoles(roleIds);
     }
 
     /**

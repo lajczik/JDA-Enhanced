@@ -146,32 +146,32 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
 
     @Nonnull
     @Override
-    public MessageEditBuilder setMentionUsers(@Nullable Collection<String> userIds) {
-        super.setMentionUsers(userIds);
+    public MessageEditBuilder setMentionedUsers(@Nullable Collection<String> userIds) {
+        super.setMentionedUsers(userIds);
         configuredFields |= MENTIONS;
         return this;
     }
 
     @Nonnull
     @Override
-    public MessageEditBuilder setMentionRoles(@Nullable Collection<String> roleIds) {
-        super.setMentionRoles(roleIds);
+    public MessageEditBuilder setMentionedRoles(@Nullable Collection<String> roleIds) {
+        super.setMentionedRoles(roleIds);
         configuredFields |= MENTIONS;
         return this;
     }
 
     @Nonnull
     @Override
-    public MessageEditBuilder addMentionUsers(@Nonnull Collection<String> userIds) {
-        super.addMentionUsers(userIds);
+    public MessageEditBuilder addMentionedUsers(@Nonnull Collection<String> userIds) {
+        super.addMentionedUsers(userIds);
         configuredFields |= MENTIONS;
         return this;
     }
 
     @Nonnull
     @Override
-    public MessageEditBuilder addMentionRoles(@Nonnull Collection<String> roleIds) {
-        super.addMentionRoles(roleIds);
+    public MessageEditBuilder addMentionedRoles(@Nonnull Collection<String> roleIds) {
+        super.addMentionedRoles(roleIds);
         configuredFields |= MENTIONS;
         return this;
     }
@@ -180,14 +180,14 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
     @Override
     @Deprecated(since = "6.7.0-enhanced")
     public MessageEditBuilder mentionUsers(@Nonnull Collection<String> userIds) {
-        return addMentionUsers(userIds);
+        return addMentionedUsers(userIds);
     }
 
     @Nonnull
     @Override
     @Deprecated(since = "6.7.0-enhanced")
     public MessageEditBuilder mentionRoles(@Nonnull Collection<String> roleIds) {
-        return addMentionRoles(roleIds);
+        return addMentionedRoles(roleIds);
     }
 
     @Nonnull

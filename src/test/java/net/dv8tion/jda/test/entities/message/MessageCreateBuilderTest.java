@@ -56,7 +56,7 @@ public class MessageCreateBuilderTest extends AbstractSnapshotTest {
 
         Set<String> expectedCalls = getMessageCreateBuilderSetters();
 
-        Arrays.asList("setFiles", "setAllowedMentions", "setMentionRoles", "setMentionUsers")
+        Arrays.asList("setFiles", "setAllowedMentions", "setMentionedRoles", "setMentionedUsers")
                 .forEach(expectedCalls::remove);
 
         assertInteractionsContainMethods(builder, expectedCalls);
@@ -73,8 +73,8 @@ public class MessageCreateBuilderTest extends AbstractSnapshotTest {
                 .useComponentsV2(false)
                 .setFiles(List.of())
                 .setAllowedMentions(List.of())
-                .setMentionRoles(List.of())
-                .setMentionUsers(List.of())
+                .setMentionedRoles(List.of())
+                .setMentionedUsers(List.of())
                 .setFiles(TestResourceUtil.getFileUpload(Resources.LOGO_PNG))
                 .setPoll(MessagePollData.builder("Is this tested?")
                         .addAnswer("Yes")

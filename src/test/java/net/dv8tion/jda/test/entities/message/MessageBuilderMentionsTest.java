@@ -31,31 +31,31 @@ public class MessageBuilderMentionsTest {
         MessageCreateBuilder builder = new MessageCreateBuilder();
         builder.setContent("Test");
 
-        // addMentionRoles adds roles incrementally
-        builder.addMentionRoles("1", "2");
+        // addMentionedRoles adds roles incrementally
+        builder.addMentionedRoles("1", "2");
         assertThat(builder.getMentionedRoles()).containsExactlyInAnyOrder("1", "2");
 
-        builder.addMentionRoles("3");
+        builder.addMentionedRoles("3");
         assertThat(builder.getMentionedRoles()).containsExactlyInAnyOrder("1", "2", "3");
 
-        // setMentionRoles replaces roles
-        builder.setMentionRoles("4", "5");
+        // setMentionedRoles replaces roles
+        builder.setMentionedRoles("4", "5");
         assertThat(builder.getMentionedRoles()).containsExactlyInAnyOrder("4", "5");
 
-        // setMentionRoles with long array
-        builder.setMentionRoles(6L, 7L);
+        // setMentionedRoles with long array
+        builder.setMentionedRoles(6L, 7L);
         assertThat(builder.getMentionedRoles()).containsExactlyInAnyOrder("6", "7");
 
-        // addMentionRoles with long array
-        builder.addMentionRoles(8L);
+        // addMentionedRoles with long array
+        builder.addMentionedRoles(8L);
         assertThat(builder.getMentionedRoles()).containsExactlyInAnyOrder("6", "7", "8");
 
-        // setMentionRoles(null) clears
-        builder.setMentionRoles((Collection<String>) null);
+        // setMentionedRoles(null) clears
+        builder.setMentionedRoles((Collection<String>) null);
         assertThat(builder.getMentionedRoles()).isEmpty();
 
-        // setMentionRoles empty vararg clears
-        builder.addMentionRoles("9");
+        // setMentionedRoles empty vararg clears
+        builder.addMentionedRoles("9");
         assertThat(builder.getMentionedRoles()).containsExactly("9");
     }
 
@@ -64,31 +64,31 @@ public class MessageBuilderMentionsTest {
         MessageCreateBuilder builder = new MessageCreateBuilder();
         builder.setContent("Test");
 
-        // addMentionUsers adds users incrementally
-        builder.addMentionUsers("10", "20");
+        // addMentionedUsers adds users incrementally
+        builder.addMentionedUsers("10", "20");
         assertThat(builder.getMentionedUsers()).containsExactlyInAnyOrder("10", "20");
 
-        builder.addMentionUsers("30");
+        builder.addMentionedUsers("30");
         assertThat(builder.getMentionedUsers()).containsExactlyInAnyOrder("10", "20", "30");
 
-        // setMentionUsers replaces users
-        builder.setMentionUsers("40", "50");
+        // setMentionedUsers replaces users
+        builder.setMentionedUsers("40", "50");
         assertThat(builder.getMentionedUsers()).containsExactlyInAnyOrder("40", "50");
 
-        // setMentionUsers with long array
-        builder.setMentionUsers(60L, 70L);
+        // setMentionedUsers with long array
+        builder.setMentionedUsers(60L, 70L);
         assertThat(builder.getMentionedUsers()).containsExactlyInAnyOrder("60", "70");
 
-        // addMentionUsers with long array
-        builder.addMentionUsers(80L);
+        // addMentionedUsers with long array
+        builder.addMentionedUsers(80L);
         assertThat(builder.getMentionedUsers()).containsExactlyInAnyOrder("60", "70", "80");
 
-        // setMentionUsers(null) clears
-        builder.setMentionUsers((Collection<String>) null);
+        // setMentionedUsers(null) clears
+        builder.setMentionedUsers((Collection<String>) null);
         assertThat(builder.getMentionedUsers()).isEmpty();
 
-        // setMentionUsers empty vararg clears
-        builder.addMentionUsers("90");
+        // setMentionedUsers empty vararg clears
+        builder.addMentionedUsers("90");
         assertThat(builder.getMentionedUsers()).containsExactly("90");
     }
 
@@ -110,28 +110,28 @@ public class MessageBuilderMentionsTest {
     @Test
     void testMessageEditBuilderConfiguredMentions() {
         MessageEditBuilder builder = new MessageEditBuilder();
-        builder.setMentionRoles("1");
+        builder.setMentionedRoles("1");
         try (MessageEditData data = builder.build()) {
             assertThat(data.toData().hasKey("allowed_mentions")).isTrue();
             assertThat(data.getMentionedRoles()).containsExactly("1");
         }
 
         builder = new MessageEditBuilder();
-        builder.setMentionUsers("10");
+        builder.setMentionedUsers("10");
         try (MessageEditData data = builder.build()) {
             assertThat(data.toData().hasKey("allowed_mentions")).isTrue();
             assertThat(data.getMentionedUsers()).containsExactly("10");
         }
 
         builder = new MessageEditBuilder();
-        builder.addMentionRoles("2");
+        builder.addMentionedRoles("2");
         try (MessageEditData data = builder.build()) {
             assertThat(data.toData().hasKey("allowed_mentions")).isTrue();
             assertThat(data.getMentionedRoles()).containsExactly("2");
         }
 
         builder = new MessageEditBuilder();
-        builder.addMentionUsers("20");
+        builder.addMentionedUsers("20");
         try (MessageEditData data = builder.build()) {
             assertThat(data.toData().hasKey("allowed_mentions")).isTrue();
             assertThat(data.getMentionedUsers()).containsExactly("20");

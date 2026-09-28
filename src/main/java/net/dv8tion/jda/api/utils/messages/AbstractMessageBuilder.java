@@ -111,13 +111,13 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
      *
      * @return The same builder instance for chaining
      *
-     * @see    #addMentionUsers(Collection)
+     * @see    #addMentionedUsers(Collection)
      * @see    #setAllowedMentions(Collection)
      */
     @Nonnull
     @Override
-    public R setMentionUsers(@Nullable Collection<String> userIds) {
-        this.mentions.setMentionUsers(userIds);
+    public R setMentionedUsers(@Nullable Collection<String> userIds) {
+        this.mentions.setMentionedUsers(userIds);
         return (R) this;
     }
 
@@ -138,13 +138,13 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
      *
      * @return The same builder instance for chaining
      *
-     * @see    #addMentionRoles(Collection)
+     * @see    #addMentionedRoles(Collection)
      * @see    #setAllowedMentions(Collection)
      */
     @Nonnull
     @Override
-    public R setMentionRoles(@Nullable Collection<String> roleIds) {
-        this.mentions.setMentionRoles(roleIds);
+    public R setMentionedRoles(@Nullable Collection<String> roleIds) {
+        this.mentions.setMentionedRoles(roleIds);
         return (R) this;
     }
 
@@ -164,13 +164,13 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
      *
      * @return The same builder instance for chaining
      *
-     * @see    #setMentionUsers(Collection)
+     * @see    #setMentionedUsers(Collection)
      * @see    #setAllowedMentions(Collection)
      */
     @Nonnull
     @Override
-    public R addMentionUsers(@Nonnull Collection<String> userIds) {
-        this.mentions.addMentionUsers(userIds);
+    public R addMentionedUsers(@Nonnull Collection<String> userIds) {
+        this.mentions.addMentionedUsers(userIds);
         return (R) this;
     }
 
@@ -190,13 +190,13 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
      *
      * @return The same builder instance for chaining
      *
-     * @see    #setMentionRoles(Collection)
+     * @see    #setMentionedRoles(Collection)
      * @see    #setAllowedMentions(Collection)
      */
     @Nonnull
     @Override
-    public R addMentionRoles(@Nonnull Collection<String> roleIds) {
-        this.mentions.addMentionRoles(roleIds);
+    public R addMentionedRoles(@Nonnull Collection<String> roleIds) {
+        this.mentions.addMentionedRoles(roleIds);
         return (R) this;
     }
 
@@ -216,18 +216,18 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
      *
      * @return The same builder instance for chaining
      *
-     * @see    #addMentionUsers(Collection)
-     * @see    #setMentionUsers(Collection)
+     * @see    #addMentionedUsers(Collection)
+     * @see    #setMentionedUsers(Collection)
      * @see    #setAllowedMentions(Collection)
      *
      * @deprecated This method is confusing because it only adds users rather than setting them.
-     *             Use {@link #addMentionUsers(Collection)} to add users, or {@link #setMentionUsers(Collection)} to set/replace them.
+     *             Use {@link #addMentionedUsers(Collection)} to add users, or {@link #setMentionedUsers(Collection)} to set/replace them.
      */
     @Nonnull
     @Override
     @Deprecated(since = "6.7.0-enhanced")
     public R mentionUsers(@Nonnull Collection<String> userIds) {
-        return addMentionUsers(userIds);
+        return addMentionedUsers(userIds);
     }
 
     /**
@@ -246,18 +246,18 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
      *
      * @return The same builder instance for chaining
      *
-     * @see    #addMentionRoles(Collection)
-     * @see    #setMentionRoles(Collection)
+     * @see    #addMentionedRoles(Collection)
+     * @see    #setMentionedRoles(Collection)
      * @see    #setAllowedMentions(Collection)
      *
      * @deprecated This method is confusing because it only adds roles rather than setting them.
-     *             Use {@link #addMentionRoles(Collection)} to add roles, or {@link #setMentionRoles(Collection)} to set/replace them.
+     *             Use {@link #addMentionedRoles(Collection)} to add roles, or {@link #setMentionedRoles(Collection)} to set/replace them.
      */
     @Nonnull
     @Override
     @Deprecated(since = "6.7.0-enhanced")
     public R mentionRoles(@Nonnull Collection<String> roleIds) {
-        return addMentionRoles(roleIds);
+        return addMentionedRoles(roleIds);
     }
 
     @Nonnull

@@ -138,29 +138,29 @@ public interface AbstractMessageBuilderMixin<R extends MessageRequest<R>, B exte
 
     @Nonnull
     @Override
-    default R setMentionUsers(@Nullable Collection<String> userIds) {
-        getBuilder().setMentionUsers(userIds);
+    default R setMentionedUsers(@Nullable Collection<String> userIds) {
+        getBuilder().setMentionedUsers(userIds);
         return (R) this;
     }
 
     @Nonnull
     @Override
-    default R setMentionRoles(@Nullable Collection<String> roleIds) {
-        getBuilder().setMentionRoles(roleIds);
+    default R setMentionedRoles(@Nullable Collection<String> roleIds) {
+        getBuilder().setMentionedRoles(roleIds);
         return (R) this;
     }
 
     @Nonnull
     @Override
-    default R addMentionUsers(@Nonnull Collection<String> userIds) {
-        getBuilder().addMentionUsers(userIds);
+    default R addMentionedUsers(@Nonnull Collection<String> userIds) {
+        getBuilder().addMentionedUsers(userIds);
         return (R) this;
     }
 
     @Nonnull
     @Override
-    default R addMentionRoles(@Nonnull Collection<String> roleIds) {
-        getBuilder().addMentionRoles(roleIds);
+    default R addMentionedRoles(@Nonnull Collection<String> roleIds) {
+        getBuilder().addMentionedRoles(roleIds);
         return (R) this;
     }
 
@@ -168,14 +168,14 @@ public interface AbstractMessageBuilderMixin<R extends MessageRequest<R>, B exte
     @Override
     @Deprecated(since = "6.7.0-enhanced")
     default R mentionUsers(@Nonnull Collection<String> userIds) {
-        return addMentionUsers(userIds);
+        return addMentionedUsers(userIds);
     }
 
     @Nonnull
     @Override
     @Deprecated(since = "6.7.0-enhanced")
     default R mentionRoles(@Nonnull Collection<String> roleIds) {
-        return addMentionRoles(roleIds);
+        return addMentionedRoles(roleIds);
     }
 
     @Nonnull
