@@ -17,6 +17,8 @@
 package net.dv8tion.jda.test.entities.message;
 
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageEditBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
@@ -103,5 +105,36 @@ public class MessageBuilderMentionsTest {
         builder.mentionUsers("10", "20");
         builder.mentionUsers("30");
         assertThat(builder.getMentionedUsers()).containsExactlyInAnyOrder("10", "20", "30");
+    }
+
+    @Test
+    void testMessageEditBuilderConfiguredMentions() {
+        MessageEditBuilder builder = new MessageEditBuilder();
+        builder.setMentionRoles("1");
+        try (MessageEditData data = builder.build()) {
+            assertThat(data.toData().hasKey("allowed_mentions")).isTrue();
+            assertThat(data.getMentionedRoles()).containsExactly("1");
+        }
+
+        builder = new MessageEditBuilder();
+        builder.setMentionUsers("10");
+        try (MessageEditData data = builder.build()) {
+            assertThat(data.toData().hasKey("allowed_mentions")).isTrue();
+            assertThat(data.getMentionedUsers()).containsExactly("10");
+        }
+
+        builder = new MessageEditBuilder();
+        builder.addMentionRoles("2");
+        try (MessageEditData data = builder.build()) {
+            assertThat(data.toData().hasKey("allowed_mentions")).isTrue();
+            assertThat(data.getMentionedRoles()).containsExactly("2");
+        }
+
+        builder = new MessageEditBuilder();
+        builder.addMentionUsers("20");
+        try (MessageEditData data = builder.build()) {
+            assertThat(data.toData().hasKey("allowed_mentions")).isTrue();
+            assertThat(data.getMentionedUsers()).containsExactly("20");
+        }
     }
 }
