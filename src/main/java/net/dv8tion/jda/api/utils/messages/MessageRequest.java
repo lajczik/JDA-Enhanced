@@ -535,7 +535,268 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
     }
 
     /**
-     * Used to provide a whitelist of {@link User Users} that should be pinged,
+     * Sets the {@link User Users} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     * <br>This will replace any previously configured user mentions.
+     *
+     * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  userIds
+     *         Ids of Users that should be explicitly whitelisted to be pingable, or {@code null} to clear
+     *
+     * @throws IllegalArgumentException
+     *         If the collection contains null elements
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #addMentionUsers(Collection)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    R setMentionUsers(@Nullable Collection<String> userIds);
+
+    /**
+     * Sets the {@link User Users} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     * <br>This will replace any previously configured user mentions.
+     *
+     * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  userIds
+     *         Ids of Users that should be explicitly whitelisted to be pingable. Providing no arguments will clear the whitelisted users.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or any element is null
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #addMentionUsers(String...)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    default R setMentionUsers(@Nonnull String... userIds) {
+        if (userIds == null) {
+            return setMentionUsers((Collection<String>) null);
+        }
+        if (userIds.length == 0) {
+            return setMentionUsers(Collections.emptyList());
+        }
+        if (userIds.length == 1) {
+            Checks.notNull(userIds[0], "User ID");
+            return setMentionUsers(Collections.singletonList(userIds[0]));
+        }
+        Checks.noneNull(userIds, "User IDs");
+        return setMentionUsers(Arrays.asList(userIds));
+    }
+
+    /**
+     * Sets the {@link User Users} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     * <br>This will replace any previously configured user mentions.
+     *
+     * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  userIds
+     *         Ids of Users that should be explicitly whitelisted to be pingable. Providing no arguments will clear the whitelisted users.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #addMentionUsers(long...)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    default R setMentionUsers(@Nonnull long... userIds) {
+        Checks.notNull(userIds, "UserId array");
+        if (userIds.length == 0) {
+            return setMentionUsers(Collections.emptyList());
+        }
+        if (userIds.length == 1) {
+            return setMentionUsers(Collections.singletonList(Long.toUnsignedString(userIds[0])));
+        }
+        List<String> stringIds = new ArrayList<>(userIds.length);
+        for (long userId : userIds) {
+            stringIds.add(Long.toUnsignedString(userId));
+        }
+        return setMentionUsers(stringIds);
+    }
+
+    /**
+     * Sets the {@link Role Roles} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     * <br>This will replace any previously configured role mentions.
+     *
+     * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  roleIds
+     *         Ids of Roles that should be explicitly whitelisted to be pingable, or {@code null} to clear
+     *
+     * @throws IllegalArgumentException
+     *         If the collection contains null elements
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #addMentionRoles(Collection)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    R setMentionRoles(@Nullable Collection<String> roleIds);
+
+    /**
+     * Sets the {@link Role Roles} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     * <br>This will replace any previously configured role mentions.
+     *
+     * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  roleIds
+     *         Ids of Roles that should be explicitly whitelisted to be pingable. Providing no arguments will clear the whitelisted roles.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or any element is null
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #addMentionRoles(String...)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    default R setMentionRoles(@Nonnull String... roleIds) {
+        if (roleIds == null) {
+            return setMentionRoles((Collection<String>) null);
+        }
+        if (roleIds.length == 0) {
+            return setMentionRoles(Collections.emptyList());
+        }
+        if (roleIds.length == 1) {
+            Checks.notNull(roleIds[0], "Role ID");
+            return setMentionRoles(Collections.singletonList(roleIds[0]));
+        }
+        Checks.noneNull(roleIds, "Role IDs");
+        return setMentionRoles(Arrays.asList(roleIds));
+    }
+
+    /**
+     * Sets the {@link Role Roles} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     * <br>This will replace any previously configured role mentions.
+     *
+     * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  roleIds
+     *         Ids of Roles that should be explicitly whitelisted to be pingable. Providing no arguments will clear the whitelisted roles.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #addMentionRoles(long...)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    default R setMentionRoles(@Nonnull long... roleIds) {
+        Checks.notNull(roleIds, "RoleId array");
+        if (roleIds.length == 0) {
+            return setMentionRoles(Collections.emptyList());
+        }
+        if (roleIds.length == 1) {
+            return setMentionRoles(Collections.singletonList(Long.toUnsignedString(roleIds[0])));
+        }
+        List<String> stringIds = new ArrayList<>(roleIds.length);
+        for (long roleId : roleIds) {
+            stringIds.add(Long.toUnsignedString(roleId));
+        }
+        return setMentionRoles(stringIds);
+    }
+
+    /**
+     * Adds the provided {@link User Users} to the whitelist of users that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     *
+     * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  userIds
+     *         Ids of Users that should be explicitly whitelisted to be pingable.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or any element is null
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #setMentionUsers(Collection)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    R addMentionUsers(@Nonnull Collection<String> userIds);
+
+    /**
+     * Adds the provided {@link User Users} to the whitelist of users that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     *
+     * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  userIds
+     *         Ids of Users that should be explicitly whitelisted to be pingable.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or any element is null
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #setMentionUsers(String...)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    default R addMentionUsers(@Nonnull String... userIds) {
+        Checks.notNull(userIds, "User IDs");
+        if (userIds.length == 0) {
+            return addMentionUsers(Collections.emptyList());
+        }
+        if (userIds.length == 1) {
+            Checks.notNull(userIds[0], "User ID");
+            return addMentionUsers(Collections.singletonList(userIds[0]));
+        }
+        Checks.noneNull(userIds, "User IDs");
+        return addMentionUsers(Arrays.asList(userIds));
+    }
+
+    /**
+     * Adds the provided {@link User Users} to the whitelist of users that should be pinged,
      * even when they would not be pinged otherwise according to the Set of allowed mention types.
      *
      * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
@@ -550,12 +811,122 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
+     * @see    #setMentionUsers(long...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
      */
     @Nonnull
     @CheckReturnValue
-    R mentionUsers(@Nonnull Collection<String> userIds);
+    default R addMentionUsers(@Nonnull long... userIds) {
+        Checks.notNull(userIds, "UserId array");
+        if (userIds.length == 0) {
+            return addMentionUsers(Collections.emptyList());
+        }
+        if (userIds.length == 1) {
+            return addMentionUsers(Collections.singletonList(Long.toUnsignedString(userIds[0])));
+        }
+        List<String> stringIds = new ArrayList<>(userIds.length);
+        for (long userId : userIds) {
+            stringIds.add(Long.toUnsignedString(userId));
+        }
+        return addMentionUsers(stringIds);
+    }
+
+    /**
+     * Adds the provided {@link Role Roles} to the whitelist of roles that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     *
+     * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  roleIds
+     *         Ids of Roles that should be explicitly whitelisted to be pingable.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or any element is null
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #setMentionRoles(Collection)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    R addMentionRoles(@Nonnull Collection<String> roleIds);
+
+    /**
+     * Adds the provided {@link Role Roles} to the whitelist of roles that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     *
+     * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  roleIds
+     *         Ids of Roles that should be explicitly whitelisted to be pingable.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or any element is null
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #setMentionRoles(String...)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    default R addMentionRoles(@Nonnull String... roleIds) {
+        Checks.notNull(roleIds, "Role IDs");
+        if (roleIds.length == 0) {
+            return addMentionRoles(Collections.emptyList());
+        }
+        if (roleIds.length == 1) {
+            Checks.notNull(roleIds[0], "Role ID");
+            return addMentionRoles(Collections.singletonList(roleIds[0]));
+        }
+        Checks.noneNull(roleIds, "Role IDs");
+        return addMentionRoles(Arrays.asList(roleIds));
+    }
+
+    /**
+     * Adds the provided {@link Role Roles} to the whitelist of roles that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     *
+     * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  roleIds
+     *         Ids of Roles that should be explicitly whitelisted to be pingable.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #setMentionRoles(long...)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     */
+    @Nonnull
+    @CheckReturnValue
+    default R addMentionRoles(@Nonnull long... roleIds) {
+        Checks.notNull(roleIds, "RoleId array");
+        if (roleIds.length == 0) {
+            return addMentionRoles(Collections.emptyList());
+        }
+        if (roleIds.length == 1) {
+            return addMentionRoles(Collections.singletonList(Long.toUnsignedString(roleIds[0])));
+        }
+        List<String> stringIds = new ArrayList<>(roleIds.length);
+        for (long roleId : roleIds) {
+            stringIds.add(Long.toUnsignedString(roleId));
+        }
+        return addMentionRoles(stringIds);
+    }
 
     /**
      * Used to provide a whitelist of {@link User Users} that should be pinged,
@@ -573,14 +944,50 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
+     * @see    #addMentionUsers(Collection)
+     * @see    #setMentionUsers(Collection)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
+     *
+     * @deprecated This method is confusing because it only adds users rather than setting them.
+     *             Use {@link #addMentionUsers(Collection)} to add users, or {@link #setMentionUsers(Collection)} to set/replace them.
      */
+    @Deprecated
+    @Nonnull
+    @CheckReturnValue
+    default R mentionUsers(@Nonnull Collection<String> userIds) {
+        return addMentionUsers(userIds);
+    }
+
+    /**
+     * Used to provide a whitelist of {@link User Users} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     *
+     * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  userIds
+     *         Ids of Users that should be explicitly whitelisted to be pingable.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided
+     *
+     * @return The same instance for chaining
+     *
+     * @see    #addMentionUsers(String...)
+     * @see    #setMentionUsers(String...)
+     * @see    #setAllowedMentions(Collection)
+     * @see    #setDefaultMentions(Collection)
+     *
+     * @deprecated This method is confusing because it only adds users rather than setting them.
+     *             Use {@link #addMentionUsers(String...)} to add users, or {@link #setMentionUsers(String...)} to set/replace them.
+     */
+    @Deprecated
     @Nonnull
     @CheckReturnValue
     default R mentionUsers(@Nonnull String... userIds) {
-        Checks.notNull(userIds, "User IDs");
-        return mentionUsers(Arrays.asList(userIds));
+        return addMentionUsers(userIds);
     }
 
     /**
@@ -599,18 +1006,19 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
+     * @see    #addMentionUsers(long...)
+     * @see    #setMentionUsers(long...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
+     *
+     * @deprecated This method is confusing because it only adds users rather than setting them.
+     *             Use {@link #addMentionUsers(long...)} to add users, or {@link #setMentionUsers(long...)} to set/replace them.
      */
+    @Deprecated
     @Nonnull
     @CheckReturnValue
     default R mentionUsers(@Nonnull long... userIds) {
-        Checks.notNull(userIds, "UserId array");
-        String[] stringIds = new String[userIds.length];
-        for (int i = 0; i < userIds.length; i++) {
-            stringIds[i] = Long.toUnsignedString(userIds[i]);
-        }
-        return mentionUsers(stringIds);
+        return addMentionUsers(userIds);
     }
 
     /**
@@ -629,12 +1037,20 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
+     * @see    #addMentionRoles(Collection)
+     * @see    #setMentionRoles(Collection)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
+     *
+     * @deprecated This method is confusing because it only adds roles rather than setting them.
+     *             Use {@link #addMentionRoles(Collection)} to add roles, or {@link #setMentionRoles(Collection)} to set/replace them.
      */
+    @Deprecated
     @Nonnull
     @CheckReturnValue
-    R mentionRoles(@Nonnull Collection<String> roleIds);
+    default R mentionRoles(@Nonnull Collection<String> roleIds) {
+        return addMentionRoles(roleIds);
+    }
 
     /**
      * Used to provide a whitelist of {@link Role Roles} that should be pinged,
@@ -652,14 +1068,19 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
+     * @see    #addMentionRoles(String...)
+     * @see    #setMentionRoles(String...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
+     *
+     * @deprecated This method is confusing because it only adds roles rather than setting them.
+     *             Use {@link #addMentionRoles(String...)} to add roles, or {@link #setMentionRoles(String...)} to set/replace them.
      */
+    @Deprecated
     @Nonnull
     @CheckReturnValue
     default R mentionRoles(@Nonnull String... roleIds) {
-        Checks.notNull(roleIds, "Role IDs");
-        return mentionRoles(Arrays.asList(roleIds));
+        return addMentionRoles(roleIds);
     }
 
     /**
@@ -678,18 +1099,19 @@ public interface MessageRequest<R extends MessageRequest<R>> extends MessageData
      *
      * @return The same instance for chaining
      *
+     * @see    #addMentionRoles(long...)
+     * @see    #setMentionRoles(long...)
      * @see    #setAllowedMentions(Collection)
      * @see    #setDefaultMentions(Collection)
+     *
+     * @deprecated This method is confusing because it only adds roles rather than setting them.
+     *             Use {@link #addMentionRoles(long...)} to add roles, or {@link #setMentionRoles(long...)} to set/replace them.
      */
+    @Deprecated
     @Nonnull
     @CheckReturnValue
     default R mentionRoles(@Nonnull long... roleIds) {
-        Checks.notNull(roleIds, "RoleId array");
-        String[] stringIds = new String[roleIds.length];
-        for (int i = 0; i < roleIds.length; i++) {
-            stringIds[i] = Long.toUnsignedString(roleIds[i]);
-        }
-        return mentionRoles(stringIds);
+        return addMentionRoles(roleIds);
     }
 
     /**

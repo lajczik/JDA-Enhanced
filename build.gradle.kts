@@ -460,6 +460,7 @@ tasks.withType<JavaCompile>().configureEach {
                 "EnumOrdinal",
                 "Finalize",
                 "FutureReturnValueIgnored",
+                "InlineMeSuggester",
                 "InvalidBlockTag",
                 "JavaDurationGetSecondsToToSeconds",
                 "JavaTimeDefaultTimeZone",

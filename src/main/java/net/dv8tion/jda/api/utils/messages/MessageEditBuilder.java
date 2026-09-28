@@ -44,7 +44,7 @@ import javax.annotation.Nullable;
  *
  * @see MessageCreateBuilder
  */
-@SuppressWarnings("ResultOfMethodCallIgnored")
+@SuppressWarnings({"ResultOfMethodCallIgnored", "InlineMeSuggester"})
 public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, MessageEditBuilder>
         implements MessageEditRequest<MessageEditBuilder> {
     protected static final int CONTENT = 1;
@@ -146,18 +146,48 @@ public class MessageEditBuilder extends AbstractMessageBuilder<MessageEditData, 
 
     @Nonnull
     @Override
-    public MessageEditBuilder mentionUsers(@Nonnull Collection<String> userIds) {
-        super.mentionUsers(userIds);
+    public MessageEditBuilder setMentionUsers(@Nullable Collection<String> userIds) {
+        super.setMentionUsers(userIds);
         configuredFields |= MENTIONS;
         return this;
     }
 
     @Nonnull
     @Override
-    public MessageEditBuilder mentionRoles(@Nonnull Collection<String> roleIds) {
-        super.mentionRoles(roleIds);
+    public MessageEditBuilder setMentionRoles(@Nullable Collection<String> roleIds) {
+        super.setMentionRoles(roleIds);
         configuredFields |= MENTIONS;
         return this;
+    }
+
+    @Nonnull
+    @Override
+    public MessageEditBuilder addMentionUsers(@Nonnull Collection<String> userIds) {
+        super.addMentionUsers(userIds);
+        configuredFields |= MENTIONS;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public MessageEditBuilder addMentionRoles(@Nonnull Collection<String> roleIds) {
+        super.addMentionRoles(roleIds);
+        configuredFields |= MENTIONS;
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    @Deprecated
+    public MessageEditBuilder mentionUsers(@Nonnull Collection<String> userIds) {
+        return addMentionUsers(userIds);
+    }
+
+    @Nonnull
+    @Override
+    @Deprecated
+    public MessageEditBuilder mentionRoles(@Nonnull Collection<String> roleIds) {
+        return addMentionRoles(roleIds);
     }
 
     @Nonnull

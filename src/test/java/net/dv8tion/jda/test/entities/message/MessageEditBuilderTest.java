@@ -54,7 +54,8 @@ public class MessageEditBuilderTest extends AbstractSnapshotTest {
 
         Set<String> expectedCalls = getMessageEditBuilderSetters();
 
-        Arrays.asList("setFiles", "setAttachments", "setAllowedMentions").forEach(expectedCalls::remove);
+        Arrays.asList("setFiles", "setAttachments", "setAllowedMentions", "setMentionRoles", "setMentionUsers")
+                .forEach(expectedCalls::remove);
 
         assertInteractionsContainMethods(builder, expectedCalls);
 
@@ -75,6 +76,8 @@ public class MessageEditBuilderTest extends AbstractSnapshotTest {
                 .setReplace(true)
                 .setSuppressEmbeds(false)
                 .setAllowedMentions(List.of())
+                .setMentionRoles(List.of())
+                .setMentionUsers(List.of())
                 .setFiles(TestResourceUtil.getFileUpload(Resources.LOGO_PNG));
 
         assertInteractionsContainMethods(builder, getMessageEditBuilderSetters());

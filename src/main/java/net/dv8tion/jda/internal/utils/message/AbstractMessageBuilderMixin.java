@@ -138,16 +138,44 @@ public interface AbstractMessageBuilderMixin<R extends MessageRequest<R>, B exte
 
     @Nonnull
     @Override
-    default R mentionUsers(@Nonnull Collection<String> userIds) {
-        getBuilder().mentionUsers(userIds);
+    default R setMentionUsers(@Nullable Collection<String> userIds) {
+        getBuilder().setMentionUsers(userIds);
         return (R) this;
     }
 
     @Nonnull
     @Override
-    default R mentionRoles(@Nonnull Collection<String> roleIds) {
-        getBuilder().mentionRoles(roleIds);
+    default R setMentionRoles(@Nullable Collection<String> roleIds) {
+        getBuilder().setMentionRoles(roleIds);
         return (R) this;
+    }
+
+    @Nonnull
+    @Override
+    default R addMentionUsers(@Nonnull Collection<String> userIds) {
+        getBuilder().addMentionUsers(userIds);
+        return (R) this;
+    }
+
+    @Nonnull
+    @Override
+    default R addMentionRoles(@Nonnull Collection<String> roleIds) {
+        getBuilder().addMentionRoles(roleIds);
+        return (R) this;
+    }
+
+    @Nonnull
+    @Override
+    @Deprecated
+    default R mentionUsers(@Nonnull Collection<String> userIds) {
+        return addMentionUsers(userIds);
+    }
+
+    @Nonnull
+    @Override
+    @Deprecated
+    default R mentionRoles(@Nonnull Collection<String> roleIds) {
+        return addMentionRoles(roleIds);
     }
 
     @Nonnull

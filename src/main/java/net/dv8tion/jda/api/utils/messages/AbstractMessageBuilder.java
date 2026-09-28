@@ -22,6 +22,8 @@ import net.dv8tion.jda.api.components.MessageTopLevelComponentUnion;
 import net.dv8tion.jda.api.entities.IMentionable;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.utils.AttachedFile;
 import net.dv8tion.jda.internal.components.utils.ComponentsUtil;
 import net.dv8tion.jda.internal.utils.Checks;
@@ -44,7 +46,7 @@ import javax.annotation.Nullable;
  * @see   MessageCreateBuilder
  * @see   MessageEditBuilder
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "InlineMeSuggester"})
 public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder<T, R>> implements MessageRequest<R> {
     protected static boolean isDefaultUseComponentsV2 = false;
 
@@ -92,18 +94,170 @@ public abstract class AbstractMessageBuilder<T, R extends AbstractMessageBuilder
         return (R) this;
     }
 
+    /**
+     * Sets the {@link User Users} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     * <br>This will replace any previously configured user mentions.
+     *
+     * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  userIds
+     *         Ids of Users that should be explicitly whitelisted to be pingable, or {@code null} to clear
+     *
+     * @throws IllegalArgumentException
+     *         If the collection contains null elements
+     *
+     * @return The same builder instance for chaining
+     *
+     * @see    #addMentionUsers(Collection)
+     * @see    #setAllowedMentions(Collection)
+     */
     @Nonnull
     @Override
-    public R mentionUsers(@Nonnull Collection<String> userIds) {
-        this.mentions.mentionUsers(userIds);
+    public R setMentionUsers(@Nullable Collection<String> userIds) {
+        this.mentions.setMentionUsers(userIds);
         return (R) this;
     }
 
+    /**
+     * Sets the {@link Role Roles} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     * <br>This will replace any previously configured role mentions.
+     *
+     * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  roleIds
+     *         Ids of Roles that should be explicitly whitelisted to be pingable, or {@code null} to clear
+     *
+     * @throws IllegalArgumentException
+     *         If the collection contains null elements
+     *
+     * @return The same builder instance for chaining
+     *
+     * @see    #addMentionRoles(Collection)
+     * @see    #setAllowedMentions(Collection)
+     */
     @Nonnull
     @Override
-    public R mentionRoles(@Nonnull Collection<String> roleIds) {
-        this.mentions.mentionRoles(roleIds);
+    public R setMentionRoles(@Nullable Collection<String> roleIds) {
+        this.mentions.setMentionRoles(roleIds);
         return (R) this;
+    }
+
+    /**
+     * Adds the provided {@link User Users} to the whitelist of users that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     *
+     * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  userIds
+     *         Ids of Users that should be explicitly whitelisted to be pingable.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or any element is null
+     *
+     * @return The same builder instance for chaining
+     *
+     * @see    #setMentionUsers(Collection)
+     * @see    #setAllowedMentions(Collection)
+     */
+    @Nonnull
+    @Override
+    public R addMentionUsers(@Nonnull Collection<String> userIds) {
+        this.mentions.addMentionUsers(userIds);
+        return (R) this;
+    }
+
+    /**
+     * Adds the provided {@link Role Roles} to the whitelist of roles that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     *
+     * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  roleIds
+     *         Ids of Roles that should be explicitly whitelisted to be pingable.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided or any element is null
+     *
+     * @return The same builder instance for chaining
+     *
+     * @see    #setMentionRoles(Collection)
+     * @see    #setAllowedMentions(Collection)
+     */
+    @Nonnull
+    @Override
+    public R addMentionRoles(@Nonnull Collection<String> roleIds) {
+        this.mentions.addMentionRoles(roleIds);
+        return (R) this;
+    }
+
+    /**
+     * Used to provide a whitelist of {@link User Users} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     *
+     * <p><b>Note:</b> When a User is whitelisted this way, then parsing of User mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  userIds
+     *         Ids of Users that should be explicitly whitelisted to be pingable.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided
+     *
+     * @return The same builder instance for chaining
+     *
+     * @see    #addMentionUsers(Collection)
+     * @see    #setMentionUsers(Collection)
+     * @see    #setAllowedMentions(Collection)
+     *
+     * @deprecated This method is confusing because it only adds users rather than setting them.
+     *             Use {@link #addMentionUsers(Collection)} to add users, or {@link #setMentionUsers(Collection)} to set/replace them.
+     */
+    @Nonnull
+    @Override
+    @Deprecated
+    public R mentionUsers(@Nonnull Collection<String> userIds) {
+        return addMentionUsers(userIds);
+    }
+
+    /**
+     * Used to provide a whitelist of {@link Role Roles} that should be pinged,
+     * even when they would not be pinged otherwise according to the Set of allowed mention types.
+     *
+     * <p><b>Note:</b> When a Role is whitelisted this way, then parsing of Role mentions is automatically disabled.
+     * <br>Also note that whitelisting users or roles implicitly disables parsing of other mentions, if not otherwise set via
+     * {@link #setDefaultMentions(Collection)} or {@link #setAllowedMentions(Collection)}.
+     *
+     * @param  roleIds
+     *         Ids of Roles that should be explicitly whitelisted to be pingable.
+     *
+     * @throws IllegalArgumentException
+     *         If null is provided
+     *
+     * @return The same builder instance for chaining
+     *
+     * @see    #addMentionRoles(Collection)
+     * @see    #setMentionRoles(Collection)
+     * @see    #setAllowedMentions(Collection)
+     *
+     * @deprecated This method is confusing because it only adds roles rather than setting them.
+     *             Use {@link #addMentionRoles(Collection)} to add roles, or {@link #setMentionRoles(Collection)} to set/replace them.
+     */
+    @Nonnull
+    @Override
+    @Deprecated
+    public R mentionRoles(@Nonnull Collection<String> roleIds) {
+        return addMentionRoles(roleIds);
     }
 
     @Nonnull

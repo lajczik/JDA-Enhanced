@@ -336,8 +336,8 @@ public interface MessageCreateRequest<R extends MessageCreateRequest<R>> extends
 
         return setContent(data.getContent())
                 .setAllowedMentions(data.getAllowedMentions())
-                .mentionUsers(data.getMentionedUsers())
-                .mentionRoles(data.getMentionedRoles())
+                .setMentionUsers(data.getMentionedUsers())
+                .setMentionRoles(data.getMentionedRoles())
                 .mentionRepliedUser(data.isMentionRepliedUser())
                 .setComponents(data.getComponents())
                 .useComponentsV2(data.isUsingComponentsV2())
@@ -396,8 +396,8 @@ public interface MessageCreateRequest<R extends MessageCreateRequest<R>> extends
         }
         if (data.isSet(MessageEditBuilder.MENTIONS)) {
             setAllowedMentions(data.getAllowedMentions());
-            mentionUsers(data.getMentionedUsers());
-            mentionRoles(data.getMentionedRoles());
+            setMentionUsers(data.getMentionedUsers());
+            setMentionRoles(data.getMentionedRoles());
             mentionRepliedUser(data.isMentionRepliedUser());
         }
 

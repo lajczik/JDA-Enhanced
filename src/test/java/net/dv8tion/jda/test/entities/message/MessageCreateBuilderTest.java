@@ -56,7 +56,8 @@ public class MessageCreateBuilderTest extends AbstractSnapshotTest {
 
         Set<String> expectedCalls = getMessageCreateBuilderSetters();
 
-        Arrays.asList("setFiles", "setAllowedMentions").forEach(expectedCalls::remove);
+        Arrays.asList("setFiles", "setAllowedMentions", "setMentionRoles", "setMentionUsers")
+                .forEach(expectedCalls::remove);
 
         assertInteractionsContainMethods(builder, expectedCalls);
         assertThatIllegalStateException().isThrownBy(builder::build);
@@ -72,6 +73,8 @@ public class MessageCreateBuilderTest extends AbstractSnapshotTest {
                 .useComponentsV2(false)
                 .setFiles(List.of())
                 .setAllowedMentions(List.of())
+                .setMentionRoles(List.of())
+                .setMentionUsers(List.of())
                 .setFiles(TestResourceUtil.getFileUpload(Resources.LOGO_PNG))
                 .setPoll(MessagePollData.builder("Is this tested?")
                         .addAnswer("Yes")

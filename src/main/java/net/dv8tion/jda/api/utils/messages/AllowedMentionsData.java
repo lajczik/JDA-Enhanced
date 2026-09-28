@@ -90,14 +90,38 @@ class AllowedMentionsData implements SerializableData {
         }
     }
 
-    public void mentionUsers(@Nonnull Collection<String> userIds) {
+    public void setMentionUsers(@Nullable Collection<String> userIds) {
+        this.mentionUsers.clear();
+        if (userIds != null) {
+            addMentionUsers(userIds);
+        }
+    }
+
+    public void setMentionRoles(@Nullable Collection<String> roleIds) {
+        this.mentionRoles.clear();
+        if (roleIds != null) {
+            addMentionRoles(roleIds);
+        }
+    }
+
+    public void addMentionUsers(@Nonnull Collection<String> userIds) {
         Checks.noneNull(userIds, "User Id");
         mentionUsers.addAll(userIds);
     }
 
-    public void mentionRoles(@Nonnull Collection<String> roleIds) {
+    public void addMentionRoles(@Nonnull Collection<String> roleIds) {
         Checks.noneNull(roleIds, "Role Id");
         mentionRoles.addAll(roleIds);
+    }
+
+    @Deprecated
+    public void mentionUsers(@Nonnull Collection<String> userIds) {
+        addMentionUsers(userIds);
+    }
+
+    @Deprecated
+    public void mentionRoles(@Nonnull Collection<String> roleIds) {
+        addMentionRoles(roleIds);
     }
 
     @Nonnull
